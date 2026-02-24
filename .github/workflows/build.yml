@@ -30,3 +30,17 @@ jobs:
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Send APK to Telegram
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          document: build/app/outputs/flutter-apk/app-release.apk
+          message: |
+            🎉 **Nueva APK de Venered Social Disponible** 🎉
+
+            **Versión:** ${{ github.ref_name }}
+            **Estado:** ✅ Éxito
+
+            ¡Descarga la última versión adjunta!
