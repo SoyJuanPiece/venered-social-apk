@@ -279,10 +279,10 @@ class HomePage extends StatelessWidget {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- SUSTITUYE CON TUS PROPIAS CLAVES DE SUPABASE ---
+  // --- CONECTADO A TU BACKEND DE SUPABASE ---
   await Supabase.initialize(
-    url: 'https://icqgwhfciabfonkanjwm.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljcWd3aGZjaWFiZm9ua2FuandtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTkwMjc2MzUsImV4cCI6MjAzNDYwMzYzNX0.j9C1J5v0C69o1_3dY42c3G27v34A6iYa8Gj1eL4sS6Y',
+    url: 'https://nlwhegfakwzdtaxehood.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd2hlZ2Zha3d6ZHRheGVob29kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MDA5ODYsImV4cCI6MjA4NzQ3Njk4Nn0.DI8_BUf1_ON92rYHYzZzjjBHw_fKvdA6Nbg5E_BKOVk',
   );
   
   runApp(const MyApp());
