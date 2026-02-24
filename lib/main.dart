@@ -145,16 +145,11 @@ class _RegisterPageState extends State<RegisterPage> {
       final response = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
+        data: {'username': username}, // Pasa el username como metadato
       );
 
-      // 2. Si el registro es exitoso y tenemos un usuario, insertar en la tabla 'profiles'
+      // 2. Si el registro es exitoso, el trigger ya ha creado el perfil.
       if (response.user != null) {
-        final userId = response.user!.id;
-        await Supabase.instance.client.from('profiles').insert({
-          'id': userId,
-          'username': username,
-        });
-
         if (mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
