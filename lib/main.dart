@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:venered_social/screens/home_page.dart';
+import 'package:venered_social/screens/main_navigation_screen.dart';
 import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/register_page.dart';
 
@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
       // Si el usuario ya está logueado, va a HomePage, si no, a LoginPage.
       home: Supabase.instance.client.auth.currentSession == null
           ? const LoginPage()
-          : const HomePage(),
+          : const MainNavigationScreen(),
     );
   }
 }

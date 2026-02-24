@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:venered_social/screens/home_page.dart'; // Import HomePage
+import 'package:venered_social/screens/main_navigation_screen.dart'; // Import MainNavigationScreen
 import 'package:venered_social/screens/register_page.dart'; // Import RegisterPage
 
 // --- PANTALLA DE LOGIN ---
@@ -36,7 +36,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );
       }
     } on AuthException catch (e) {
