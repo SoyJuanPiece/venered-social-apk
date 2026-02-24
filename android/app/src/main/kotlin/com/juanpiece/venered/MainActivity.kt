@@ -1,5 +1,6 @@
-package com.example.venered_social
+package com.juanpiece.venered
 
 import io.flutter.embedding.android.FlutterActivity
 
-class MainActivity : FlutterActivity()
+class MainActivity: FlutterActivity() {
+}
