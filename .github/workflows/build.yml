@@ -17,7 +17,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           # He mantenido tu versión, pero asegúrate de que sea la que usas localmente
-          flutter-version: '3.19.6'
+          flutter-version: '3.35.2'
 
       - name: Install dependencies
         run: flutter pub get
