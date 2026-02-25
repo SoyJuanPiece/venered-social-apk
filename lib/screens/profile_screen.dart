@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'package:venered_social/widgets/post_card.dart'; // No longer needed for grid display in ProfileScreen
 import 'package:venered_social/screens/settings_screen.dart'; // Import SettingsScreen
+import 'package:venered_social/screens/edit_profile_screen.dart'; // Import EditProfileScreen
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -113,10 +114,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   SizedBox(
                                     width: double.infinity,
                                     child: OutlinedButton(
-                                      onPressed: () {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Editar perfil (TODO)')),
+                                      onPressed: () async {
+                                        await Navigator.of(context).push(
+                                          new MaterialPageRoute(
+                                            builder: (context) => EditProfileScreen(
+                                              initialProfile: profileSnapshot.data!,
+                                            ),
+                                          ),
                                         );
+                                        // Refresh profile data after returning from edit screen
+                                        setState(() {
+                                          _profileFuture = _fetchProfile();
+                                          _userPostsFuture = _fetchUserPosts();
+                                        });
                                       },
                                       child: const Text('Editar Perfil'),
                                     ),
