@@ -25,72 +25,103 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Venered Social',
       theme: ThemeData(
+        useMaterial3: true, // Activate Material 3
         brightness: Brightness.light,
-        primaryColor: const Color(0xFF2196F3), // A shade of blue
-        colorScheme: ColorScheme.fromSwatch(
-          primarySwatch: Colors.indigo, // Darker primary for overall app
-        ).copyWith(
-          secondary: const Color(0xFF00C853), // Accent color (e.g., green for actions)
-          background: Colors.white,
-          surface: Colors.grey[50], // Light grey surface for cards etc.
-        ),
-        scaffoldBackgroundColor: Colors.grey[100], // Very light grey background
+                  primaryColor: const Color(0xFF0095F6), // Instagram-like blue
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: const Color(0xFF0095F6), // Primary color for seed
+                    primary: const Color(0xFF0095F6), // Instagram-like blue
+                    secondary: const Color(0xFF00C853), // Keep vibrant green accent
+                    surface: Colors.white, // Keep white for cards, input fills
+                    background: Colors.white, // Pure white background
+                    error: const Color(0xFFEF5350), // Error color
+                    onPrimary: Colors.white,
+                    onSecondary: Colors.white,
+                    onSurface: const Color(0xFF262626), // Dark text for white surfaces
+                    onBackground: const Color(0xFF262626), // Dark text for white background
+                    onError: Colors.white,
+                  ),        scaffoldBackgroundColor: Colors.white, // Pure white background
 
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
-          foregroundColor: Colors.black, // App bar text/icons are black
-          elevation: 1.0, // Subtle shadow for app bar
-          centerTitle: false, // Align title to left like Instagram
+          foregroundColor: Color(0xFF1A1A1B), // App bar text/icons are dark
+          elevation: 0.0, // No shadow for app bar
+          centerTitle: false,
           titleTextStyle: TextStyle(
-            color: Colors.black,
+            color: Color(0xFF1A1A1B),
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
+          iconTheme: IconThemeData(color: Color(0xFF1A1A1B)),
         ),
 
-        cardTheme: CardThemeData( // Removed const
-          color: Colors.white,
-          elevation: 0, // No shadow for cards, as per Instagram feel
+        cardTheme: CardThemeData(
+          color: const Color(0xFFF8F9FA), // Use surface color for cards
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(0), // Sharp edges
+            borderRadius: BorderRadius.circular(16), // Rounded corners for cards
           ),
-          margin: EdgeInsets.zero, // Control margins from parent widgets
+          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 0), // Adjust margin
         ),
 
-        bottomNavigationBarTheme: BottomNavigationBarThemeData( // Removed const
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
-          selectedItemColor: Colors.indigo, // Active icon color
-          unselectedItemColor: Colors.grey[600], // Inactive icon color
-          elevation: 1.0, // Subtle shadow
-          type: BottomNavigationBarType.fixed, // Ensure icons are fixed
-          showSelectedLabels: false, // Hide labels for a cleaner look
+          selectedItemColor: const Color(0xFF3F51B5), // Active icon color
+          unselectedItemColor: const Color(0xFF65676B), // Inactive icon color
+          elevation: 0.0, // No shadow for bottom nav bar
+          type: BottomNavigationBarType.fixed,
+          showSelectedLabels: false,
           showUnselectedLabels: false,
+        ),
+        
+        navigationBarTheme: NavigationBarThemeData( // For Material 3 NavigationBar
+          backgroundColor: Colors.white,
+          indicatorColor: const Color(0xFF3F51B5).withOpacity(0.1), // Subtle indicator
+          labelTextStyle: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return const TextStyle(color: Color(0xFF3F51B5), fontSize: 12, fontWeight: FontWeight.bold);
+            }
+            return const TextStyle(color: Color(0xFF65676B), fontSize: 12);
+          }),
+          iconTheme: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return const IconThemeData(color: Color(0xFF3F51B5));
+            }
+            return const IconThemeData(color: Color(0xFF65676B));
+          }),
         ),
 
         textTheme: TextTheme(
-          headlineMedium: TextStyle(
+          displayLarge: TextStyle(
               fontSize: 24.0,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[900]),
-          bodyLarge: TextStyle(fontSize: 16.0, color: Colors.grey[800]),
-          bodyMedium: TextStyle(fontSize: 14.0, color: Colors.grey[700]),
+              color: const Color(0xFF1A1A1B)),
+          headlineMedium: TextStyle(
+              fontSize: 22.0,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1A1A1B)),
+          titleLarge: TextStyle(
+              fontSize: 18.0,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1A1A1B)),
+          bodyLarge: TextStyle(fontSize: 16.0, color: const Color(0xFF1A1A1B)),
+          bodyMedium: TextStyle(fontSize: 14.0, color: const Color(0xFF65676B)),
           labelLarge: const TextStyle(fontWeight: FontWeight.bold),
         ),
 
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            foregroundColor: Colors.white, backgroundColor: Colors.indigo, // Text color for button
+            foregroundColor: Colors.white, backgroundColor: const Color(0xFF3F51B5), // Text color for button
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            shape: const StadiumBorder(), // Rounded button shape
+            elevation: 0, // No shadow for elevated buttons
           ),
         ),
 
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.indigo, // Text color for button
-            side: const BorderSide(color: Colors.indigo),
+            foregroundColor: const Color(0xFF3F51B5), // Text color for button
+            side: const BorderSide(color: Color(0xFF3F51B5)),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -99,24 +130,24 @@ class MyApp extends StatelessWidget {
         ),
 
         inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFFF8F9FA), // Input fill color
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(12), // Rounded input borders
+            borderSide: BorderSide.none, // No border line
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Colors.indigo, width: 2),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF3F51B5), width: 1), // Focused border
           ),
-          filled: true,
-          fillColor: Colors.grey[50],
           contentPadding:
               const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-          labelStyle: TextStyle(color: Colors.grey[600]),
-          hintStyle: TextStyle(color: Colors.grey[400]),
+          labelStyle: const TextStyle(color: Color(0xFF65676B)),
+          hintStyle: const TextStyle(color: Color(0xFF65676B)),
         ),
 
         visualDensity: VisualDensity.adaptivePlatformDensity,

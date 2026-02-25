@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
 import 'package:flutter/foundation.dart'; // Required for debugPrint
+import 'package:transparent_image/transparent_image.dart'; // Added for FadeInImage
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -57,6 +58,11 @@ class _PostCardState extends State<PostCard> {
           ),
         );
       }
+      // Revert UI state if API call fails
+      setState(() {
+        _isLiked = !_isLiked;
+        _likeCount = _isLiked ? _likeCount + 1 : _likeCount - 1;
+      });
     }
   }
 
@@ -69,39 +75,68 @@ class _PostCardState extends State<PostCard> {
     final String description = widget.post['description'] ?? '';
     final String? imageUrl = widget.post['image_url'] as String?;
 
+    // Placeholder for comments count
+    final int commentsCount = 5; // TODO: Fetch real comments count
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0), // Adjust margin for a more feed-like look
       elevation: 0, // Remove card elevation for Instagram feel
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Post Header (Profile Pic, Username)
+          // Post Header (Profile Pic, Username, Time, More Options)
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Colors.grey[200],
-                  backgroundImage: profilePicUrl != null
-                      ? NetworkImage(profilePicUrl)
-                      : null,
-                  child: profilePicUrl == null
-                      ? const Icon(Icons.person, color: Colors.grey)
-                      : null,
+                InkWell(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Ir al perfil de $username (TODO)')),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage: profilePicUrl != null
+                            ? NetworkImage(profilePicUrl)
+                            : null,
+                        child: profilePicUrl == null
+                            ? const Icon(Icons.person, color: Colors.grey)
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        username,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 8),
+                const Spacer(), // Pushes the following widgets to the end
                 Text(
-                  username,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  // Placeholder for time, you can format it better
+                  '${DateTime.parse(widget.post['created_at']).toLocal().hour}h ago',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Más opciones (TODO)')),
+                    );
+                  },
                 ),
               ],
             ),
           ),
           // Post Image
           if (imageUrl != null)
-            Image.network(
-              imageUrl,
+            FadeInImage.memoryNetwork(
+              placeholder: kTransparentImage,
+              image: imageUrl,
               fit: BoxFit.cover,
               width: double.infinity,
               height: 300, // Make image taller for better display
@@ -114,7 +149,7 @@ class _PostCardState extends State<PostCard> {
                 child: Icon(Icons.image, size: 50, color: Colors.grey),
               ),
             ),
-          // Action Buttons (Like, Comment - Placeholder)
+          // Action Buttons (Like, Comment, Share, Bookmark)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4.0),
             child: Row(
@@ -135,7 +170,23 @@ class _PostCardState extends State<PostCard> {
                     );
                   },
                 ),
-                // Add more actions like share if needed
+                IconButton(
+                  icon: const Icon(Icons.send_outlined), // Placeholder for share
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Compartir (TODO)')),
+                    );
+                  },
+                ),
+                const Spacer(), // Pushes bookmark to the right
+                IconButton(
+                  icon: const Icon(Icons.bookmark_border),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Guardar publicación (TODO)')),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -146,6 +197,14 @@ class _PostCardState extends State<PostCard> {
               '${username}: $description',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // View all comments (placeholder)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+            child: Text(
+              'Ver los $commentsCount comentarios',
+              style: TextStyle(color: Colors.grey[600]),
             ),
           ),
           const SizedBox(height: 8),

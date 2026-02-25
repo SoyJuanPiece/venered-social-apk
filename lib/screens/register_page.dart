@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:venered_social/screens/login_page.dart'; // Import LoginPage
+import 'package:venered_social/screens/login_page.dart';
 
 // --- PANTALLA DE REGISTRO ---
 class RegisterPage extends StatefulWidget {
@@ -52,7 +52,7 @@ class _RegisterPageState extends State<RegisterPage> {
           );
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const LoginPage()),
+            new MaterialPageRoute(builder: (context) => const LoginPage()),
           );
         }
       } else {
@@ -67,13 +67,13 @@ class _RegisterPageState extends State<RegisterPage> {
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de registro: ${e.message}'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error de registro: ${e.message}'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ocurrió un error: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Ocurrió un error: ${e.toString()}'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     }
@@ -83,41 +83,50 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Crear Cuenta')),
+      // Removed AppBar for a cleaner register screen
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24.0), // Increased padding
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                 Text('Únete a la comunidad', style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 32),
+                 Text(
+                   'Únete a la comunidad',
+                   style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                     color: Theme.of(context).colorScheme.primary, // Use primary color for brand title
+                   ),
+                 ),
+                const SizedBox(height: 48), // Increased spacing
                 TextFormField(
                   controller: _usernameController,
                   decoration: const InputDecoration(labelText: 'Nombre de usuario'),
                   validator: (value) => (value == null || value.isEmpty) ? 'El nombre de usuario es requerido' : null,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20), // Adjusted spacing
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(labelText: 'Email'),
                   validator: (value) => (value == null || !value.contains('@')) ? 'Email inválido' : null,
                   keyboardType: TextInputType.emailAddress,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20), // Adjusted spacing
                 TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(labelText: 'Contraseña'),
                   obscureText: true,
                   validator: (value) => (value == null || value.length < 6) ? 'La contraseña debe tener al menos 6 caracteres' : null,
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _register,
-                  child: const Text('Registrarse'),
+                const SizedBox(height: 32), // Adjusted spacing
+                SizedBox(
+                  width: double.infinity, // Make button full width
+                  child: ElevatedButton(
+                    onPressed: _register,
+                    child: const Text('Registrarse'),
+                  ),
                 ),
+                const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('¿Ya tienes cuenta? Inicia Sesión'),

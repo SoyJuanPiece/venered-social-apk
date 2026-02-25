@@ -24,27 +24,40 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   static const String _imgbbApiKey = 'c4fd2ded598485660696ba819347f0bb'; // PROVIDED IMGBB API KEY
 
   @override
+  void initState() {
+    super.initState();
+    debugPrint('CreatePostScreen: initState called.'); // Debug print
+  }
+
+  @override
   void dispose() {
+    debugPrint('CreatePostScreen: dispose called.'); // Debug print
     _descriptionController.dispose();
     super.dispose();
   }
 
   Future<void> _pickImage() async {
+    debugPrint('CreatePostScreen: _pickImage called.'); // Debug print
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
+        debugPrint('CreatePostScreen: Image selected: ${_imageFile!.path}'); // Debug print
       });
+    } else {
+      debugPrint('CreatePostScreen: No image selected.'); // Debug print
     }
   }
 
   Future<void> _uploadPost() async {
+    debugPrint('CreatePostScreen: _uploadPost called. _imageFile: ${_imageFile != null ? _imageFile!.path : 'null'}, description: ${_descriptionController.text}'); // Debug print
     if (_imageFile == null || _descriptionController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, selecciona una imagen y añade una descripción.'), backgroundColor: Colors.red),
       );
+      debugPrint('CreatePostScreen: Validation failed.'); // Debug print
       return;
     }
 
@@ -56,6 +69,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final userId = Supabase.instance.client.auth.currentUser!.id;
       
       // 1. Upload image to ImgBB
+      debugPrint('CreatePostScreen: Attempting to upload image to ImgBB.'); // Debug print
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('https://api.imgbb.com/1/upload?key=$_imgbbApiKey'),
@@ -82,11 +96,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       }
 
       // 2. Insert post data into Supabase Database
+      debugPrint('CreatePostScreen: Attempting to insert post data into Supabase.'); // Debug print
       await Supabase.instance.client.from('posts').insert({
         'user_id': userId,
         'image_url': imgbbUrl, // Use ImgBB URL
         'description': _descriptionController.text.trim(),
       });
+      debugPrint('CreatePostScreen: Post data inserted successfully.'); // Debug print
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -112,6 +128,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('CreatePostScreen: build method called.'); // Debug print
     return Scaffold(
       appBar: AppBar(
         title: const Text('Crear Publicación'),
