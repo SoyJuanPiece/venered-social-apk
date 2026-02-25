@@ -75,6 +75,8 @@ class _PostCardState extends State<PostCard> {
     final String description = widget.post['description'] ?? '';
     final String? imageUrl = widget.post['image_url'] as String?;
 
+    debugPrint('PostCard post data: ${widget.post}'); // Debug print to inspect data
+
     // Placeholder for comments count
     final int commentsCount = 5; // TODO: Fetch real comments count
 
