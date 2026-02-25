@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/home_feed_screen.dart';
 import 'package:venered_social/screens/profile_screen.dart';
+import 'package:venered_social/screens/create_post_screen.dart'; // New Import
+import 'package:venered_social/screens/explore_screen.dart';     // New Import
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -16,8 +18,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> _screens = [
     const HomeFeedScreen(),
+    const ExploreScreen(), // New Screen
+    const CreatePostScreen(), // New Screen
     const ProfileScreen(),
   ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,12 +35,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       appBar: AppBar(
         title: Text(
           "Venered",
-          style: Theme.of(context).textTheme.titleLarge, // Use theme's titleLarge
+          style: Theme.of(context).textTheme.titleLarge,
         ),
-        centerTitle: false, // Align title to left like Instagram
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded), // Use rounded logout icon
+            icon: const Icon(Icons.logout_rounded),
             onPressed: () async {
               await Supabase.instance.client.auth.signOut();
               if (context.mounted) {
@@ -44,7 +54,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ],
       ),
       body: _screens[_selectedIndex],
-      bottomNavigationBar: NavigationBar( // Replaced BottomNavigationBar with NavigationBar
+      bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (int index) {
           setState(() {
@@ -53,12 +63,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         },
         destinations: const [
           NavigationDestination(
-              icon: Icon(Icons.home_outlined), // Outlined icon for unselected
-              selectedIcon: Icon(Icons.home), // Filled icon for selected
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
               label: 'Home'),
+          NavigationDestination( // New Destination
+              icon: Icon(Icons.explore_outlined),
+              selectedIcon: Icon(Icons.explore),
+              label: 'Explore'),
+          NavigationDestination( // New Destination
+              icon: Icon(Icons.add_box_outlined),
+              selectedIcon: Icon(Icons.add_box),
+              label: 'Create'),
           NavigationDestination(
-              icon: Icon(Icons.person_outline), // Outlined icon for unselected
-              selectedIcon: Icon(Icons.person), // Filled icon for selected
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
               label: 'Profile'),
         ],
       ),
