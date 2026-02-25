@@ -25,7 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _profileFuture = _fetchProfile();
     _postsCountFuture = _fetchPostsCount(); // Initialize posts count
     _followersCountFuture = _fetchFollowersCount(); // Initialize followers count
-    _followingCountFuture = _fetchFollowingCount(); // Initialize following count
+    _followingCountFuture = _fetchFollowingCount(); // Initialize followers count
     _userPostsFuture = _fetchUserPosts(); // Initialize user posts
   }
 
