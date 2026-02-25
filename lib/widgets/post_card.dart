@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
 import 'package:flutter/foundation.dart'; // Required for debugPrint
 
-class PostCard extends StatefulWidget { // Converted to StatefulWidget
+class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
 
   const PostCard({super.key, required this.post});
@@ -20,11 +20,8 @@ class _PostCardState extends State<PostCard> {
   void initState() {
     super.initState();
     _likeCount = widget.post['likes_count'] ?? 0;
-    _isLiked = widget.post['is_liked_by_user'] ?? false; // Initialize from view
-    // _checkIfLiked(); // No longer needed, view provides this
+    _isLiked = widget.post['is_liked_by_user'] ?? false;
   }
-
-  // _checkIfLiked() method is removed
 
   Future<void> _toggleLike() async {
     try {
@@ -67,10 +64,10 @@ class _PostCardState extends State<PostCard> {
   Widget build(BuildContext context) {
     // Robust null checks for profiles data
     final Map<String, dynamic>? profilesData = widget.post['profiles'] is Map ? widget.post['profiles'] : null;
-    final username = profilesData?['username'] ?? 'Usuario Desconocido';
-    final profilePicUrl = profilesData?['profile_pic_url'];
-    final description = widget.post['description'] ?? '';
-    final imageUrl = post['image_url'];
+    final String username = profilesData?['username'] ?? 'Usuario Desconocido';
+    final String? profilePicUrl = profilesData?['profile_pic_url'] as String?;
+    final String description = widget.post['description'] ?? '';
+    final String? imageUrl = widget.post['image_url'] as String?;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0), // Adjust margin for a more feed-like look
