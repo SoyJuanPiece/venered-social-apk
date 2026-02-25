@@ -64,11 +64,14 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implement post creation navigation
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Crear nueva publicación (TODO)')),
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const CreatePostScreen()),
           );
+          // Refresh posts after returning from CreatePostScreen
+          setState(() {
+            _postsFuture = _fetchPosts();
+          });
         },
         child: const Icon(Icons.add),
       ),
