@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/home_feed_screen.dart';
-import 'package:venered_social/screens/profile_screen.dart'; // Import ProfileScreen
+import 'package:venered_social/screens/profile_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -15,24 +15,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const HomeFeedScreen(), // Use HomeFeedScreen
-    const ProfileScreen(), // Use ProfileScreen
+    const HomeFeedScreen(),
+    const ProfileScreen(),
   ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Venered'),
+        title: Text(
+          "Venered",
+          style: Theme.of(context).textTheme.titleLarge, // Use theme's titleLarge
+        ),
+        centerTitle: false, // Align title to left like Instagram
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded), // Use rounded logout icon
             onPressed: () async {
               await Supabase.instance.client.auth.signOut();
               if (context.mounted) {
@@ -46,20 +44,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ],
       ),
       body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+      bottomNavigationBar: NavigationBar( // Replaced BottomNavigationBar with NavigationBar
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (int index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+              icon: Icon(Icons.home_outlined), // Outlined icon for unselected
+              selectedIcon: Icon(Icons.home), // Filled icon for selected
+              label: 'Home'),
+          NavigationDestination(
+              icon: Icon(Icons.person_outline), // Outlined icon for unselected
+              selectedIcon: Icon(Icons.person), // Filled icon for selected
+              label: 'Profile'),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue,
-        onTap: _onItemTapped,
       ),
     );
   }
