@@ -73,7 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .select('image_url') // Only image_url for grid display
         .eq('user_id', userId)
         .order('created_at', ascending: false);
-    return response.data as List<Map<String, dynamic>>;
+    return response as List<Map<String, dynamic>>;
   }
 
   @override
