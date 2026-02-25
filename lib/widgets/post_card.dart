@@ -1,17 +1,75 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+import 'package:flutter/foundation.dart'; // Required for debugPrint
 
-class PostCard extends StatelessWidget {
+class PostCard extends StatefulWidget { // Converted to StatefulWidget
   final Map<String, dynamic> post;
 
   const PostCard({super.key, required this.post});
 
   @override
+  State<PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<PostCard> {
+  late bool _isLiked;
+  late int _likeCount;
+  final _userId = Supabase.instance.client.auth.currentUser!.id;
+
+  @override
+  void initState() {
+    super.initState();
+    _likeCount = widget.post['likes_count'] ?? 0;
+    _isLiked = widget.post['is_liked_by_user'] ?? false; // Initialize from view
+    // _checkIfLiked(); // No longer needed, view provides this
+  }
+
+  // _checkIfLiked() method is removed
+
+  Future<void> _toggleLike() async {
+    try {
+      if (_isLiked) {
+        // Unlike the post
+        await Supabase.instance.client
+            .from('likes')
+            .delete()
+            .eq('post_id', widget.post['id'])
+            .eq('user_id', _userId);
+        setState(() {
+          _isLiked = false;
+          _likeCount--;
+        });
+      } else {
+        // Like the post
+        await Supabase.instance.client.from('likes').insert({
+          'post_id': widget.post['id'],
+          'user_id': _userId,
+        });
+        setState(() {
+          _isLiked = true;
+          _likeCount++;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error toggling like: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al procesar el like: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Robust null checks for profiles data
-    final Map<String, dynamic>? profilesData = post['profiles'] is Map ? post['profiles'] : null;
+    final Map<String, dynamic>? profilesData = widget.post['profiles'] is Map ? widget.post['profiles'] : null;
     final username = profilesData?['username'] ?? 'Usuario Desconocido';
     final profilePicUrl = profilesData?['profile_pic_url'];
-    final description = post['description'] ?? '';
+    final description = widget.post['description'] ?? '';
     final imageUrl = post['image_url'];
 
     return Card(
@@ -65,18 +123,18 @@ class PostCard extends StatelessWidget {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.favorite_border),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Like (TODO)')),
-                    );
-                  },
+                  icon: Icon(
+                    _isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: _isLiked ? Colors.red : null,
+                  ),
+                  onPressed: _toggleLike,
                 ),
+                Text('$_likeCount'), // Display like count
                 IconButton(
                   icon: const Icon(Icons.comment_outlined),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Comment (TODO)')),
+                      const SnackBar(content: Text('Comentar (TODO)')),
                     );
                   },
                 ),

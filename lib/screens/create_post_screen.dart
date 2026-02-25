@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io'; // Required for File class
 import 'package:http/http.dart' as http; // Required for HTTP requests
 import 'dart:convert'; // Required for JSON encoding/decoding
+import 'package:flutter/foundation.dart'; // Required for debugPrint
 
 class CreatePostScreen extends StatefulWidget {
   CreatePostScreen({super.key});
@@ -61,18 +62,23 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       )..files.add(await http.MultipartFile.fromPath('image', _imageFile!.path));
 
       final response = await request.send();
+      final responseBody = await response.stream.bytesToString(); // Read response body once
+
+      debugPrint('ImgBB upload status code: ${response.statusCode}');
+      debugPrint('ImgBB upload response body: $responseBody');
 
       if (response.statusCode != 200) {
-        final responseBody = await response.stream.bytesToString();
         throw Exception('Error al subir la imagen a ImgBB: ${response.statusCode} - $responseBody');
       }
 
-      final responseBody = await response.stream.bytesToString();
       final decodedResponse = json.decode(responseBody);
       final imgbbUrl = decodedResponse['data']['url'];
 
+      debugPrint('ImgBB decoded response: $decodedResponse');
+      debugPrint('ImgBB image URL: $imgbbUrl');
+
       if (imgbbUrl == null) {
-        throw Exception('No se pudo obtener la URL de la imagen de ImgBB.');
+        throw Exception('No se pudo obtener la URL de la imagen de ImgBB. Respuesta: $responseBody');
       }
 
       // 2. Insert post data into Supabase Database
@@ -89,6 +95,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         Navigator.of(context).pop(); // Go back to feed
       }
     } catch (e) {
+      debugPrint('Error in _uploadPost: $e'); // Log all caught errors
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al crear publicación: ${e.toString()}'), backgroundColor: Colors.red),

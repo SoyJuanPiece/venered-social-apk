@@ -22,8 +22,8 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   Future<List<Map<String, dynamic>>> _fetchPosts() async {
     try {
       final response = await Supabase.instance.client
-          .from('posts')
-          .select('*, profiles(username, profile_pic_url)') // Select post data and join with profile data
+          .from('posts_with_likes_count') // Query the view
+          .select('*') // Select all columns from the view
           .order('created_at', ascending: false)
           .limit(10); // Limit to 10 posts for now
 
