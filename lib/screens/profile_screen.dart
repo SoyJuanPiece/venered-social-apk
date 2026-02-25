@@ -77,134 +77,135 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
               body: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Profile Header (Pic, Username, Stats)
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 40,
-                              backgroundColor: Colors.grey[200],
-                              backgroundImage: profilePicUrl != null
-                                  ? NetworkImage(profilePicUrl)
-                                  : null,
-                              child: profilePicUrl == null
-                                  ? const Icon(Icons.person, size: 40, color: Colors.grey)
-                                  : null,
-                            ),
-                            const SizedBox(width: 20),
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                    children: [
-                                      _buildStatColumn('Posts', 0), // TODO: Fetch actual count
-                                      _buildStatColumn('Seguidores', 0), // TODO: Fetch actual count
-                                      _buildStatColumn('Seguidos', 0), // TODO: Fetch actual count
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  // Edit Profile Button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton(
-                                      onPressed: () async {
-                                        await Navigator.of(context).push(
-                                          new MaterialPageRoute(
-                                            builder: (context) => EditProfileScreen(
-                                              initialProfile: profileSnapshot.data!,
-                                            ),
-                                          ),
-                                        );
-                                        // Refresh profile data after returning from edit screen
-                                        setState(() {
-                                          _profileFuture = _fetchProfile();
-                                          _userPostsFuture = _fetchUserPosts();
-                                        });
-                                      },
-                                      child: const Text('Editar Perfil'),
-                                    ),
-                                  ),
-                                ],
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Profile Header (Pic, Username, Stats)
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 40,
+                                backgroundColor: Colors.grey[200],
+                                backgroundImage: profilePicUrl != null
+                                    ? NetworkImage(profilePicUrl)
+                                    : null,
+                                child: profilePicUrl == null
+                                    ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                                    : null,
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Username and Bio
-                        Text(
-                          username,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          bio,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        const SizedBox(height: 16),
-                        const Divider(),
-                        // Posts Grid Header
-                        const Text(
-                          'Publicaciones',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                      children: [
+                                        _buildStatColumn('Posts', 0), // TODO: Fetch actual count
+                                        _buildStatColumn('Seguidores', 0), // TODO: Fetch actual count
+                                        _buildStatColumn('Seguidos', 0), // TODO: Fetch actual count
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    // Edit Profile Button
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton(
+                                        onPressed: () async {
+                                          await Navigator.of(context).push(
+                                            new MaterialPageRoute(
+                                              builder: (context) => EditProfileScreen(
+                                                initialProfile: profileSnapshot.data!,
+                                              ),
+                                            ),
+                                          );
+                                          // Refresh profile data after returning from edit screen
+                                          setState(() {
+                                            _profileFuture = _fetchProfile();
+                                            _userPostsFuture = _fetchUserPosts();
+                                          });
+                                        },
+                                        child: const Text('Editar Perfil'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
+                          const SizedBox(height: 16),
+                          // Username and Bio
+                          Text(
+                            username,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            bio,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          // Posts Grid Header
+                          const Text(
+                            'Publicaciones',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                // User Posts Grid
-                FutureBuilder<List<Map<String, dynamic>>>(
-                  future: _userPostsFuture,
-                  builder: (context, postsSnapshot) {
-                    if (postsSnapshot.connectionState == ConnectionState.waiting) {
-                      return const SliverFillRemaining(
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    } else if (postsSnapshot.hasError) {
-                      return SliverFillRemaining(
-                        child: Center(child: Text('Error al cargar publicaciones: ${postsSnapshot.error}')),
-                      );
-                    } else if (!postsSnapshot.hasData || postsSnapshot.data!.isEmpty) {
-                      return const SliverFillRemaining(
-                        child: Center(child: Text('No has realizado ninguna publicación aún.')),
-                      );
-                    } else {
-                      final userPosts = postsSnapshot.data!;
-                      return SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3, // 3 columns for posts
-                          crossAxisSpacing: 2.0,
-                          mainAxisSpacing: 2.0,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final post = userPosts[index];
-                            final postImageUrl = post['image_url'];
-                            return postImageUrl != null
-                                ? Image.network(
-                                    postImageUrl,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Container(color: Colors.grey[300]);
-                          },
-                          childCount: userPosts.length,
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ],
-            );
+                  // User Posts Grid
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _userPostsFuture,
+                    builder: (context, postsSnapshot) {
+                      if (postsSnapshot.connectionState == ConnectionState.waiting) {
+                        return const SliverFillRemaining(
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      } else if (postsSnapshot.hasError) {
+                        return SliverFillRemaining(
+                          child: Center(child: Text('Error al cargar publicaciones: ${postsSnapshot.error}')),
+                        );
+                      } else if (!postsSnapshot.hasData || postsSnapshot.data!.isEmpty) {
+                        return const SliverFillRemaining(
+                          child: Center(child: Text('No has realizado ninguna publicación aún.')),
+                        );
+                      } else {
+                        final userPosts = postsSnapshot.data!;
+                        return SliverGrid(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3, // 3 columns for posts
+                            crossAxisSpacing: 2.0,
+                            mainAxisSpacing: 2.0,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final post = userPosts[index];
+                              final postImageUrl = post['image_url'];
+                              return postImageUrl != null
+                                  ? Image.network(
+                                      postImageUrl,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Container(color: Colors.grey[300]);
+                            },
+                            childCount: userPosts.length,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ), // Correct closing of CustomScrollView
+            ); // Correct closing of Scaffold
           }
         },
       ),
