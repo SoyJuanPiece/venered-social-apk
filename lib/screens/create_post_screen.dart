@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io'; // Required for File class
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+  CreatePostScreen({super.key}); // Remove const
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
