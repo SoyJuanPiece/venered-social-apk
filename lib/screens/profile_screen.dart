@@ -42,6 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<int> _fetchPostsCount() async {
     final response = await Supabase.instance.client
         .from('posts')
+        .select('id') // Added .select('id')
         .eq('user_id', _userId)
         .count(CountOption.exact);
     return response;
