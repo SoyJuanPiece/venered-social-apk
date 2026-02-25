@@ -40,17 +40,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () async {
-              await Supabase.instance.client.auth.signOut();
-              if (context.mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                );
-              }
+            icon: const Icon(Icons.search), // Search icon
+            onPressed: () {
+              Navigator.of(context).push(
+                new MaterialPageRoute(builder: (context) => const ExploreScreen()),
+              );
             },
-          )
+          ),
         ],
       ),
       body: _screens[_selectedIndex],

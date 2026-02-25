@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'package:venered_social/widgets/post_card.dart'; // No longer needed for grid display in ProfileScreen
+import 'package:venered_social/screens/settings_screen.dart'; // Import SettingsScreen
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -53,12 +54,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
           } else if (!profileSnapshot.hasData) {
             return const Center(child: Text('Perfil no encontrado.'));
           } else {
-            final profile = profileSnapshot.data!;
-            final username = profile['username'] ?? 'Usuario';
-            final profilePicUrl = profile['profile_pic_url'];
-            final bio = profile['bio'] ?? 'No hay biografía.';
+            final username = profileSnapshot.data!['username'] ?? 'Usuario'; // Define username here
+            final profilePicUrl = profileSnapshot.data!['profile_pic_url'];
+            final bio = profileSnapshot.data!['bio'] ?? 'No hay biografía.';
 
-            return CustomScrollView(
+            return Scaffold(
+              appBar: AppBar(
+                title: Text(
+                  username, // Display username as title
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.settings_outlined), // Settings icon
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        new MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              body: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
