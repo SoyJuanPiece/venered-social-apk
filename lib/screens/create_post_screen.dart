@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io'; // Required for File class
+import 'package:http/http.dart' as http; // Required for HTTP requests
+import 'dart:convert'; // Required for JSON encoding/decoding
 
 class CreatePostScreen extends StatefulWidget {
-  CreatePostScreen({super.key}); // Remove const
+  CreatePostScreen({super.key});
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -14,6 +16,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   File? _imageFile;
   final TextEditingController _descriptionController = TextEditingController();
   bool _isLoading = false;
+
+  // WARNING: HARDCODING API KEYS IS A SECURITY RISK.
+  // In a production app, use environment variables, a backend proxy,
+  // or build-time injection to secure this key.
+  static const String _imgbbApiKey = 'c4fd2ded598485660696ba819347f0bb'; // PROVIDED IMGBB API KEY
 
   @override
   void dispose() {
@@ -46,26 +53,32 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     try {
       final userId = Supabase.instance.client.auth.currentUser!.id;
-      final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final bucket = 'posts_images'; // As per schema.sql
-
-      // 1. Upload image to Supabase Storage
-      final response = await Supabase.instance.client.storage
-          .from(bucket)
-          .upload(fileName, _imageFile!, fileOptions: const FileOptions(upsert: false));
       
-      if (response == null || response.isEmpty) {
-         throw Exception('Error al subir la imagen a Supabase Storage.');
+      // 1. Upload image to ImgBB
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://api.imgbb.com/1/upload?key=$_imgbbApiKey'),
+      )..files.add(await http.MultipartFile.fromPath('image', _imageFile!.path));
+
+      final response = await request.send();
+
+      if (response.statusCode != 200) {
+        final responseBody = await response.stream.bytesToString();
+        throw Exception('Error al subir la imagen a ImgBB: ${response.statusCode} - $responseBody');
       }
 
-      final publicUrl = Supabase.instance.client.storage
-          .from(bucket)
-          .getPublicUrl(fileName);
+      final responseBody = await response.stream.bytesToString();
+      final decodedResponse = json.decode(responseBody);
+      final imgbbUrl = decodedResponse['data']['url'];
+
+      if (imgbbUrl == null) {
+        throw Exception('No se pudo obtener la URL de la imagen de ImgBB.');
+      }
 
       // 2. Insert post data into Supabase Database
       await Supabase.instance.client.from('posts').insert({
         'user_id': userId,
-        'image_url': publicUrl,
+        'image_url': imgbbUrl, // Use ImgBB URL
         'description': _descriptionController.text.trim(),
       });
 
