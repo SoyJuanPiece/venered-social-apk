@@ -40,30 +40,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<int> _fetchPostsCount() async {
-    final count = await Supabase.instance.client
+    final response = await Supabase.instance.client
         .from('posts')
-        .select('id') // Added .select('id')
+        .select('id')
         .eq('user_id', _userId)
         .count(CountOption.exact);
-    return count;
+    return response.count!;
   }
 
   Future<int> _fetchFollowersCount() async {
-    final count = await Supabase.instance.client
+    final response = await Supabase.instance.client
         .from('followers')
-        .select('id') // Added .select('id')
+        .select('id')
         .eq('following_id', _userId)
         .count(CountOption.exact);
-    return count;
+    return response.count!;
   }
 
   Future<int> _fetchFollowingCount() async {
-    final count = await Supabase.instance.client
+    final response = await Supabase.instance.client
         .from('followers')
-        .select('id') // Added .select('id')
+        .select('id')
         .eq('follower_id', _userId)
         .count(CountOption.exact);
-    return count;
+    return response.count!;
   }
 
   Future<List<Map<String, dynamic>>> _fetchUserPosts() async {
@@ -73,7 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .select('image_url') // Only image_url for grid display
         .eq('user_id', userId)
         .order('created_at', ascending: false);
-    return response as List<Map<String, dynamic>>;
+    return response.data as List<Map<String, dynamic>>;
   }
 
   @override
@@ -96,181 +96,154 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final bio = profileSnapshot.data!['bio'] ?? 'No hay biografía.';
 
               return NestedScrollView(
-                headerSliverBuilder: (context, innerBoxIsScrolled) => [
-                  SliverAppBar(
-                    title: Text(
-                      username, // Display username as title
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    actions: [
-                      IconButton(
-                        icon: const Icon(Icons.settings_outlined), // Settings icon
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                          );
-                        },
+                headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+                  return <Widget>[
+                    SliverAppBar(
+                      title: Text(
+                        username, // Display username as title
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                    ],
-                    pinned: true,
-                    floating: true,
-                    snap: true,
-                    forceElevated: innerBoxIsScrolled,
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Profile Header (Pic, Stats)
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center, // Align items vertically
-                            children: [
-                              CircleAvatar(
-                                radius: 40,
-                                backgroundColor: Colors.grey[200],
-                                backgroundImage: profilePicUrl != null
-                                    ? NetworkImage(profilePicUrl)
-                                    : null,
-                                child: profilePicUrl == null
-                                    ? const Icon(Icons.person, size: 40, color: Colors.grey)
-                                    : null,
-                              ),
-                              const SizedBox(width: 20), // Space between avatar and stats
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                      children: [
-                                        FutureBuilder<int>(
-                                          future: _postsCountFuture,
-                                          builder: (context, snapshot) {
-                                            if (snapshot.connectionState == ConnectionState.waiting) {
-                                              return _buildStatColumn('Posts', 0);
-                                            } else if (snapshot.hasError) {
-                                              return _buildStatColumn('Posts', 0); // Or error indicator
-                                            } else {
-                                              return _buildStatColumn('Posts', snapshot.data ?? 0);
-                                            }
-                                          },
-                                        ),
-                                        FutureBuilder<int>(
-                                          future: _followersCountFuture,
-                                          builder: (context, snapshot) {
-                                            if (snapshot.connectionState == ConnectionState.waiting) {
-                                              return _buildStatColumn('Seguidores', 0);
-                                            } else if (snapshot.hasError) {
-                                              return _buildStatColumn('Seguidores', 0);
-                                            } else {
-                                              return _buildStatColumn('Seguidores', snapshot.data ?? 0);
-                                            }
-                                          },
-                                        ),
-                                        FutureBuilder<int>(
-                                          future: _followingCountFuture,
-                                          builder: (context, snapshot) {
-                                            if (snapshot.connectionState == ConnectionState.waiting) {
-                                              return _buildStatColumn('Seguidos', 0);
-                                            } else if (snapshot.hasError) {
-                                              return _buildStatColumn('Seguidos', 0);
-                                            } else {
-                                              return _buildStatColumn('Seguidos', snapshot.data ?? 0);
-                                            }
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10), // Space between stats and button
-                                    // Edit Profile Button
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: OutlinedButton(
-                                        onPressed: () async {
-                                          await Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (context) => EditProfileScreen(
-                                                initialProfile: profileSnapshot.data!,
-                                              ),
-                                            ),
-                                          );
-                                          // Refresh all data after returning from edit screen
-                                          setState(() {
-                                            _profileFuture = _fetchProfile();
-                                            _postsCountFuture = _fetchPostsCount();
-                                            _followersCountFuture = _fetchFollowersCount();
-                                            _followingCountFuture = _fetchFollowingCount();
-                                            _userPostsFuture = _fetchUserPosts(); // Also refresh posts
-                                          });
-                                        },
-                                        child: const Text('Editar Perfil'),
-                                      ),
-                                    ),
-                                  ],
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.settings_outlined), // Settings icon
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                            );
+                          },
+                        ),
+                      ],
+                      pinned: true,
+                      floating: true,
+                      snap: true,
+                      forceElevated: innerBoxIsScrolled,
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Profile Header (Pic, Stats)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center, // Align items vertically
+                              children: [
+                                CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor: Colors.grey[200],
+                                  backgroundImage: profilePicUrl != null
+                                      ? NetworkImage(profilePicUrl)
+                                      : null,
+                                  child: profilePicUrl == null
+                                      ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                                      : null,
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Username and Bio
-                          Text(
-                            username,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            bio,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          const SizedBox(height: 16),
-                          // Story Highlights Placeholder
-                          SizedBox(
-                            height: 100, // Height for horizontal highlights
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: 5, // Placeholder for a few highlights
-                              itemBuilder: (context, index) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 10.0),
-                                  child: Column(
+                                const SizedBox(width: 20), // Space between avatar and stats
+                                Expanded(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                                     children: [
-                                      CircleAvatar(
-                                        radius: 30,
-                                        backgroundColor: Colors.grey[300],
-                                        child: const Icon(Icons.add, color: Colors.grey),
+                                      FutureBuilder<int>(
+                                        future: _postsCountFuture,
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState == ConnectionState.waiting) {
+                                            return _buildStatColumn('Posts', 0);
+                                          } else if (snapshot.hasError) {
+                                            return _buildStatColumn('Posts', 0); // Or error indicator
+                                          } else {
+                                            return _buildStatColumn('Posts', snapshot.data ?? 0);
+                                          }
+                                        },
                                       ),
-                                      const SizedBox(height: 5),
-                                      Text(
-                                        'Highlight ${index + 1}',
-                                        style: const TextStyle(fontSize: 12),
+                                      FutureBuilder<int>(
+                                        future: _followersCountFuture,
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState == ConnectionState.waiting) {
+                                            return _buildStatColumn('Seguidores', 0);
+                                          } else if (snapshot.hasError) {
+                                            return _buildStatColumn('Seguidores', 0);
+                                          } else {
+                                            return _buildStatColumn('Seguidores', snapshot.data ?? 0);
+                                          }
+                                        },
+                                      ),
+                                      FutureBuilder<int>(
+                                        future: _followingCountFuture,
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState == ConnectionState.waiting) {
+                                            return _buildStatColumn('Seguidos', 0);
+                                          } else if (snapshot.hasError) {
+                                            return _buildStatColumn('Seguidos', 0);
+                                          } else {
+                                            return _buildStatColumn('Seguidos', snapshot.data ?? 0);
+                                          }
+                                        },
                                       ),
                                     ],
                                   ),
-                                );
-                              },
+                                ),
+                              ],
                             ),
-                          ),
-                          const Divider(),
-                        ],
+                            const SizedBox(height: 16),
+                            // Username and Bio
+                            Text(
+                              username,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              bio,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            const SizedBox(height: 16),
+                            // Story Highlights Placeholder
+                            SizedBox(
+                              height: 100, // Height for horizontal highlights
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: 5, // Placeholder for a few highlights
+                                itemBuilder: (context, index) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 10.0),
+                                    child: Column(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 30,
+                                          backgroundColor: Colors.grey[300],
+                                          child: const Icon(Icons.add, color: Colors.grey),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          'Highlight ${index + 1}',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const Divider(),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  SliverPersistentHeader(
-                    delegate: _SliverAppBarDelegate(
-                      TabBar(
-                        tabs: const [
-                          Tab(icon: Icon(Icons.grid_on)), // Posts tab
-                          Tab(icon: Icon(Icons.bookmark_border)), // Saved tab
-                        ],
-                        indicatorColor: Theme.of(context).primaryColor,
-                        labelColor: Theme.of(context).primaryColor,
-                        unselectedLabelColor: Colors.grey,
+                    SliverPersistentHeader(
+                      delegate: _SliverAppBarDelegate(
+                        TabBar(
+                          tabs: const [
+                            Tab(icon: Icon(Icons.grid_on)), // Posts tab
+                            Tab(icon: Icon(Icons.bookmark_border)), // Saved tab
+                          ],
+                          indicatorColor: Theme.of(context).primaryColor,
+                          labelColor: Theme.of(context).primaryColor,
+                          unselectedLabelColor: Colors.grey,
+                        ),
                       ),
+                      pinned: true,
                     ),
-                    pinned: true,
-                  ),
-                ],
+                  ];
+                },
                 body: TabBarView(
                   children: [
                     // Posts Grid
@@ -281,42 +254,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           return const Center(child: CircularProgressIndicator());
                         } else if (postsSnapshot.hasError) {
                           return Center(child: Text('Error al cargar publicaciones: ${postsSnapshot.error}'));
-                        );
-                      } else if (!postsSnapshot.hasData || postsSnapshot.data!.isEmpty) {
-                        return const Center(child: Text('No has realizado ninguna publicación aún.'));
-                      } else {
-                        final userPosts = postsSnapshot.data!;
-                        return GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3, // 3 columns for posts
-                            crossAxisSpacing: 2.0,
-                            mainAxisSpacing: 2.0,
-                          ),
-                          itemCount: userPosts.length,
-                          itemBuilder: (context, index) {
-                            final post = userPosts[index];
-                            final postImageUrl = post['image_url'];
-                            return postImageUrl != null
-                                ? FadeInImage.memoryNetwork(
-                                    placeholder: kTransparentImage,
-                                    image: postImageUrl,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Container(color: Colors.grey[300]);
-                          },
-                        );
-                      }
-                    },
-                  ),
-                  // Saved Posts Placeholder
-                  const Center(
-                    child: Text('Publicaciones Guardadas (TODO)'),
-                  ),
-                ],
-              ),
-            );
-          }
-        },
+                        } else if (!postsSnapshot.hasData || postsSnapshot.data!.isEmpty) {
+                          return const Center(child: Text('No has realizado ninguna publicación aún.'));
+                        } else {
+                          final userPosts = postsSnapshot.data!;
+                          return GridView.builder(
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3, // 3 columns for posts
+                              crossAxisSpacing: 2.0,
+                              mainAxisSpacing: 2.0,
+                            ),
+                            itemCount: userPosts.length,
+                            itemBuilder: (context, index) {
+                              final post = userPosts[index];
+                              final postImageUrl = post['image_url'];
+                              return postImageUrl != null
+                                  ? FadeInImage.memoryNetwork(
+                                      placeholder: kTransparentImage,
+                                      image: postImageUrl,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Container(color: Colors.grey[300]);
+                            },
+                          );
+                        }
+                      },
+                    ),
+                    // Saved Posts Placeholder
+                    const Center(
+                      child: Text('Publicaciones Guardadas (TODO)'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          },
+        ),
       ),
     );
   }
