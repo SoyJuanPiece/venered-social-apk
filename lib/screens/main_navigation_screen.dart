@@ -17,10 +17,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const HomeFeedScreen(),
-    const ExploreScreen(), // New Screen
-    const CreatePostScreen(), // New Screen
-    const ProfileScreen(),
+    HomeFeedScreen(), // Remove const
+    ExploreScreen(),
+    CreatePostScreen(),
+    ProfileScreen(),  // Remove const
   ];
 
   void _onItemTapped(int index) {
