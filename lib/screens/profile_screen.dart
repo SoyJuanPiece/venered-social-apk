@@ -42,25 +42,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<int> _fetchPostsCount() async {
     final response = await Supabase.instance.client
         .from('posts')
-        .select('id', const FetchOptions(count: CountOption.exact))
-        .eq('user_id', _userId);
-    return response.count;
+        .eq('user_id', _userId)
+        .count(CountOption.exact);
+    return response;
   }
 
   Future<int> _fetchFollowersCount() async {
     final response = await Supabase.instance.client
         .from('followers')
-        .select('id', const FetchOptions(count: CountOption.exact))
-        .eq('following_id', _userId);
-    return response.count;
+        .eq('following_id', _userId)
+        .count(CountOption.exact);
+    return response;
   }
 
   Future<int> _fetchFollowingCount() async {
     final response = await Supabase.instance.client
         .from('followers')
-        .select('id', const FetchOptions(count: CountOption.exact))
-        .eq('follower_id', _userId);
-    return response.count;
+        .eq('follower_id', _userId)
+        .count(CountOption.exact);
+    return response;
   }
 
   Future<List<Map<String, dynamic>>> _fetchUserPosts() async {
