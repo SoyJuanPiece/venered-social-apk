@@ -48,7 +48,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
 
-        cardTheme: CardTheme(
+        cardTheme: const CardThemeData(
           color: Colors.white,
           elevation: 0, // No shadow for cards, as per Instagram feel
           shape: RoundedRectangleBorder(
@@ -57,7 +57,7 @@ class MyApp extends StatelessWidget {
           margin: EdgeInsets.zero, // Control margins from parent widgets
         ),
 
-        bottomNavigationBarTheme: BottomNavigationBarTheme(
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
           selectedItemColor: Colors.indigo, // Active icon color
           unselectedItemColor: Colors.grey[600], // Inactive icon color
