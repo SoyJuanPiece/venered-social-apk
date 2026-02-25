@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/widgets/post_card.dart'; // Import PostCard
+import 'package:venered_social/screens/create_post_screen.dart'; // MISSING IMPORT ADDED
 
 class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
