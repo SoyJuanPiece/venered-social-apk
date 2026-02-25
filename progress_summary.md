@@ -25,7 +25,7 @@ El workflow de GitHub Actions fallaba con un error relacionado con `flutter pub 
 Después de resolver los problemas de embedding, el build falló con errores de script de compilación de Kotlin en `android/app/build.gradle.kts`, específicamente `Expression 'versionCode' of type 'Int' cannot be invoked as a function.`.
 
 ### Solución
-- Se corrigió la sintaxis en `android/app/build.gradle.kts`, cambiando `flutter.versionCode()` a `flutter.versionCode` y `flutter.versionName()` a `flutter.versionName` para usar el acceso a propiedades en lugar de llamadas a funciones en Kotlin DSL.
+- Se corrigió la sintaxis en `android/app/build.gradle.kts`, cambiando `flutter.versionCode()` a `flutter.versionCode` y `flutter.versionName()` a `flutter.versionName` para usar el acceso a propiedades en Kotlin DSL.
 
 ## 4. Problema: `SocketException` en Android (Falta Permiso de Internet)
 
@@ -33,7 +33,7 @@ Después de resolver los problemas de embedding, el build falló con errores de 
 La aplicación lanzaba un `SocketException` (`Failed host lookup: 'nlwhegfakwzdtaxehood.supabase.co'`) al intentar comunicarse con Supabase, indicando un problema de conexión de red.
 
 ### Solución
-- Se añadió el permiso `android.permission.INTERNET` al archivo `android/app/src/main/AndroidManifest.xml` (fuera de la etiqueta `<application>`) para permitir que la aplicación realizara operaciones de red.
+- Se añadió el permiso `android.permission.INTERNET` al archivo `android/app/src/main/AndroidManifest.xml` para permitir que la aplicación realizara operaciones de red.
 
 ## 5. Problema: Error de Base de Datos de Supabase (NULL username en `profiles`)
 
@@ -48,11 +48,52 @@ Se recibió el error "Database error saving new user" (Fallo inesperado) durante
 
 ### Solución
 1.  **Modificación de la Aplicación Flutter (`lib/main.dart`):**
-    - Se actualizó la función `_register` en `lib/main.dart` para pasar el `username` como metadato al método `supabase.auth.signUp` (`data: {'username': username}`).
-    - Se eliminó la inserción manual redundante del perfil en la tabla `profiles` desde la aplicación, ya que el trigger es el encargado de esto.
+    - Se actualizó la función `_register` en `lib/main.dart` para pasar el `username` como metadato al método `supabase.auth.signUp`.
+    - Se eliminó la inserción manual redundante del perfil en la tabla `profiles` desde la aplicación.
 2.  **Modificación del Trigger de Supabase (`schema.sql` y `fix_handle_new_user.sql`):**
-    - Se actualizó la función `public.handle_new_user()` en `schema.sql` (y se creó un archivo `fix_handle_new_user.sql` para facilitar la ejecución) para incluir una lógica de `COALESCE`. Ahora, si `new.raw_user_meta_data->>'username'` es nulo (ej. en la creación manual de usuarios), se genera un nombre de usuario por defecto (`'user-' || new.id::text`), asegurando que la columna `username` siempre reciba un valor no nulo.
-    - Se instruyó al usuario para ejecutar este fragmento de SQL directamente en el SQL Editor de Supabase para actualizar la función en la base de datos.
+    - Se actualizó la función `public.handle_new_user()` en `schema.sql` (y se creó un archivo `fix_handle_new_user.sql` para facilitar la ejecución) para incluir una lógica de `COALESCE`. Ahora, si `new.raw_user_meta_data->>'username'` es nulo, se genera un nombre de usuario por defecto.
 
-## Próximos Pasos (Pendiente de Confirmación del Usuario)
-- El usuario debe probar la creación manual de usuarios en Supabase y el registro de usuarios a través de la aplicación Flutter después de aplicar el último script SQL a su base de datos.
+## 6. Configuración de Notificaciones de Telegram para GitHub Actions
+
+### Descripción
+Se solicitó enviar la APK compilada por GitHub Actions a un chat de Telegram.
+
+### Solución
+- Se explicó la importancia de usar GitHub Secrets para `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`.
+- Se añadió un paso al workflow `.github/workflows/build.yml` utilizando `appleboy/telegram-action@master` para enviar el `app-release.apk` a Telegram tras una compilación exitosa.
+
+## 7. Refactorización de la Estructura del Código y Desarrollo Inicial de la UI
+
+### Descripción
+Se inició el desarrollo de las pantallas de la aplicación social, enfocándose en una estructura modular y una UI inicial.
+
+### Solución
+- **Modularización:** Se refactorizó `lib/main.dart` moviendo `LoginPage`, `RegisterPage` y `HomePage` (renombrada a `MainNavigationScreen`) a sus propios archivos dentro de `lib/screens/`.
+- **Navegación Principal:** Se implementó `MainNavigationScreen` con una `BottomNavigationBar` para alternar entre el feed y el perfil.
+- **HomeFeedScreen:** Se implementó la lógica inicial para obtener publicaciones de Supabase y mostrarlas.
+- **PostCard:** Se creó el widget `PostCard` para la representación modular de cada publicación.
+- **ProfileScreen:** Se implementó la lógica inicial para obtener y mostrar el perfil y las publicaciones del usuario.
+
+## 8. Problema: Errores de Compilación en `ThemeData` (Incompatibilidad de Clases)
+
+### Descripción del Error
+Tras implementar el "super rediseño" global, la compilación falló con errores como "The argument type 'CardTheme' can't be assigned to the parameter type 'CardThemeData?'", indicando que `ThemeData` esperaba subtipos `*ThemeData` específicos.
+
+### Solución
+- Se corrigió `lib/main.dart` para usar `CardThemeData` y `BottomNavigationBarThemeData` en lugar de `CardTheme` y `BottomNavigationBarTheme` respectivamente, resolviendo los errores de compilación con Flutter `3.35.2`.
+
+## 9. Rediseño Visual de Componentes (En Progreso)
+
+### Descripción
+Se inició un "super rediseño" de la aplicación para lograr una estética moderna similar a Instagram.
+
+### Solución
+- **Tema Global:** Se aplicó un `ThemeData` completo en `lib/main.dart` para definir un `ColorScheme` moderno y estilos para `AppBar`, `BottomNavigationBar`, `Card`, tipografía, botones y campos de entrada.
+- **PostCard Mejorado:** Se mejoró el diseño del `PostCard` para incluir un encabezado con foto de perfil y nombre de usuario, una imagen prominente y botones de acción de marcador de posición.
+- **ProfileScreen Mejorado:** Se rediseñó la `ProfileScreen` con un encabezado de perfil estructurado, estadísticas de marcador de posición y una cuadrícula para mostrar las publicaciones del usuario.
+
+## Próximas Tareas Pendientes
+
+- Desarrollar la funcionalidad para crear nuevas publicaciones (selección de imagen, descripción, subida a Supabase Storage).
+- Implementar la funcionalidad de "Me gusta" (likes) para las publicaciones.
+- Implementar la funcionalidad de "Seguir" (follow) para usuarios.
