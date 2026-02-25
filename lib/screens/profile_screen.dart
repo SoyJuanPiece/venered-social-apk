@@ -40,28 +40,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<int> _fetchPostsCount() async {
-    final response = await Supabase.instance.client
+    final count = await Supabase.instance.client
         .from('posts')
         .select('id') // Added .select('id')
         .eq('user_id', _userId)
         .count(CountOption.exact);
-    return response;
+    return count;
   }
 
   Future<int> _fetchFollowersCount() async {
-    final response = await Supabase.instance.client
+    final count = await Supabase.instance.client
         .from('followers')
+        .select('id') // Added .select('id')
         .eq('following_id', _userId)
         .count(CountOption.exact);
-    return response;
+    return count;
   }
 
   Future<int> _fetchFollowingCount() async {
-    final response = await Supabase.instance.client
+    final count = await Supabase.instance.client
         .from('followers')
+        .select('id') // Added .select('id')
         .eq('follower_id', _userId)
         .count(CountOption.exact);
-    return response;
+    return count;
   }
 
   Future<List<Map<String, dynamic>>> _fetchUserPosts() async {
@@ -279,42 +281,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           return const Center(child: CircularProgressIndicator());
                         } else if (postsSnapshot.hasError) {
                           return Center(child: Text('Error al cargar publicaciones: ${postsSnapshot.error}'));
-                        } else if (!postsSnapshot.hasData || postsSnapshot.data!.isEmpty) {
-                          return const Center(child: Text('No has realizado ninguna publicación aún.'));
-                        } else {
-                          final userPosts = postsSnapshot.data!;
-                          return GridView.builder(
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3, // 3 columns for posts
-                              crossAxisSpacing: 2.0,
-                              mainAxisSpacing: 2.0,
-                            ),
-                            itemCount: userPosts.length,
-                            itemBuilder: (context, index) {
-                              final post = userPosts[index];
-                              final postImageUrl = post['image_url'];
-                              return postImageUrl != null
-                                  ? FadeInImage.memoryNetwork(
-                                      placeholder: kTransparentImage,
-                                      image: postImageUrl,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Container(color: Colors.grey[300]);
-                            },
-                          );
-                        }
-                      },
-                    ),
-                    // Saved Posts Placeholder
-                    const Center(
-                      child: Text('Publicaciones Guardadas (TODO)'),
-                    ),
-                  ],
-                ),
-              );
-            }
-          },
-        ),
+                        );
+                      } else if (!postsSnapshot.hasData || postsSnapshot.data!.isEmpty) {
+                        return const Center(child: Text('No has realizado ninguna publicación aún.'));
+                      } else {
+                        final userPosts = postsSnapshot.data!;
+                        return GridView.builder(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3, // 3 columns for posts
+                            crossAxisSpacing: 2.0,
+                            mainAxisSpacing: 2.0,
+                          ),
+                          itemCount: userPosts.length,
+                          itemBuilder: (context, index) {
+                            final post = userPosts[index];
+                            final postImageUrl = post['image_url'];
+                            return postImageUrl != null
+                                ? FadeInImage.memoryNetwork(
+                                    placeholder: kTransparentImage,
+                                    image: postImageUrl,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(color: Colors.grey[300]);
+                          },
+                        );
+                      }
+                    },
+                  ),
+                  // Saved Posts Placeholder
+                  const Center(
+                    child: Text('Publicaciones Guardadas (TODO)'),
+                  ),
+                ],
+              ),
+            );
+          }
+        },
       ),
     );
   }
