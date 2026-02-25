@@ -66,7 +66,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const CreatePostScreen()),
+            MaterialPageRoute(builder: (context) => CreatePostScreen()),
           );
           // Refresh posts after returning from CreatePostScreen
           setState(() {
