@@ -25,7 +25,100 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Venered Social',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        brightness: Brightness.light,
+        primaryColor: const Color(0xFF2196F3), // A shade of blue
+        colorScheme: ColorScheme.fromSwatch(
+          primarySwatch: Colors.indigo, // Darker primary for overall app
+        ).copyWith(
+          secondary: const Color(0xFF00C853), // Accent color (e.g., green for actions)
+          background: Colors.white,
+          surface: Colors.grey[50], // Light grey surface for cards etc.
+        ),
+        scaffoldBackgroundColor: Colors.grey[100], // Very light grey background
+
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black, // App bar text/icons are black
+          elevation: 1.0, // Subtle shadow for app bar
+          centerTitle: false, // Align title to left like Instagram
+          titleTextStyle: TextStyle(
+            color: Colors.black,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        cardTheme: CardTheme(
+          color: Colors.white,
+          elevation: 0, // No shadow for cards, as per Instagram feel
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(0), // Sharp edges
+          ),
+          margin: EdgeInsets.zero, // Control margins from parent widgets
+        ),
+
+        bottomNavigationBarTheme: BottomNavigationBarTheme(
+          backgroundColor: Colors.white,
+          selectedItemColor: Colors.indigo, // Active icon color
+          unselectedItemColor: Colors.grey[600], // Inactive icon color
+          elevation: 1.0, // Subtle shadow
+          type: BottomNavigationBarType.fixed, // Ensure icons are fixed
+          showSelectedLabels: false, // Hide labels for a cleaner look
+          showUnselectedLabels: false,
+        ),
+
+        textTheme: TextTheme(
+          headlineMedium: TextStyle(
+              fontSize: 24.0,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[900]),
+          bodyLarge: TextStyle(fontSize: 16.0, color: Colors.grey[800]),
+          bodyMedium: TextStyle(fontSize: 14.0, color: Colors.grey[700]),
+          labelLarge: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            foregroundColor: Colors.white, backgroundColor: Colors.indigo, // Text color for button
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.indigo, // Text color for button
+            side: const BorderSide(color: Colors.indigo),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.indigo, width: 2),
+          ),
+          filled: true,
+          fillColor: Colors.grey[50],
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+          labelStyle: TextStyle(color: Colors.grey[600]),
+          hintStyle: TextStyle(color: Colors.grey[400]),
+        ),
+
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       // --- LÓGICA DE NAVEGACIÓN INICIAL ---
