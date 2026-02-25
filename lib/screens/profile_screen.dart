@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:venered_social/widgets/post_card.dart'; // Import PostCard
+// import 'package:venered_social/widgets/post_card.dart'; // No longer needed for grid display in ProfileScreen
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -34,7 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final userId = Supabase.instance.client.auth.currentUser!.id;
     final response = await Supabase.instance.client
         .from('posts')
-        .select('*, profiles(username, profile_pic_url)')
+        .select('image_url') // Only image_url for grid display
         .eq('user_id', userId)
         .order('created_at', ascending: false);
     return response as List<Map<String, dynamic>>;
@@ -60,53 +60,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             return CustomScrollView(
               slivers: [
-                SliverAppBar(
-                  expandedHeight: 200.0,
-                  floating: false,
-                  pinned: true,
-                  flexibleSpace: FlexibleSpaceBar(
-                    title: Text(username),
-                    background: profilePicUrl != null
-                        ? Image.network(profilePicUrl, fit: BoxFit.cover)
-                        : Container(color: Colors.grey),
-                  ),
-                  actions: [
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () {
-                        // TODO: Implement Edit Profile functionality
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Editar perfil (TODO)')),
-                        );
-                      },
-                    ),
-                  ],
-                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '@$username',
-                          style: Theme.of(context).textTheme.headlineSmall,
+                        // Profile Header (Pic, Username, Stats)
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 40,
+                              backgroundColor: Colors.grey[200],
+                              backgroundImage: profilePicUrl != null
+                                  ? NetworkImage(profilePicUrl)
+                                  : null,
+                              child: profilePicUrl == null
+                                  ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                                  : null,
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                    children: [
+                                      _buildStatColumn('Posts', 0), // TODO: Fetch actual count
+                                      _buildStatColumn('Seguidores', 0), // TODO: Fetch actual count
+                                      _buildStatColumn('Seguidos', 0), // TODO: Fetch actual count
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  // Edit Profile Button
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton(
+                                      onPressed: () {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Editar perfil (TODO)')),
+                                        );
+                                      },
+                                      child: const Text('Editar Perfil'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(bio),
+                        const SizedBox(height: 16),
+                        // Username and Bio
+                        Text(
+                          username,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          bio,
+                          style: const TextStyle(fontSize: 14),
+                        ),
                         const SizedBox(height: 16),
                         const Divider(),
+                        // Posts Grid Header
                         const Text(
-                          'Tus Publicaciones',
+                          'Publicaciones',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
                 ),
+                // User Posts Grid
                 FutureBuilder<List<Map<String, dynamic>>>(
                   future: _userPostsFuture,
                   builder: (context, postsSnapshot) {
@@ -124,11 +153,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       );
                     } else {
                       final userPosts = postsSnapshot.data!;
-                      return SliverList(
+                      return SliverGrid(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3, // 3 columns for posts
+                          crossAxisSpacing: 2.0,
+                          mainAxisSpacing: 2.0,
+                        ),
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             final post = userPosts[index];
-                            return PostCard(post: post);
+                            final postImageUrl = post['image_url'];
+                            return postImageUrl != null
+                                ? Image.network(
+                                    postImageUrl,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(color: Colors.grey[300]);
                           },
                           childCount: userPosts.length,
                         ),
@@ -141,6 +181,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         },
       ),
+    );
+  }
+
+  // Helper method for building stat columns (Posts, Followers, Following)
+  Column _buildStatColumn(String label, int count) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          count.toString(),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 14, color: Colors.grey),
+        ),
+      ],
     );
   }
 }
