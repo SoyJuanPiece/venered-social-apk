@@ -7,8 +7,10 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final username = post['profiles']['username'] ?? 'Usuario Desconocido';
-    final profilePicUrl = post['profiles']['profile_pic_url'];
+    // Robust null checks for profiles data
+    final Map<String, dynamic>? profilesData = post['profiles'] is Map ? post['profiles'] : null;
+    final username = profilesData?['username'] ?? 'Usuario Desconocido';
+    final profilePicUrl = profilesData?['profile_pic_url'];
     final description = post['description'] ?? '';
     final imageUrl = post['image_url'];
 
