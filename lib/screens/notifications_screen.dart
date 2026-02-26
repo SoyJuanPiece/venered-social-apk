@@ -105,8 +105,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       future: supabase.from('profiles').select().eq('id', notification['sender_id']).single(),
       builder: (context, snapshot) {
         final profile = snapshot.data;
-        return Container(
-          color: isRead ? Colors.transparent : theme.colorScheme.primary.withOpacity(0.05),
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          elevation: 1,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: isRead ? theme.cardColor : theme.colorScheme.primary.withOpacity(0.05),
           child: ListTile(
             leading: CircleAvatar(
               backgroundImage: profile?['avatar_url'] != null ? NetworkImage(profile!['avatar_url']) : null,

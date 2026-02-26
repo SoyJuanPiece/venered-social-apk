@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/chat_screen.dart';
+import 'package:venered_social/widgets/user_search_dialog.dart';
 import 'package:intl/intl.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -21,59 +22,27 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   void _setupStream() {
-    // Note: In a real app, we'd use a view or a more complex query.
-    // For now, we listen to conversation_participants to know which chats we belong to.
+    // We'll subscribe to the user's participant rows just to be notified about
+    // any change (new conversation, participant removed, etc.). Every time the
+    // event arrives we call an RPC that returns all the information in a
+    // single query, avoiding the previous N+1 pattern.
+    final userId = supabase.auth.currentUser!.id;
+
     _conversationsStream = supabase
         .from('conversation_participants')
         .stream(primaryKey: ['id'])
-        .eq('user_id', supabase.auth.currentUser!.id)
+        .eq('user_id', userId)
         .asyncMap((event) async {
-          List<Map<String, dynamic>> conversations = [];
-          for (var participant in event) {
-            final convId = participant['conversation_id'];
-            
-            // Get conversation details
-            final convData = await supabase
-                .from('conversations')
-                .select()
-                .eq('id', convId)
-                .single();
-            
-            // Get other participant profile
-            final otherParticipant = await supabase
-                .from('conversation_participants')
-                .select('user_id')
-                .eq('conversation_id', convId)
-                .neq('user_id', supabase.auth.currentUser!.id)
-                .maybeSingle();
-            
-            if (otherParticipant != null) {
-              final otherProfile = await supabase
-                  .from('profiles')
-                  .select()
-                  .eq('id', otherParticipant['user_id'])
-                  .single();
-              
-              // Get last message
-              final lastMessage = await supabase
-                  .from('messages')
-                  .select()
-                  .eq('conversation_id', convId)
-                  .order('created_at', ascending: false)
-                  .limit(1)
-                  .maybeSingle();
-
-              conversations.add({
-                'id': convId,
-                'other_user': otherProfile,
-                'last_message': lastMessage,
-                'updated_at': convData['last_message_at'],
-              });
-            }
+          final res = await supabase.rpc('get_user_conversations', params: {
+            'p_user_id': userId,
+          });
+          if (res.error != null) {
+            // log and return empty list so the UI doesn't break
+            debugPrint('get_user_conversations rpc error: ${res.error}');
+            return <Map<String, dynamic>>[];
           }
-          // Sort by date
-          conversations.sort((a, b) => (b['updated_at'] as String).compareTo(a['updated_at'] as String));
-          return conversations;
+          return (res.data as List<dynamic>)
+              .cast<Map<String, dynamic>>();
         });
   }
 
@@ -89,9 +58,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add_comment_outlined),
-            onPressed: () {
-              // TODO: Implement new chat search
-            },
+            onPressed: _startNewChat,
           ),
         ],
       ),
@@ -109,55 +76,66 @@ class _MessagesScreenState extends State<MessagesScreen> {
           }
 
           return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: conversations.length,
-            separatorBuilder: (context, index) => const Divider(height: 1, indent: 80),
+            separatorBuilder: (context, index) => const SizedBox(height: 4),
             itemBuilder: (context, index) {
               final chat = conversations[index];
-              final otherUser = chat['other_user'];
-              final lastMsg = chat['last_message'];
+              final otherUsername = chat['other_username'] as String?;
+              final otherAvatar = chat['other_avatar_url'] as String?;
+              final lastContent = chat['last_message_content'] as String?;
+              final lastSender = chat['last_message_sender_id'];
               final updatedAt = DateTime.parse(chat['updated_at']);
 
-              return ListTile(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatScreen(
-                      conversationId: chat['id'],
-                      otherUser: otherUser,
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                elevation: 1,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(
+                        conversationId: chat['conversation_id'],
+                        otherUser: {
+                          'id': chat['other_user_id'],
+                          'username': otherUsername,
+                          'avatar_url': otherAvatar,
+                        },
+                      ),
                     ),
                   ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.grey[200],
-                  backgroundImage: otherUser['avatar_url'] != null 
-                      ? NetworkImage(otherUser['avatar_url']) 
-                      : null,
-                  child: otherUser['avatar_url'] == null 
-                      ? const Icon(Icons.person, color: Colors.grey) 
-                      : null,
-                ),
-                title: Text(
-                  otherUser['username'] ?? 'Usuario',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                subtitle: Text(
-                  lastMsg != null ? lastMsg['content'] : 'No hay mensajes aún',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: lastMsg != null && !lastMsg['is_read'] && lastMsg['sender_id'] != supabase.auth.currentUser!.id
-                        ? theme.colorScheme.onSurface
-                        : Colors.grey,
-                    fontWeight: lastMsg != null && !lastMsg['is_read'] && lastMsg['sender_id'] != supabase.auth.currentUser!.id
-                        ? FontWeight.bold
-                        : FontWeight.normal,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: CircleAvatar(
+                    radius: 28,
+                    backgroundColor: theme.colorScheme.onBackground.withOpacity(0.1),
+                    backgroundImage: otherAvatar != null ? NetworkImage(otherAvatar) : null,
+                    child: otherAvatar == null
+                        ? Icon(Icons.person, color: theme.colorScheme.onBackground.withOpacity(0.4))
+                        : null,
                   ),
-                ),
-                trailing: Text(
-                  DateFormat.Hm().format(updatedAt),
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  title: Text(
+                    otherUsername ?? 'Usuario',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface),
+                  ),
+                  subtitle: Text(
+                    lastContent ?? 'No hay mensajes aún',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: lastContent != null && lastSender != supabase.auth.currentUser!.id
+                          ? theme.colorScheme.onSurface.withOpacity(0.8)
+                          : theme.colorScheme.onSurface.withOpacity(0.4),
+                      fontWeight: lastContent != null && lastSender != supabase.auth.currentUser!.id
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  trailing: Text(
+                    DateFormat.Hm().format(updatedAt),
+                    style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4), fontSize: 12),
+                  ),
                 ),
               );
             },
@@ -167,39 +145,84 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 
+  Future<void> _startNewChat() async {
+    // show a richer search dialog that returns the selected profile map
+    final profile = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => const UserSearchDialog(),
+    );
+
+    if (profile == null) return;
+
+    final otherId = profile['id'] as String;
+    if (otherId == supabase.auth.currentUser!.id) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No puedes iniciar chat contigo mismo')),
+      );
+      return;
+    }
+
+    try {
+      final convRes = await supabase.rpc('create_conversation', params: {
+        'p_user1': supabase.auth.currentUser!.id,
+        'p_user2': otherId,
+      });
+
+      if (convRes.error != null) {
+        throw convRes.error!;
+      }
+      final convId = convRes.data as String;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            conversationId: convId,
+            otherUser: profile,
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error iniciando chat: $e')),
+      );
+    }
+  }
+
   Widget _buildEmptyState(ThemeData theme) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: theme.colorScheme.onBackground, width: 2),
+              border: Border.all(color: theme.colorScheme.primary, width: 2),
             ),
-            child: Icon(Icons.messenger_outline_rounded, size: 64, color: theme.colorScheme.onBackground),
+            child: Icon(Icons.messenger_outline_rounded, size: 72, color: theme.colorScheme.primary),
           ),
           const SizedBox(height: 24),
-          const Text('Envía mensajes a tus amigos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('Envía mensajes a tus amigos',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: theme.colorScheme.onBackground)),
           const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 40),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
               'Envía fotos y mensajes privados a un amigo.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: theme.colorScheme.onBackground.withOpacity(0.6)),
             ),
           ),
           const SizedBox(height: 32),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: _startNewChat,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-            child: const Text('Enviar mensaje', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('Buscar usuario', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

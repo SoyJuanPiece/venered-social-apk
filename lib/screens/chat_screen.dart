@@ -22,11 +22,24 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   late Stream<List<Map<String, dynamic>>> _messagesStream;
 
+  bool _otherOnline = false;
+  DateTime? _otherLastSeen;
+  late RealtimeSubscription _presenceSub;
+
   @override
   void initState() {
     super.initState();
     _setupStream();
     _markAsRead();
+    _setupPresence();
+    _setMyPresence(true);
+  }
+
+  @override
+  void dispose() {
+    _presenceSub.unsubscribe();
+    _setMyPresence(false);
+    super.dispose();
   }
 
   void _setupStream() {
@@ -35,6 +48,32 @@ class _ChatScreenState extends State<ChatScreen> {
         .stream(primaryKey: ['id'])
         .eq('conversation_id', widget.conversationId)
         .order('created_at', ascending: true);
+  }
+
+  void _setupPresence() {
+    final otherId = widget.otherUser['id'];
+    _presenceSub = supabase
+        .from('profiles:id=eq.$otherId')
+        .on(SupabaseEventTypes.update, (payload) {
+          final record = payload['new'] as Map<String, dynamic>;
+          setState(() {
+            _otherOnline = record['is_online'] == true;
+            if (record['last_seen'] != null) {
+              _otherLastSeen = DateTime.parse(record['last_seen']);
+            }
+          });
+        })
+        .subscribe();
+  }
+
+  Future<void> _setMyPresence(bool online) async {
+    final myId = supabase.auth.currentUser!.id;
+    try {
+      await supabase.from('profiles').update({
+        'is_online': online,
+        'last_seen': online ? null : DateTime.now().toIso8601String(),
+      }).eq('id', myId);
+    } catch (_) {}
   }
 
   Future<void> _markAsRead() async {
@@ -114,9 +153,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   widget.otherUser['username'] ?? 'Usuario',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                const Text(
-                  'En línea',
-                  style: TextStyle(fontSize: 12, color: Colors.green),
+                Text(
+                  _otherOnline
+                      ? 'En línea'
+                      : (_otherLastSeen != null
+                          ? 'Últ. vez ${DateFormat.Hm().format(_otherLastSeen!)}'
+                          : ''),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: _otherOnline ? Colors.green : Colors.grey),
                 ),
               ],
             ),
@@ -143,12 +188,27 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 return ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = messages[index];
-                    final isMe = msg['sender_id'] == myId;
-                    final time = DateTime.parse(msg['created_at']);
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    itemCount: messages.isEmpty ? 1 : messages.length,
+                    itemBuilder: (context, index) {
+                      if (messages.isEmpty) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 60),
+                            child: Text(
+                              'No hay mensajes aún\n¡Di hola!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  color: theme.colorScheme.onBackground.withOpacity(0.6)),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final msg = messages[index];
+                      final isMe = msg['sender_id'] == myId;
+                      final time = DateTime.parse(msg['created_at']);
 
                     return Align(
                       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -230,16 +290,17 @@ class _ChatScreenState extends State<ChatScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(28),
                   border: Border.all(color: theme.dividerColor),
                 ),
                 child: TextField(
                   controller: _messageController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Enviar mensaje...',
+                    hintStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5)),
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
               ),

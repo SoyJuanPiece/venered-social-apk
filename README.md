@@ -28,6 +28,9 @@ Una red social moderna tipo Instagram/Threads, hecha en Flutter, lista para prod
 
 ## Pruebas
 
+El repositorio incluye tests básicos (contador y UI del diálogo de búsqueda).
+Ejecuta:
+
 ```
 flutter test
 ```
@@ -35,7 +38,25 @@ flutter test
 ## Estructura
 - `lib/main.dart`: Código principal de la app
 - `test/app_test.dart`: Pruebas automáticas
-- `web/`: Archivos para web
+- `web/`: Archivos para web (incluye `.well-known/assetlinks.json` para enlaces de aplicación)
+
+## Deep Linking / App Links
+La aplicación soporta enlaces universales (`https://venered.social/...`) y un esquema
+personalizado `venered://`. Para que los links funcionen automáticamente en Android
+será necesario:
+
+1. Hospedar el archivo `assetlinks.json` en `https://venered.social/.well-known/assetlinks.json`.
+   - El repositorio contiene un ejemplo en `web/.well-known/assetlinks.json`.
+   - Reemplaza `<REPLACE_WITH_REAL_SHA256_FINGERPRINT>` con el fingerprint SHA-256 del
+     certificado usado para firmar la APK/Bundle (`keytool -list -v -keystore ...`).
+2. Asegurarse de que el `AndroidManifest.xml` tenga `android:autoVerify="true"` (ya está).
+
+En iOS, agrega el dominio a la key `com.apple.developer.associated-domains` en el
+`Info.plist` (ya incluido) y sube el archivo `apple-app-site-association` al servidor.
+
+Con esto, al abrir enlaces como `https://venered.social/post/<id>` el sistema ofrecerá
+abrir la aplicación directamente. También se usa `venered://post/<id>` como esquema
+alternativo para correos de confirmación de Supabase.
 
 ## Créditos
 Desarrollado por SoyJuanPiece y GitHub Copilot.

@@ -94,7 +94,7 @@ Fallo en el registro debido a `null value in column "username"`.
 
 ## Próximas Tareas Pendientes
 
-- **Optimizar Carga de DMs:** Reemplazar la consulta ineficiente (N+1) en `MessagesScreen` por una función `Postgres` (RPC) para obtener todas las conversaciones en una sola llamada.
-- **Completar Funcionalidad de DMs:** Implementar la lógica para iniciar nuevas conversaciones desde `MessagesScreen`.
-- **Presencia en Tiempo Real en DMs:** Reemplazar el estado estático "En línea" por un sistema de presencia real.
-- **Verificación de dominio para App Links:** (archivo assetlinks.json).
+- **Optimizar Carga de DMs:** Consulta refactorizada para invocar la función `get_user_conversations` de Postgres, eliminando el bucle N+1 y devolviendo todos los metadatos en una sola llamada.
+- **Completar Funcionalidad de DMs:** Añadido botón de "nuevo chat" con un diálogo de búsqueda con autocompletado (typeahead) que consulta `profiles` y permite seleccionar un usuario antes de crear la conversación.
+- **Presencia en Tiempo Real en DMs:** Se agregaron columnas `is_online`/`last_seen` y la pantalla de chat ahora escucha cambios en el perfil del otro usuario; la propia sesión actualiza su estado al abrir/cerrar la conversación.
+- **Verificación de dominio para App Links:** añadido ejemplo de `assetlinks.json` en `/web/.well-known`, actualizadas configuraciones de Android (autoVerify) e iOS (`Associated Domains`). Se documentó el proceso en el README para que el enlace universal funcione tras subir el archivo al servidor.
