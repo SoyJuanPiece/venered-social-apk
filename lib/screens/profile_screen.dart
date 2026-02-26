@@ -40,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<Map<String, dynamic>> _fetchProfile() async {
     return await Supabase.instance.client
         .from('profiles')
-        .select('username, profile_pic_url, bio')
+        .select('username, profile_pic_url, bio, profile_pic_deletehash')
         .eq('id', _userId)
         .single();
   }
@@ -48,24 +48,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<int> _fetchPostsCount() async {
     final response = await Supabase.instance.client
         .from('posts')
-        .select('id', const FetchOptions(count: CountOption.exact))
-        .eq('user_id', _userId);
+        .select('id')
+        .eq('user_id', _userId)
+        .count(CountOption.exact);
     return response.count;
   }
 
   Future<int> _fetchFollowersCount() async {
     final response = await Supabase.instance.client
         .from('followers')
-        .select('id', const FetchOptions(count: CountOption.exact))
-        .eq('following_id', _userId);
+        .select('id')
+        .eq('following_id', _userId)
+        .count(CountOption.exact);
     return response.count;
   }
 
   Future<int> _fetchFollowingCount() async {
     final response = await Supabase.instance.client
         .from('followers')
-        .select('id', const FetchOptions(count: CountOption.exact))
-        .eq('follower_id', _userId);
+        .select('id')
+        .eq('follower_id', _userId)
+        .count(CountOption.exact);
     return response.count;
   }
 
@@ -101,7 +104,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             future: _profileFuture,
             builder: (context, snapshot) => Text(
               snapshot.data?['username'] ?? 'Perfil',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onBackground),
             ),
           ),
           actions: [
@@ -161,19 +164,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: () async {
-                            await Navigator.of(context).push(MaterialPageRoute(builder: (context) => const EditProfileScreen()));
-                            _refreshProfile();
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.grey.withOpacity(0.3)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: const Text('Editar perfil', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                        ),
+                      FutureBuilder<Map<String, dynamic>>(
+                        future: _profileFuture,
+                        builder: (context, snapshot) {
+                          return SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: () async {
+                                if (snapshot.hasData) {
+                                  await Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (context) => EditProfileScreen(initialProfile: snapshot.data!),
+                                  ));
+                                  _refreshProfile();
+                                }
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.grey.withOpacity(0.3)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: Text('Editar perfil', 
+                                style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+                            ),
+                          );
+                        }
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -212,8 +225,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       future: future,
       builder: (context, snapshot) => Column(
         children: [
-          Text(snapshot.hasData ? snapshot.data.toString() : '0', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(snapshot.hasData ? snapshot.data.toString() : '0', 
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
+          Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface)),
         ],
       ),
     );
