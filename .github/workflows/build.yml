@@ -53,18 +53,7 @@ jobs:
         with:
           files: build/app/outputs/flutter-apk/app-release.apk
           name: Release ${{ github.ref_name }}
-          body: |
-            🚀 **Venered Social - Nueva Versión Disponible**
-            
-            Versión: `${{ github.ref_name }}`
-            
-            **Cambios en esta versión:**
-            - Comentarios en tiempo real (Streams).
-            - Diseño de tarjetas original con bordes suaves y sombras.
-            - Soporte para posts de solo texto con gradientes.
-            - Visualizador de imágenes en pantalla completa.
-            - Deep Linking para compartir publicaciones.
-            - Rediseño de la página de registro.
+          generate_release_notes: true
           draft: false
           prerelease: false
         env:
