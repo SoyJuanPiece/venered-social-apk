@@ -33,14 +33,8 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     _isLiked = widget.post['is_liked_by_user'] ?? false;
     _isSaved = widget.post['is_saved_by_user'] ?? false;
 
-    _heartController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _heartAnimation = CurvedAnimation(
-      parent: _heartController,
-      curve: Curves.elasticOut,
-    );
+    _heartController = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _heartAnimation = CurvedAnimation(parent: _heartController, curve: Curves.elasticOut);
   }
 
   @override
@@ -50,9 +44,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
   }
 
   Future<void> _handleDoubleTap() async {
-    if (!_isLiked) {
-      _toggleLike();
-    }
+    if (!_isLiked) _toggleLike();
     setState(() => _showBigHeart = true);
     _heartController.forward(from: 0).then((_) {
       Future.delayed(const Duration(milliseconds: 400), () {
@@ -90,7 +82,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
   }
 
   void _sharePost() {
-    final String text = '¡Mira esta publicación de ${widget.post['profiles']['username']} en Venered!\n\n${widget.post['image_url']}';
+    final String text = '¡Mira esta publicación en Venered!\n\n${widget.post['image_url'] ?? widget.post['description']}';
     Share.share(text);
   }
 
@@ -103,16 +95,29 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     );
   }
 
+  void _showFullScreenImage() {
+    if (widget.post['image_url'] == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (context) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, elevation: 0),
+        body: Center(
+          child: Hero(
+            tag: 'post_image_${widget.post['id']}',
+            child: InteractiveViewer(child: Image.network(widget.post['image_url'])),
+          ),
+        ),
+      ),
+    ));
+  }
+
   void _showMoreOptions() {
     final isOwner = widget.post['user_id'] == _userId;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
+        decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -133,7 +138,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
               ListTile(
                 leading: Icon(Icons.copy, color: Theme.of(context).colorScheme.onSurface),
                 title: const Text('Copiar enlace'),
-                onTap: () => Navigator.pop(context),
+                onTap: () { Navigator.pop(context); },
               ),
               const SizedBox(height: 10),
             ],
@@ -147,18 +152,21 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: const Text('¿Eliminar publicación?'),
+        title: const Text('¿Eliminar?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sí', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
     if (confirmed == true) {
       try {
-        final deleteUrl = widget.post['image_deletehash'];
-        if (deleteUrl != null) await http.get(Uri.parse(deleteUrl));
+        final deleteUrl = widget.post['image_deletehash'] as String?;
+        if (deleteUrl != null && deleteUrl.isNotEmpty) {
+          // ImgBB delete_url is a web page, we can't delete via API easily without an account key
+          // but we attempt to "visit" it.
+          await http.get(Uri.parse(deleteUrl)).timeout(const Duration(seconds: 5));
+        }
         await Supabase.instance.client.from('posts').delete().eq('id', widget.post['id']);
         if (widget.onDelete != null) widget.onDelete!();
       } catch (e) {
@@ -180,31 +188,14 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFCAF45), Color(0xFFF77737), Color(0xFFE1306C), Color(0xFFC13584)],
-                      begin: Alignment.bottomLeft,
-                      end: Alignment.topRight,
-                    ),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(color: theme.colorScheme.surface, shape: BoxShape.circle),
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.grey[200],
-                      backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
-                      child: profilePic == null ? const Icon(Icons.person, size: 16) : null,
-                    ),
-                  ),
+                CircleAvatar(
+                  radius: 16,
+                  backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
+                  child: profilePic == null ? const Icon(Icons.person, size: 16) : null,
                 ),
                 const SizedBox(width: 10),
                 Text(username, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
@@ -213,59 +204,58 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
               ],
             ),
           ),
-          // Content with Animation Stack
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              if (widget.post['image_url'] != null)
+          if (widget.post['image_url'] != null)
+            Stack(
+              alignment: Alignment.center,
+              children: [
                 GestureDetector(
                   onDoubleTap: _handleDoubleTap,
-                  child: FadeInImage.memoryNetwork(
-                    placeholder: kTransparentImage,
-                    image: widget.post['image_url'],
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: MediaQuery.of(context).size.width,
+                  onTap: _showFullScreenImage,
+                  child: Hero(
+                    tag: 'post_image_${widget.post['id']}',
+                    child: FadeInImage.memoryNetwork(
+                      placeholder: kTransparentImage,
+                      image: widget.post['image_url'],
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 400,
+                    ),
                   ),
                 ),
-              if (_showBigHeart)
-                ScaleTransition(
-                  scale: _heartAnimation,
-                  child: const Icon(Icons.favorite, color: Colors.white, size: 100),
-                ),
-            ],
-          ),
-          // Actions
+                if (_showBigHeart) ScaleTransition(scale: _heartAnimation, child: const Icon(Icons.favorite, color: Colors.white, size: 100)),
+              ],
+            )
+          else if (widget.post['description'] != null && widget.post['description'].isNotEmpty)
+            // Styled Text-only post
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              color: theme.colorScheme.primary.withOpacity(0.05),
+              child: Text(
+                widget.post['description'],
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                textAlign: TextAlign.center,
+              ),
+            ),
           Row(
             children: [
-              _ActionButton(
-                icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-                color: _isLiked ? Colors.red : theme.colorScheme.onSurface,
-                onPressed: _toggleLike,
-              ),
-              _ActionButton(icon: Icons.chat_bubble_outline, onPressed: _showComments),
-              _ActionButton(icon: Icons.send_outlined, onPressed: _sharePost),
+              IconButton(icon: Icon(_isLiked ? Icons.favorite : Icons.favorite_border, color: _isLiked ? Colors.red : theme.colorScheme.onSurface), onPressed: _toggleLike),
+              IconButton(icon: Icon(Icons.chat_bubble_outline, color: theme.colorScheme.onSurface), onPressed: _showComments),
               const Spacer(),
-              _ActionButton(
-                icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
-                color: _isSaved ? Colors.blue : theme.colorScheme.onSurface,
-                onPressed: _toggleSave,
-              ),
+              IconButton(icon: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border, color: _isSaved ? Colors.blue : theme.colorScheme.onSurface), onPressed: _toggleSave),
             ],
           ),
-          // Stats & Text
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_likeCount > 0)
-                  Text('$_likeCount Me gusta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.onSurface)),
+                if (_likeCount > 0) Text('$_likeCount Me gusta', style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
                 const SizedBox(height: 4),
-                if (widget.post['description'] != null && widget.post['description'].isNotEmpty)
+                if (widget.post['image_url'] != null && widget.post['description'] != null)
                   RichText(
                     text: TextSpan(
-                      style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
+                      style: TextStyle(color: theme.colorScheme.onSurface),
                       children: [
                         TextSpan(text: '$username ', style: const TextStyle(fontWeight: FontWeight.bold)),
                         TextSpan(text: widget.post['description']),
@@ -280,34 +270,12 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  DateTime.parse(widget.post['created_at']).toLocal().toString().substring(0, 10),
-                  style: const TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 0.5),
-                ),
+                const SizedBox(height: 10),
               ],
             ),
           ),
-          const SizedBox(height: 14),
         ],
       ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final Color? color;
-  final VoidCallback onPressed;
-
-  const _ActionButton({required this.icon, this.color, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(icon, color: color ?? Theme.of(context).colorScheme.onSurface),
-      onPressed: onPressed,
-      splashRadius: 20,
     );
   }
 }
