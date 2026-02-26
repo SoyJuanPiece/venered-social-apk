@@ -75,7 +75,7 @@ class _PostCardState extends State<PostCard> {
     final String description = widget.post['description'] ?? '';
     final String? imageUrl = widget.post['image_url'] as String?;
 
-    debugPrint('PostCard post data: ${widget.post}'); // Debug print to inspect data
+    // debugPrint('PostCard post data: ${widget.post}'); // Removed for on-screen debug
 
     // Placeholder for comments count
     final int commentsCount = 5; // TODO: Fetch real comments count
@@ -86,6 +86,18 @@ class _PostCardState extends State<PostCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Temporary Debug Info - START
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('DEBUG - profilesData: $profilesData', style: TextStyle(fontSize: 10, color: Colors.blueGrey)),
+                Text('DEBUG - created_at: ${widget.post['created_at']}', style: TextStyle(fontSize: 10, color: Colors.blueGrey)),
+              ],
+            ),
+          ),
+          // Temporary Debug Info - END
           // Post Header (Profile Pic, Username, Time, More Options)
           Padding(
             padding: const EdgeInsets.all(8.0),
