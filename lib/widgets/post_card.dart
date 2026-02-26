@@ -6,8 +6,9 @@ import 'package:venered_social/widgets/comments_sheet.dart'; // Import CommentsS
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
+  final VoidCallback? onDelete; // Optional callback when deleted
 
-  const PostCard({super.key, required this.post});
+  const PostCard({super.key, required this.post, this.onDelete});
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -16,6 +17,7 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   late bool _isLiked;
   late int _likeCount;
+  bool _isSaved = false; // Simulated save state
   final _userId = Supabase.instance.client.auth.currentUser!.id;
 
   @override
@@ -28,7 +30,6 @@ class _PostCardState extends State<PostCard> {
   Future<void> _toggleLike() async {
     try {
       if (_isLiked) {
-        // Unlike the post
         await Supabase.instance.client
             .from('likes')
             .delete()
@@ -39,7 +40,6 @@ class _PostCardState extends State<PostCard> {
           _likeCount--;
         });
       } else {
-        // Like the post
         await Supabase.instance.client.from('likes').insert({
           'post_id': widget.post['id'],
           'user_id': _userId,
@@ -51,19 +51,6 @@ class _PostCardState extends State<PostCard> {
       }
     } catch (e) {
       debugPrint('Error toggling like: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al procesar el like: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      // Revert UI state if API call fails
-      setState(() {
-        _isLiked = !_isLiked;
-        _likeCount = _isLiked ? _likeCount + 1 : _likeCount - 1;
-      });
     }
   }
 
@@ -71,6 +58,7 @@ class _PostCardState extends State<PostCard> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -78,147 +66,159 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
+  Future<void> _deletePost() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar publicación'),
+        content: const Text('¿Estás seguro de que quieres eliminar esta publicación?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await Supabase.instance.client.from('posts').delete().eq('id', widget.post['id']);
+        if (widget.onDelete != null) widget.onDelete!();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Publicación eliminada')));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
+      }
+    }
+  }
+
+  void _showMoreOptions() {
+    final isOwner = widget.post['user_id'] == _userId;
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isOwner)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deletePost();
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.share_outlined),
+              title: const Text('Compartir'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Copiar enlace'),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Robust null checks for profiles data
     final Map<String, dynamic>? profilesData = widget.post['profiles'] is Map ? widget.post['profiles'] : null;
-    final String username = profilesData?['username'] ?? 'Usuario Desconocido';
+    final String username = profilesData?['username'] ?? 'Usuario';
     final String? profilePicUrl = profilesData?['profile_pic_url'] as String?;
     final String description = widget.post['description'] ?? '';
     final String? imageUrl = widget.post['image_url'] as String?;
-    
-    // Get comments count from view, default to 0 if column doesn't exist yet
     final int commentsCount = widget.post['comments_count'] ?? 0;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0), // Adjust margin for a more feed-like look
-      elevation: 0, // Remove card elevation for Instagram feel
+    return Container(
+      color: Theme.of(context).colorScheme.surface,
+      margin: const EdgeInsets.only(bottom: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Post Header (Profile Pic, Username, Time, More Options)
+          // Header
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             child: Row(
               children: [
-                InkWell(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Ir al perfil de $username (TODO)')),
-                    );
-                  },
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: Colors.grey[200],
-                        backgroundImage: profilePicUrl != null
-                            ? NetworkImage(profilePicUrl)
-                            : null,
-                        child: profilePicUrl == null
-                            ? const Icon(Icons.person, color: Colors.grey)
-                            : null,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        username,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage: profilePicUrl != null ? NetworkImage(profilePicUrl) : null,
+                  child: profilePicUrl == null ? const Icon(Icons.person, size: 16, color: Colors.grey) : null,
                 ),
-                const Spacer(), // Pushes the following widgets to the end
-                Text(
-                  // Placeholder for time, you can format it better
-                  '${DateTime.parse(widget.post['created_at']).toLocal().hour}h ago',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
+                const SizedBox(width: 10),
+                Text(username, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Más opciones (TODO)')),
-                    );
-                  },
+                  icon: const Icon(Icons.more_horiz),
+                  onPressed: _showMoreOptions,
                 ),
               ],
             ),
           ),
-          // Post Image
+          // Image
           if (imageUrl != null)
-            FadeInImage.memoryNetwork(
-              placeholder: kTransparentImage,
-              image: imageUrl,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: 300, // Make image taller for better display
-            )
-          else
-            Container(
-              height: 300,
-              color: Colors.grey[300],
-              child: const Center(
-                child: Icon(Icons.image, size: 50, color: Colors.grey),
+            GestureDetector(
+              onDoubleTap: _toggleLike,
+              child: FadeInImage.memoryNetwork(
+                placeholder: kTransparentImage,
+                image: imageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: 400,
               ),
             ),
-          // Action Buttons (Like, Comment, Share, Bookmark)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    _isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: _isLiked ? Colors.red : null,
-                  ),
-                  onPressed: _toggleLike,
-                ),
-                Text('$_likeCount'), // Display like count
-                IconButton(
-                  icon: const Icon(Icons.comment_outlined),
-                  onPressed: _showComments,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send_outlined), // Placeholder for share
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Compartir (TODO)')),
-                    );
-                  },
-                ),
-                const Spacer(), // Pushes bookmark to the right
-                IconButton(
-                  icon: const Icon(Icons.bookmark_border),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Guardar publicación (TODO)')),
-                    );
-                  },
-                ),
-              ],
-            ),
+          // Actions
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(_isLiked ? Icons.favorite : Icons.favorite_border, color: _isLiked ? Colors.red : null),
+                onPressed: _toggleLike,
+              ),
+              IconButton(icon: const Icon(Icons.chat_bubble_outline), onPressed: _showComments),
+              IconButton(icon: const Icon(Icons.send_outlined), onPressed: () {}),
+              const Spacer(),
+              IconButton(
+                icon: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border),
+                onPressed: () => setState(() => _isSaved = !_isSaved),
+              ),
+            ],
           ),
+          // Likes Count
+          if (_likeCount > 0)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14.0),
+              child: Text('$_likeCount Me gusta', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
           // Description
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-            child: Text(
-              '${username}: $description',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+          if (description.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 4.0),
+              child: RichText(
+                text: TextSpan(
+                  style: DefaultTextStyle.of(context).style,
+                  children: [
+                    TextSpan(text: '$username ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    TextSpan(text: description),
+                  ],
+                ),
+              ),
             ),
-          ),
-          // View all comments
+          // Comments Link
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 4.0),
             child: InkWell(
               onTap: _showComments,
               child: Text(
-                commentsCount > 0 ? 'Ver los $commentsCount comentarios' : 'Añadir un comentario',
-                style: TextStyle(color: Colors.grey[600]),
+                commentsCount > 0 ? 'Ver los $commentsCount comentarios' : 'Añadir un comentario...',
+                style: const TextStyle(color: Colors.grey, fontSize: 14),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
         ],
       ),
     );

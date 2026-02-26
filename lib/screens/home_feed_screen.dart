@@ -68,7 +68,14 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 itemCount: posts.length,
                 itemBuilder: (context, index) {
                   final post = posts[index];
-                  return PostCard(post: post);
+                  return PostCard(
+                    post: post,
+                    onDelete: () {
+                      setState(() {
+                        _postsFuture = _fetchPosts();
+                      });
+                    },
+                  );
                 },
               ),
             );

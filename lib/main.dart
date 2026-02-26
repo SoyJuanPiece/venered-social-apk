@@ -1,8 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:venered_social/screens/main_navigation_screen.dart';
 import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/register_page.dart';
+
+// --- GESTOR DE TEMA ---
+class ThemeManager {
+  static final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
+
+  static Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final theme = prefs.getString('themeMode') ?? 'system';
+    if (theme == 'light') themeMode.value = ThemeMode.light;
+    if (theme == 'dark') themeMode.value = ThemeMode.dark;
+    if (theme == 'system') themeMode.value = ThemeMode.system;
+  }
+
+  static Future<void> updateTheme(ThemeMode mode) async {
+    themeMode.value = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('themeMode', mode.name);
+  }
+}
 
 // --- FUNCIÓN PRINCIPAL Y CONFIGURACIÓN DE LA APP ---
 Future<void> main() async {
@@ -14,6 +34,7 @@ Future<void> main() async {
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd2hlZ2Zha3d6ZHRheGVob29kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MDA5ODYsImV4cCI6MjA4NzQ3Njk4Nn0.DI8_BUf1_ON92rYHYzZzjjBHw_fKvdA6Nbg5E_BKOVk',
   );
   
+  await ThemeManager.init();
   runApp(const MyApp());
 }
 
@@ -22,254 +43,124 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Venered Social',
-      themeMode: ThemeMode.system,
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        primaryColor: const Color(0xFF0095F6),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0095F6),
-          brightness: Brightness.dark,
-          primary: const Color(0xFF0095F6),
-          secondary: const Color(0xFF00C853),
-          surface: Colors.black,
-          background: Colors.black,
-          error: const Color(0xFFCF6679),
-          onPrimary: Colors.white,
-          onSecondary: Colors.white,
-          onSurface: Colors.white,
-          onBackground: Colors.white,
-          onError: Colors.black,
-        ),
-        scaffoldBackgroundColor: Colors.black,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
-          elevation: 0.0,
-          centerTitle: false,
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-          iconTheme: IconThemeData(color: Colors.white),
-        ),
-        cardTheme: CardThemeData(
-          color: const Color(0xFF121212),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 0),
-        ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Colors.black,
-          selectedItemColor: Color(0xFF3F51B5),
-          unselectedItemColor: Colors.grey,
-          elevation: 0.0,
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-        ),
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: Colors.black,
-          indicatorColor: const Color(0xFF3F51B5).withOpacity(0.3),
-          labelTextStyle: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.selected)) {
-              return const TextStyle(color: Color(0xFF3F51B5), fontSize: 12, fontWeight: FontWeight.bold);
-            }
-            return const TextStyle(color: Colors.grey, fontSize: 12);
-          }),
-          iconTheme: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.selected)) {
-              return const IconThemeData(color: Color(0xFF3F51B5));
-            }
-            return const IconThemeData(color: Colors.grey);
-          }),
-        ),
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold, color: Colors.white),
-          headlineMedium: TextStyle(fontSize: 22.0, fontWeight: FontWeight.bold, color: Colors.white),
-          titleLarge: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold, color: Colors.white),
-          bodyLarge: TextStyle(fontSize: 16.0, color: Colors.white),
-          bodyMedium: TextStyle(fontSize: 14.0, color: Colors.grey),
-          labelLarge: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            foregroundColor: Colors.white,
-            backgroundColor: const Color(0xFF3F51B5),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: const StadiumBorder(),
-            elevation: 0,
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF3F51B5),
-            side: const BorderSide(color: Color(0xFF3F51B5)),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeManager.themeMode,
+      builder: (context, mode, child) {
+        return MaterialApp(
+          title: 'Venered Social',
+          themeMode: mode,
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            brightness: Brightness.dark,
+            primaryColor: const Color(0xFF0095F6),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF0095F6),
+              brightness: Brightness.dark,
+              primary: const Color(0xFF0095F6),
+              secondary: const Color(0xFF00C853),
+              surface: const Color(0xFF121212),
+              background: Colors.black,
+              error: const Color(0xFFCF6679),
+              onPrimary: Colors.white,
+              onSecondary: Colors.white,
+              onSurface: Colors.white,
+              onBackground: Colors.white,
+              onError: Colors.black,
+            ),
+            scaffoldBackgroundColor: Colors.black,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              elevation: 0.0,
+              centerTitle: false,
+              titleTextStyle: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              iconTheme: IconThemeData(color: Colors.white),
+            ),
+            cardTheme: CardThemeData(
+              color: const Color(0xFF121212),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
+              ),
+              margin: const EdgeInsets.symmetric(vertical: 4.0),
+            ),
+            bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+              backgroundColor: Colors.black,
+              selectedItemColor: Colors.white,
+              unselectedItemColor: Colors.grey,
+              elevation: 0.0,
+              type: BottomNavigationBarType.fixed,
+              showSelectedLabels: false,
+              showUnselectedLabels: false,
+            ),
+            textTheme: const TextTheme(
+              titleLarge: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold, color: Colors.white),
+              bodyLarge: TextStyle(fontSize: 16.0, color: Colors.white),
+              bodyMedium: TextStyle(fontSize: 14.0, color: Colors.grey),
             ),
           ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFF262626),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF3F51B5), width: 1),
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-          labelStyle: const TextStyle(color: Colors.grey),
-          hintStyle: const TextStyle(color: Colors.grey),
-        ),
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      theme: ThemeData(
-        useMaterial3: true, // Activate Material 3
-        brightness: Brightness.light,
-                  primaryColor: const Color(0xFF0095F6), // Instagram-like blue
-                  colorScheme: ColorScheme.fromSeed(
-                    seedColor: const Color(0xFF0095F6), // Primary color for seed
-                    primary: const Color(0xFF0095F6), // Instagram-like blue
-                    secondary: const Color(0xFF00C853), // Keep vibrant green accent
-                    surface: Colors.white, // Keep white for cards, input fills
-                    background: Colors.white, // Pure white background
-                    error: const Color(0xFFEF5350), // Error color
-                    onPrimary: Colors.white,
-                    onSecondary: Colors.white,
-                    onSurface: const Color(0xFF262626), // Dark text for white surfaces
-                    onBackground: const Color(0xFF262626), // Dark text for white background
-                    onError: Colors.white,
-                  ),        scaffoldBackgroundColor: Colors.white, // Pure white background
-
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF1A1A1B), // App bar text/icons are dark
-          elevation: 0.0, // No shadow for app bar
-          centerTitle: false,
-          titleTextStyle: TextStyle(
-            color: Color(0xFF1A1A1B),
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-          iconTheme: IconThemeData(color: Color(0xFF1A1A1B)),
-        ),
-
-        cardTheme: CardThemeData(
-          color: const Color(0xFFF8F9FA), // Use surface color for cards
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16), // Rounded corners for cards
-          ),
-          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 0), // Adjust margin
-        ),
-
-        bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF3F51B5), // Active icon color
-          unselectedItemColor: const Color(0xFF65676B), // Inactive icon color
-          elevation: 0.0, // No shadow for bottom nav bar
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-        ),
-        
-        navigationBarTheme: NavigationBarThemeData( // For Material 3 NavigationBar
-          backgroundColor: Colors.white,
-          indicatorColor: const Color(0xFF3F51B5).withOpacity(0.1), // Subtle indicator
-          labelTextStyle: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.selected)) {
-              return const TextStyle(color: Color(0xFF3F51B5), fontSize: 12, fontWeight: FontWeight.bold);
-            }
-            return const TextStyle(color: Color(0xFF65676B), fontSize: 12);
-          }),
-          iconTheme: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.selected)) {
-              return const IconThemeData(color: Color(0xFF3F51B5));
-            }
-            return const IconThemeData(color: Color(0xFF65676B));
-          }),
-        ),
-
-        textTheme: TextTheme(
-          displayLarge: TextStyle(
-              fontSize: 24.0,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1A1A1B)),
-          headlineMedium: TextStyle(
-              fontSize: 22.0,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1A1A1B)),
-          titleLarge: TextStyle(
-              fontSize: 18.0,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1A1A1B)),
-          bodyLarge: TextStyle(fontSize: 16.0, color: const Color(0xFF1A1A1B)),
-          bodyMedium: TextStyle(fontSize: 14.0, color: const Color(0xFF65676B)),
-          labelLarge: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            foregroundColor: Colors.white, backgroundColor: const Color(0xFF3F51B5), // Text color for button
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: const StadiumBorder(), // Rounded button shape
-            elevation: 0, // No shadow for elevated buttons
-          ),
-        ),
-
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF3F51B5), // Text color for button
-            side: const BorderSide(color: Color(0xFF3F51B5)),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+          theme: ThemeData(
+            useMaterial3: true,
+            brightness: Brightness.light,
+            primaryColor: const Color(0xFF0095F6),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF0095F6),
+              primary: const Color(0xFF0095F6),
+              secondary: const Color(0xFF00C853),
+              surface: Colors.white,
+              background: const Color(0xFFFAFAFA), // Light grey background
+              error: const Color(0xFFEF5350),
+              onPrimary: Colors.white,
+              onSecondary: Colors.white,
+              onSurface: const Color(0xFF262626),
+              onBackground: const Color(0xFF262626),
+              onError: Colors.white,
+            ),
+            scaffoldBackgroundColor: const Color(0xFFFAFAFA),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.white,
+              foregroundColor: Color(0xFF1A1A1B),
+              elevation: 0.5,
+              centerTitle: false,
+              titleTextStyle: TextStyle(
+                color: Color(0xFF1A1A1B),
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              iconTheme: IconThemeData(color: Color(0xFF1A1A1B)),
+            ),
+            cardTheme: CardThemeData(
+              color: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
+              ),
+              margin: const EdgeInsets.symmetric(vertical: 4.0),
+            ),
+            bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+              backgroundColor: Colors.white,
+              selectedItemColor: Colors.black,
+              unselectedItemColor: Color(0xFF65676B),
+              elevation: 0.0,
+              type: BottomNavigationBarType.fixed,
+              showSelectedLabels: false,
+              showUnselectedLabels: false,
+            ),
+            textTheme: const TextTheme(
+              titleLarge: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1B)),
+              bodyLarge: TextStyle(fontSize: 16.0, color: Color(0xFF1A1A1B)),
+              bodyMedium: TextStyle(fontSize: 14.0, color: Color(0xFF65676B)),
             ),
           ),
-        ),
-
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFFF8F9FA), // Input fill color
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12), // Rounded input borders
-            borderSide: BorderSide.none, // No border line
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF3F51B5), width: 1), // Focused border
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-          labelStyle: const TextStyle(color: Color(0xFF65676B)),
-          hintStyle: const TextStyle(color: Color(0xFF65676B)),
-        ),
-
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      // --- LÓGICA DE NAVEGACIÓN INICIAL ---
-      // Si el usuario ya está logueado, va a HomePage, si no, a LoginPage.
-      home: Supabase.instance.client.auth.currentSession == null
-          ? const LoginPage()
-          : const MainNavigationScreen(),
+          home: Supabase.instance.client.auth.currentSession == null
+              ? const LoginPage()
+              : const MainNavigationScreen(),
+        );
+      },
     );
   }
 }

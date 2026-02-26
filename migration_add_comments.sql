@@ -1,9 +1,9 @@
--- Migration: Add comments table and update view
+-- Migration: Add comments table and update view (FIXED for Joins)
 
--- 1. Create comments table
+-- 1. Create comments table pointing to PROFILES instead of AUTH.USERS for automatic joins
 CREATE TABLE IF NOT EXISTS public.comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL, -- Changed to public.profiles
   post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE NOT NULL,
   content TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -38,7 +38,7 @@ SELECT
     p.description,
     p.created_at,
     count(DISTINCT l.id) AS likes_count,
-    count(DISTINCT c.id) AS comments_count, -- Added comments count
+    count(DISTINCT c.id) AS comments_count,
     EXISTS (SELECT 1 FROM public.likes WHERE post_id = p.id AND user_id = auth.uid()) AS is_liked_by_user,
     json_build_object(
         'username', pr.username,
@@ -49,7 +49,7 @@ FROM
 LEFT JOIN
     public.likes l ON p.id = l.post_id
 LEFT JOIN
-    public.comments c ON p.id = c.post_id -- Join with comments
+    public.comments c ON p.id = c.post_id
 LEFT JOIN
     public.profiles pr ON p.user_id = pr.id
 GROUP BY
