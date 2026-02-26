@@ -75,8 +75,15 @@ Fallo en el registro debido a `null value in column "username"`.
     - Migraciones "Safe" que evitan errores de "Duplicate Object" en Supabase usando bloques `DO EXCEPTION`.
     - Borrado sincronizado de imágenes en **ImgBB** al eliminar publicaciones mediante el uso de `image_deletehash`.
 
+## 9. Solución de Enlaces y Navegación Externa (Deep Linking)
+
+- **Manejo de Deep Links:** Implementación de `DeepLinkHandler` utilizando el paquete `app_links` para capturar URLs entrantes.
+- **Navegación Inteligente:** La aplicación ahora es capaz de detectar enlaces tipo `venered.social/post/[ID]` o `venered://post/[ID]` y navegar automáticamente a la publicación específica.
+- **Corrección de Compartir:** Se actualizó la lógica de "Compartir" para generar enlaces dinámicos a la publicación en lugar de enlaces directos a archivos de imagen privados.
+- **Redirección de Registro:** Se configuró el soporte para el esquema `venered://` para permitir que el correo de confirmación de Supabase abra la aplicación directamente en lugar de intentar cargar `localhost:3000`.
+
 ## Próximas Tareas Pendientes
 
 - Implementación del sistema de Mensajería Directa (DMs).
-- Verificación de dominio para App Links.
+- Verificación de dominio para App Links (archivo assetlinks.json).
 - Sistema de notificaciones push en tiempo real.
