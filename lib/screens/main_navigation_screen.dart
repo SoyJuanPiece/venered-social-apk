@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/home_feed_screen.dart';
 import 'package:venered_social/screens/profile_screen.dart';
-import 'package:venered_social/screens/create_post_screen.dart'; // New Import
-import 'package:venered_social/screens/explore_screen.dart';     // New Import
+import 'package:venered_social/screens/create_post_screen.dart';
+import 'package:venered_social/screens/explore_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -17,38 +16,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    HomeFeedScreen(), // Remove const
-    ExploreScreen(),
+    const HomeFeedScreen(),
+    const ExploreScreen(),
     CreatePostScreen(),
-    ProfileScreen(),  // Remove const
+    const ProfileScreen(),
   ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "Venered",
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search), // Search icon
-            onPressed: () {
-              Navigator.of(context).push(
-                new MaterialPageRoute(builder: (context) => const ExploreScreen()),
-              );
-            },
-          ),
-        ],
-      ),
       body: _screens[_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
@@ -61,19 +37,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home),
-              label: 'Home'),
-          NavigationDestination( // New Destination
+              label: 'Inicio'),
+          NavigationDestination(
               icon: Icon(Icons.explore_outlined),
               selectedIcon: Icon(Icons.explore),
-              label: 'Explore'),
-          NavigationDestination( // New Destination
+              label: 'Explorar'),
+          NavigationDestination(
               icon: Icon(Icons.add_box_outlined),
               selectedIcon: Icon(Icons.add_box),
-              label: 'Create'),
+              label: 'Crear'),
           NavigationDestination(
               icon: Icon(Icons.person_outline),
               selectedIcon: Icon(Icons.person),
-              label: 'Profile'),
+              label: 'Perfil'),
         ],
       ),
     );

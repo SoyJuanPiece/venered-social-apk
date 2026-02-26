@@ -22,21 +22,25 @@ class _CommentsSheetState extends State<CommentsSheet> {
   }
 
   Future<List<Map<String, dynamic>>> _fetchComments() async {
-    final response = await Supabase.instance.client
-        .from('comments')
-        .select('id, content, created_at, user_id, profiles(username, profile_pic_url)')
-        .eq('post_id', widget.postId)
-        .order('created_at', ascending: true);
-    
-    return response as List<Map<String, dynamic>>;
+    try {
+      // Explicit join to avoid schema cache issues
+      final response = await Supabase.instance.client
+          .from('comments')
+          .select('id, content, created_at, user_id, profiles!user_id(username, profile_pic_url)')
+          .eq('post_id', widget.postId)
+          .order('created_at', ascending: true);
+      
+      return response as List<Map<String, dynamic>>;
+    } catch (e) {
+      debugPrint('Error fetching comments: $e');
+      return [];
+    }
   }
 
   Future<void> _postComment() async {
     if (_commentController.text.trim().isEmpty) return;
 
-    setState(() {
-      _isPosting = true;
-    });
+    setState(() => _isPosting = true);
 
     try {
       final userId = Supabase.instance.client.auth.currentUser!.id;
@@ -47,117 +51,92 @@ class _CommentsSheetState extends State<CommentsSheet> {
       });
 
       _commentController.clear();
-      // Refresh comments
-      setState(() {
-        _commentsFuture = _fetchComments();
-      });
+      setState(() { _commentsFuture = _fetchComments(); });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al publicar comentario: $e')),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isPosting = false;
-        });
-      }
+      if (mounted) setState(() => _isPosting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle bar
           Container(
-            margin: const EdgeInsets.symmetric(vertical: 10),
-            height: 4,
-            width: 40,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            height: 4, width: 40,
+            decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(2)),
           ),
-          const Text('Comentarios', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('Comentarios', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const Divider(),
           
-          // Comments List
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: _commentsFuture,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('Sé el primero en comentar.'));
-                } else {
-                  final comments = snapshot.data!;
-                  return ListView.builder(
-                    itemCount: comments.length,
-                    itemBuilder: (context, index) {
-                      final comment = comments[index];
-                      final profile = comment['profiles'] as Map<String, dynamic>?;
-                      final username = profile?['username'] ?? 'Usuario';
-                      final profilePicUrl = profile?['profile_pic_url'];
-
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: profilePicUrl != null ? NetworkImage(profilePicUrl) : null,
-                          child: profilePicUrl == null ? const Icon(Icons.person, size: 16) : null,
-                          radius: 16,
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                final comments = snapshot.data ?? [];
+                if (comments.isEmpty) return const Center(child: Text('No hay comentarios aún.', style: TextStyle(color: Colors.grey)));
+                
+                return ListView.builder(
+                  itemCount: comments.length,
+                  itemBuilder: (context, index) {
+                    final comment = comments[index];
+                    final profile = comment['profiles'] as Map<String, dynamic>?;
+                    return ListTile(
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundImage: profile?['profile_pic_url'] != null ? NetworkImage(profile!['profile_pic_url']) : null,
+                        child: profile?['profile_pic_url'] == null ? const Icon(Icons.person, size: 16) : null,
+                      ),
+                      title: RichText(
+                        text: TextSpan(
+                          style: TextStyle(color: theme.colorScheme.onSurface),
+                          children: [
+                            TextSpan(text: '${profile?['username'] ?? 'Usuario'} ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            TextSpan(text: comment['content']),
+                          ],
                         ),
-                        title: RichText(
-                          text: TextSpan(
-                            style: DefaultTextStyle.of(context).style,
-                            children: [
-                              TextSpan(
-                                text: '$username ',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              TextSpan(text: comment['content']),
-                            ],
-                          ),
-                        ),
-                        subtitle: Text(
-                          // Simple date formatting
-                          DateTime.parse(comment['created_at']).toLocal().toString().substring(0, 16),
-                          style: const TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                      );
-                    },
-                  );
-                }
+                      ),
+                      subtitle: Text(
+                        DateTime.parse(comment['created_at']).toLocal().toString().substring(0, 16),
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                    );
+                  },
+                );
               },
             ),
           ),
 
-          // Input Field
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(12.0),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _commentController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Añade un comentario...',
-                      border: InputBorder.none,
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: theme.colorScheme.background,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: _isPosting 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) 
-                    : const Icon(Icons.send, color: Colors.blue),
+                  icon: _isPosting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send, color: Colors.blue),
                   onPressed: _isPosting ? null : _postComment,
                 ),
               ],

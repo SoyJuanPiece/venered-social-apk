@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:venered_social/widgets/post_card.dart'; // Import PostCard
-import 'package:venered_social/screens/create_post_screen.dart'; // MISSING IMPORT ADDED
+import 'package:venered_social/widgets/post_card.dart';
+import 'package:venered_social/screens/create_post_screen.dart';
+import 'package:venered_social/screens/notifications_screen.dart'; // Import
+import 'package:venered_social/screens/messages_screen.dart';      // Import
 
 class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
@@ -22,23 +24,14 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   Future<List<Map<String, dynamic>>> _fetchPosts() async {
     try {
       final response = await Supabase.instance.client
-          .from('posts_with_likes_count') // Query the view
-          .select('*') // Select all columns from the view
+          .from('posts_with_likes_count')
+          .select('*')
           .order('created_at', ascending: false);
 
-      debugPrint('Supabase posts response: $response'); // Log response
       return response as List<Map<String, dynamic>>;
     } catch (e) {
-      debugPrint('Error fetching posts: $e'); // Log error
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar publicaciones: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return []; // Return empty list on error
+      debugPrint('Error fetching posts: $e');
+      return [];
     }
   }
 
@@ -51,24 +44,24 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         title: const Text(
           'Venered',
           style: TextStyle(
-            fontFamily: 'Billabong', // Placeholder
             fontSize: 28,
             fontWeight: FontWeight.bold,
+            letterSpacing: -1,
           ),
         ),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0.5,
         actions: [
           IconButton(
-            icon: const Icon(Icons.favorite_border),
-            onPressed: () {},
+            icon: const Icon(Icons.notifications_none_outlined),
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (context) => const NotificationsScreen()));
+            },
           ),
           IconButton(
-            icon: const Icon(Icons.chat_bubble_outline),
+            icon: const Icon(Icons.messenger_outline_rounded),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Mensajería Directa (Próximamente)')),
-              );
+              Navigator.of(context).push(MaterialPageRoute(builder: (context) => const MessagesScreen()));
             },
           ),
         ],
@@ -78,30 +71,21 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error al cargar publicaciones: ${snapshot.error.toString()}')); // More descriptive error
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('No hay publicaciones para mostrar.'));
           } else {
             final posts = snapshot.data!;
             return RefreshIndicator(
               onRefresh: () async {
-                setState(() {
-                  _postsFuture = _fetchPosts();
-                });
+                setState(() { _postsFuture = _fetchPosts(); });
                 await _postsFuture;
               },
               child: ListView.builder(
                 itemCount: posts.length,
                 itemBuilder: (context, index) {
-                  final post = posts[index];
                   return PostCard(
-                    post: post,
-                    onDelete: () {
-                      setState(() {
-                        _postsFuture = _fetchPosts();
-                      });
-                    },
+                    post: posts[index],
+                    onDelete: () { setState(() { _postsFuture = _fetchPosts(); }); },
                   );
                 },
               ),
@@ -110,16 +94,12 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: theme.colorScheme.primary,
         onPressed: () async {
-          await Navigator.of(context).push(
-            new MaterialPageRoute(builder: (context) => CreatePostScreen()),
-          );
-          // Refresh posts after returning from CreatePostScreen
-          setState(() {
-            _postsFuture = _fetchPosts();
-          });
+          await Navigator.of(context).push(MaterialPageRoute(builder: (context) => CreatePostScreen()));
+          setState(() { _postsFuture = _fetchPosts(); });
         },
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
