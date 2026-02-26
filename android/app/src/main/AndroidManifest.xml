@@ -19,6 +19,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="venered.social" />
+                <data android:scheme="venered" /> <!-- Added custom scheme -->
             </intent-filter>
 
             <meta-data

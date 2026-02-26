@@ -16,6 +16,7 @@ dependencies:
   transparent_image: ^2.0.1 # Added for FadeInImage placeholder
   shared_preferences: ^2.2.2 # Added for theme persistence
   share_plus: ^10.1.4 # Added for sharing posts
+  app_links: ^6.3.2 # Added for Deep Linking
 
 dev_dependencies:
   flutter_test:

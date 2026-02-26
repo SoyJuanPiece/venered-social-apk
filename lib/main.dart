@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_links/app_links.dart';
 import 'package:venered_social/screens/main_navigation_screen.dart';
 import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/register_page.dart';
+import 'package:venered_social/widgets/post_card.dart'; // To show post in a dialog or screen
 
 // --- GESTOR DE TEMA ---
 class ThemeManager {
@@ -24,6 +26,45 @@ class ThemeManager {
   }
 }
 
+// --- GESTOR DE DEEP LINKS ---
+class DeepLinkHandler {
+  static final _appLinks = AppLinks();
+  static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  static void init() {
+    _appLinks.uriLinkStream.listen((uri) {
+      _handleUri(uri);
+    });
+  }
+
+  static void _handleUri(Uri uri) async {
+    debugPrint('Incoming deep link: $uri');
+    if (uri.pathSegments.contains('post')) {
+      final postId = uri.pathSegments.last;
+      _navigateToPost(postId);
+    }
+  }
+
+  static void _navigateToPost(String postId) async {
+    try {
+      final post = await Supabase.instance.client
+          .from('posts_with_likes_count')
+          .select()
+          .eq('id', postId)
+          .single();
+
+      navigatorKey.currentState?.push(MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: const Text('Publicación')),
+          body: SingleChildScrollView(child: PostCard(post: post)),
+        ),
+      ));
+    } catch (e) {
+      debugPrint('Error navigating to deep link post: $e');
+    }
+  }
+}
+
 // --- FUNCIÓN PRINCIPAL Y CONFIGURACIÓN DE LA APP ---
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +75,8 @@ Future<void> main() async {
   );
   
   await ThemeManager.init();
+  DeepLinkHandler.init();
+  
   runApp(const MyApp());
 }
 
@@ -47,6 +90,7 @@ class MyApp extends StatelessWidget {
       builder: (context, mode, child) {
         return MaterialApp(
           title: 'Venered Social',
+          navigatorKey: DeepLinkHandler.navigatorKey, // Essential for Deep Linking navigation
           debugShowCheckedModeBanner: false,
           themeMode: mode,
           darkTheme: ThemeData(
