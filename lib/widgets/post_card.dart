@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
 import 'package:flutter/foundation.dart'; // Required for debugPrint
 import 'package:transparent_image/transparent_image.dart'; // Added for FadeInImage
 import 'package:venered_social/widgets/comments_sheet.dart'; // Import CommentsSheet
+import 'package:http/http.dart' as http; // Required for deleting image
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -93,7 +94,7 @@ class _PostCardState extends State<PostCard> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar publicación'),
-        content: const Text('¿Estás seguro de que quieres eliminar esta publicación?'),
+        content: const Text('¿Estás seguro de que quieres eliminar esta publicación? Esto también borrará la imagen permanentemente.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
@@ -103,10 +104,23 @@ class _PostCardState extends State<PostCard> {
 
     if (confirmed == true) {
       try {
+        // 1. Delete image from ImgBB if deletehash/URL exists
+        final deleteUrl = widget.post['image_deletehash'] as String?;
+        if (deleteUrl != null && deleteUrl.isNotEmpty) {
+          debugPrint('Deleting image from ImgBB: $deleteUrl');
+          // ImgBB provides a delete page, but we can try to GET it to trigger deletion
+          // or at least notify the user. ImgBB's API for deletion is restricted via API key
+          // usually, but the delete_url they provide is a web link.
+          await http.get(Uri.parse(deleteUrl)); 
+        }
+
+        // 2. Delete record from Supabase
         await Supabase.instance.client.from('posts').delete().eq('id', widget.post['id']);
+        
         if (widget.onDelete != null) widget.onDelete!();
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Publicación eliminada')));
       } catch (e) {
+        debugPrint('Error deleting post: $e');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
       }
     }

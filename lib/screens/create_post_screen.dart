@@ -87,6 +87,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       final decodedResponse = json.decode(responseBody);
       final imgbbUrl = decodedResponse['data']['url'];
+      final imgbbDeleteUrl = decodedResponse['data']['delete_url']; // Extract delete URL
 
       debugPrint('ImgBB decoded response: $decodedResponse');
       debugPrint('ImgBB image URL: $imgbbUrl');
@@ -99,7 +100,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       debugPrint('CreatePostScreen: Attempting to insert post data into Supabase.'); // Debug print
       await Supabase.instance.client.from('posts').insert({
         'user_id': userId,
-        'image_url': imgbbUrl, // Use ImgBB URL
+        'image_url': imgbbUrl, 
+        'image_deletehash': imgbbDeleteUrl, // Save the delete URL/hash
         'description': _descriptionController.text.trim(),
       });
       debugPrint('CreatePostScreen: Post data inserted successfully.'); // Debug print
