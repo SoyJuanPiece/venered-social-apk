@@ -17,7 +17,7 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   late bool _isLiked;
   late int _likeCount;
-  bool _isSaved = false; // Simulated save state
+  late bool _isSaved; 
   final _userId = Supabase.instance.client.auth.currentUser!.id;
 
   @override
@@ -25,6 +25,7 @@ class _PostCardState extends State<PostCard> {
     super.initState();
     _likeCount = widget.post['likes_count'] ?? 0;
     _isLiked = widget.post['is_liked_by_user'] ?? false;
+    _isSaved = widget.post['is_saved_by_user'] ?? false;
   }
 
   Future<void> _toggleLike() async {
@@ -51,6 +52,27 @@ class _PostCardState extends State<PostCard> {
       }
     } catch (e) {
       debugPrint('Error toggling like: $e');
+    }
+  }
+
+  Future<void> _toggleSave() async {
+    try {
+      if (_isSaved) {
+        await Supabase.instance.client
+            .from('saved_posts')
+            .delete()
+            .eq('post_id', widget.post['id'])
+            .eq('user_id', _userId);
+        setState(() => _isSaved = false);
+      } else {
+        await Supabase.instance.client.from('saved_posts').insert({
+          'post_id': widget.post['id'],
+          'user_id': _userId,
+        });
+        setState(() => _isSaved = true);
+      }
+    } catch (e) {
+      debugPrint('Error toggling save: $e');
     }
   }
 
@@ -94,10 +116,16 @@ class _PostCardState extends State<PostCard> {
     final isOwner = widget.post['user_id'] == _userId;
     showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).cardTheme.color,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: 10),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
             if (isOwner)
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
@@ -117,6 +145,7 @@ class _PostCardState extends State<PostCard> {
               title: const Text('Copiar enlace'),
               onTap: () => Navigator.pop(context),
             ),
+            const SizedBox(height: 10),
           ],
         ),
       ),
@@ -133,7 +162,7 @@ class _PostCardState extends State<PostCard> {
     final int commentsCount = widget.post['comments_count'] ?? 0;
 
     return Container(
-      color: Theme.of(context).colorScheme.surface,
+      color: Theme.of(context).cardTheme.color,
       margin: const EdgeInsets.only(bottom: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,8 +211,8 @@ class _PostCardState extends State<PostCard> {
               IconButton(icon: const Icon(Icons.send_outlined), onPressed: () {}),
               const Spacer(),
               IconButton(
-                icon: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border),
-                onPressed: () => setState(() => _isSaved = !_isSaved),
+                icon: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border, color: _isSaved ? Colors.blue : null),
+                onPressed: _toggleSave,
               ),
             ],
           ),
