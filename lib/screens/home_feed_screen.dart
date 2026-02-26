@@ -57,12 +57,20 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
             return const Center(child: Text('No hay publicaciones para mostrar.'));
           } else {
             final posts = snapshot.data!;
-            return ListView.builder(
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                final post = posts[index];
-                return PostCard(post: post);
+            return RefreshIndicator(
+              onRefresh: () async {
+                setState(() {
+                  _postsFuture = _fetchPosts();
+                });
+                await _postsFuture;
               },
+              child: ListView.builder(
+                itemCount: posts.length,
+                itemBuilder: (context, index) {
+                  final post = posts[index];
+                  return PostCard(post: post);
+                },
+              ),
             );
           }
         },

@@ -24,6 +24,119 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Venered Social',
+      themeMode: ThemeMode.system,
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        primaryColor: const Color(0xFF0095F6),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF0095F6),
+          brightness: Brightness.dark,
+          primary: const Color(0xFF0095F6),
+          secondary: const Color(0xFF00C853),
+          surface: Colors.black,
+          background: Colors.black,
+          error: const Color(0xFFCF6679),
+          onPrimary: Colors.white,
+          onSecondary: Colors.white,
+          onSurface: Colors.white,
+          onBackground: Colors.white,
+          onError: Colors.black,
+        ),
+        scaffoldBackgroundColor: Colors.black,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          elevation: 0.0,
+          centerTitle: false,
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+          iconTheme: IconThemeData(color: Colors.white),
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF121212),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 0),
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Colors.black,
+          selectedItemColor: Color(0xFF3F51B5),
+          unselectedItemColor: Colors.grey,
+          elevation: 0.0,
+          type: BottomNavigationBarType.fixed,
+          showSelectedLabels: false,
+          showUnselectedLabels: false,
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: Colors.black,
+          indicatorColor: const Color(0xFF3F51B5).withOpacity(0.3),
+          labelTextStyle: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return const TextStyle(color: Color(0xFF3F51B5), fontSize: 12, fontWeight: FontWeight.bold);
+            }
+            return const TextStyle(color: Colors.grey, fontSize: 12);
+          }),
+          iconTheme: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return const IconThemeData(color: Color(0xFF3F51B5));
+            }
+            return const IconThemeData(color: Colors.grey);
+          }),
+        ),
+        textTheme: const TextTheme(
+          displayLarge: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold, color: Colors.white),
+          headlineMedium: TextStyle(fontSize: 22.0, fontWeight: FontWeight.bold, color: Colors.white),
+          titleLarge: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold, color: Colors.white),
+          bodyLarge: TextStyle(fontSize: 16.0, color: Colors.white),
+          bodyMedium: TextStyle(fontSize: 14.0, color: Colors.grey),
+          labelLarge: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: const Color(0xFF3F51B5),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: const StadiumBorder(),
+            elevation: 0,
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF3F51B5),
+            side: const BorderSide(color: Color(0xFF3F51B5)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF262626),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF3F51B5), width: 1),
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+          labelStyle: const TextStyle(color: Colors.grey),
+          hintStyle: const TextStyle(color: Colors.grey),
+        ),
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
       theme: ThemeData(
         useMaterial3: true, // Activate Material 3
         brightness: Brightness.light,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
 import 'package:flutter/foundation.dart'; // Required for debugPrint
 import 'package:transparent_image/transparent_image.dart'; // Added for FadeInImage
+import 'package:venered_social/widgets/comments_sheet.dart'; // Import CommentsSheet
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -66,6 +67,17 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
+  void _showComments() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => CommentsSheet(postId: widget.post['id']),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Robust null checks for profiles data
@@ -74,11 +86,9 @@ class _PostCardState extends State<PostCard> {
     final String? profilePicUrl = profilesData?['profile_pic_url'] as String?;
     final String description = widget.post['description'] ?? '';
     final String? imageUrl = widget.post['image_url'] as String?;
-
-    // debugPrint('PostCard post data: ${widget.post}'); // Removed for on-screen debug
-
-    // Placeholder for comments count
-    final int commentsCount = 5; // TODO: Fetch real comments count
+    
+    // Get comments count from view, default to 0 if column doesn't exist yet
+    final int commentsCount = widget.post['comments_count'] ?? 0;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0), // Adjust margin for a more feed-like look
@@ -86,18 +96,6 @@ class _PostCardState extends State<PostCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Temporary Debug Info - START
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('DEBUG - profilesData: $profilesData', style: TextStyle(fontSize: 10, color: Colors.blueGrey)),
-                Text('DEBUG - created_at: ${widget.post['created_at']}', style: TextStyle(fontSize: 10, color: Colors.blueGrey)),
-              ],
-            ),
-          ),
-          // Temporary Debug Info - END
           // Post Header (Profile Pic, Username, Time, More Options)
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -178,11 +176,7 @@ class _PostCardState extends State<PostCard> {
                 Text('$_likeCount'), // Display like count
                 IconButton(
                   icon: const Icon(Icons.comment_outlined),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Comentar (TODO)')),
-                    );
-                  },
+                  onPressed: _showComments,
                 ),
                 IconButton(
                   icon: const Icon(Icons.send_outlined), // Placeholder for share
@@ -213,12 +207,15 @@ class _PostCardState extends State<PostCard> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // View all comments (placeholder)
+          // View all comments
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-            child: Text(
-              'Ver los $commentsCount comentarios',
-              style: TextStyle(color: Colors.grey[600]),
+            child: InkWell(
+              onTap: _showComments,
+              child: Text(
+                commentsCount > 0 ? 'Ver los $commentsCount comentarios' : 'Añadir un comentario',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
             ),
           ),
           const SizedBox(height: 8),
