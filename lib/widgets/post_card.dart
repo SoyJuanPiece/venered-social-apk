@@ -82,9 +82,8 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
   }
 
   void _sharePost() {
-    // Generamos un link real en lugar de pasar la URL de la imagen
     final String shareLink = 'https://venered.social/post/${widget.post['id']}';
-    final String text = 'Mira esta publicación de ${widget.post['profiles']['username']} en Venered: $shareLink';
+    final String text = 'Mira esta publicación en Venered: $shareLink';
     Share.share(text);
   }
 
@@ -142,8 +141,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                 title: const Text('Copiar enlace'),
                 onTap: () { 
                   Navigator.pop(context);
-                  // Simulación de copia
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace copiado al portapapeles')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace copiado')));
                 },
               ),
               const SizedBox(height: 10),
@@ -169,7 +167,6 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
       try {
         final deleteUrl = widget.post['image_deletehash'] as String?;
         if (deleteUrl != null && deleteUrl.isNotEmpty) {
-          // Intentamos visitar el link de borrado de ImgBB
           await http.get(Uri.parse(deleteUrl)).timeout(const Duration(seconds: 5));
         }
         await Supabase.instance.client.from('posts').delete().eq('id', widget.post['id']);
@@ -188,50 +185,56 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     final profilePic = profile?['profile_pic_url'];
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24), // More rounded for original feel
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5)),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => _showFullScreen(profilePic, 'profile_pic_${widget.post['id']}'),
-                  child: Hero(
-                    tag: 'profile_pic_${widget.post['id']}',
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
-                      child: profilePic == null ? const Icon(Icons.person, size: 18) : null,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => _showFullScreen(profilePic, 'profile_pic_${widget.post['id']}'),
+                    child: Hero(
+                      tag: 'profile_pic_${widget.post['id']}',
+                      child: CircleAvatar(
+                        radius: 20,
+                        backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
+                        child: profilePic == null ? const Icon(Icons.person, size: 20) : null,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Text(username, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-                const Spacer(),
-                IconButton(icon: Icon(Icons.more_horiz, color: theme.colorScheme.onSurface), onPressed: _showMoreOptions),
-              ],
+                  const SizedBox(width: 12),
+                  Text(username, style: TextStyle(fontWeight: FontWeight.w800, color: theme.colorScheme.onSurface, fontSize: 15)),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.more_horiz, color: theme.colorScheme.onSurface.withOpacity(0.6)), 
+                    onPressed: _showMoreOptions,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (widget.post['image_url'] != null)
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                GestureDetector(
-                  onDoubleTap: _handleDoubleTap,
-                  onTap: () => _showFullScreen(widget.post['image_url'], 'post_image_${widget.post['id']}'),
-                  child: Hero(
-                    tag: 'post_image_${widget.post['id']}',
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(0),
+            if (widget.post['image_url'] != null)
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  GestureDetector(
+                    onDoubleTap: _handleDoubleTap,
+                    onTap: () => _showFullScreen(widget.post['image_url'], 'post_image_${widget.post['id']}'),
+                    child: Hero(
+                      tag: 'post_image_${widget.post['id']}',
                       child: FadeInImage.memoryNetwork(
                         placeholder: kTransparentImage,
                         image: widget.post['image_url'],
@@ -241,65 +244,82 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                       ),
                     ),
                   ),
+                  if (_showBigHeart) ScaleTransition(scale: _heartAnimation, child: const Icon(Icons.favorite, color: Colors.white, size: 100)),
+                ],
+              )
+            else if (widget.post['description'] != null && widget.post['description'].isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(40),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [theme.colorScheme.primary.withOpacity(0.15), theme.colorScheme.secondary.withOpacity(0.15)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                 ),
-                if (_showBigHeart) ScaleTransition(scale: _heartAnimation, child: const Icon(Icons.favorite, color: Colors.white, size: 100)),
-              ],
-            )
-          else if (widget.post['description'] != null && widget.post['description'].isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [theme.colorScheme.primary.withOpacity(0.1), theme.colorScheme.secondary.withOpacity(0.1)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                child: Text(
+                  widget.post['description'],
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                  textAlign: TextAlign.center,
                 ),
               ),
-              child: Text(
-                widget.post['description'],
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          Row(
-            children: [
-              IconButton(icon: Icon(_isLiked ? Icons.favorite : Icons.favorite_border, color: _isLiked ? Colors.red : theme.colorScheme.onSurface), onPressed: _toggleLike),
-              IconButton(icon: Icon(Icons.chat_bubble_outline, color: theme.colorScheme.onSurface), onPressed: _showComments),
-              const Spacer(),
-              IconButton(icon: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border, color: _isSaved ? Colors.blue : theme.colorScheme.onSurface), onPressed: _toggleSave),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_likeCount > 0) Text('$_likeCount Me gusta', style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-                const SizedBox(height: 4),
-                if (widget.post['image_url'] != null && widget.post['description'] != null && widget.post['description'].isNotEmpty)
-                  RichText(
-                    text: TextSpan(
-                      style: TextStyle(color: theme.colorScheme.onSurface),
+            // Actions & Stats
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(_isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, 
+                        color: _isLiked ? Colors.red : theme.colorScheme.onSurface), 
+                        onPressed: _toggleLike,
+                      ),
+                      IconButton(icon: Icon(Icons.chat_bubble_rounded, color: theme.colorScheme.onSurface), onPressed: _showComments),
+                      const Spacer(),
+                      IconButton(
+                        icon: Icon(_isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, 
+                        color: _isSaved ? Colors.blue : theme.colorScheme.onSurface), 
+                        onPressed: _toggleSave,
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TextSpan(text: '$username ', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        TextSpan(text: widget.post['description']),
+                        if (_likeCount > 0) 
+                          Text('$_likeCount Me gusta', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                        const SizedBox(height: 6),
+                        if (widget.post['image_url'] != null && widget.post['description'] != null && widget.post['description'].isNotEmpty)
+                          RichText(
+                            text: TextSpan(
+                              style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
+                              children: [
+                                TextSpan(text: '$username ', style: const TextStyle(fontWeight: FontWeight.w800)),
+                                TextSpan(text: widget.post['description']),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: _showComments,
+                          child: Text(
+                            widget.post['comments_count'] > 0 ? 'Ver los ${widget.post['comments_count']} comentarios' : 'Sé el primero en comentar...',
+                            style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                const SizedBox(height: 6),
-                InkWell(
-                  onTap: _showComments,
-                  child: Text(
-                    widget.post['comments_count'] > 0 ? 'Ver los ${widget.post['comments_count']} comentarios' : 'Añadir un comentario...',
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
