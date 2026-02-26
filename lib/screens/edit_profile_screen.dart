@@ -56,21 +56,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  Future<void> _deleteImgbbImage(String deletehash) async {
-    debugPrint('EditProfileScreen: _deleteImgbbImage called for hash: $deletehash'); // Debug print
+  Future<void> _deleteImgbbImage(String deleteUrl) async {
+    debugPrint('EditProfileScreen: _deleteImgbbImage called for URL: $deleteUrl'); // Debug print
     try {
-      final response = await http.get(
-        Uri.parse('https://api.imgbb.com/1/delete/$deletehash?key=$_imgbbApiKey'),
-      );
-      debugPrint('ImgBB delete status code: ${response.statusCode}');
-      debugPrint('ImgBB delete response body: ${response.body}');
-      if (response.statusCode == 200) {
-        debugPrint('Old profile picture deleted from ImgBB.');
-      } else {
-        debugPrint('Failed to delete old profile picture from ImgBB: ${response.statusCode} - ${response.body}');
-      }
+      // ImgBB delete_url is usually a web page, but we try to trigger it
+      await http.get(Uri.parse(deleteUrl));
+      debugPrint('Deletion request sent to ImgBB.');
     } catch (e) {
-      debugPrint('Error deleting old profile picture from ImgBB: $e');
+      debugPrint('Error sending delete request to ImgBB: $e');
     }
   }
 
@@ -93,7 +86,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       // 1. Upload new profile picture if selected
       if (_newProfilePicFile != null) {
         debugPrint('EditProfileScreen: New profile picture selected.'); // Debug print
-        // Delete old image from ImgBB if it exists
+        // Attempt to delete old image if URL exists
         if (widget.initialProfile['profile_pic_deletehash'] != null &&
             widget.initialProfile['profile_pic_deletehash'].isNotEmpty) {
           debugPrint('Deleting old profile picture from ImgBB...');
@@ -118,14 +111,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
         final decodedResponse = json.decode(responseBody);
         newProfilePicUrl = decodedResponse['data']['url'];
-        newProfilePicDeletehash = decodedResponse['data']['deletehash'];
+        newProfilePicDeletehash = decodedResponse['data']['delete_url']; // Use delete_url consistently
 
         debugPrint('ImgBB decoded upload response: $decodedResponse');
         debugPrint('ImgBB new profile pic URL: $newProfilePicUrl');
-        debugPrint('ImgBB new profile pic deletehash: $newProfilePicDeletehash');
 
-        if (newProfilePicUrl == null || newProfilePicDeletehash == null) {
-          throw Exception('No se pudo obtener la URL o el deletehash de la nueva imagen de ImgBB. Respuesta: $responseBody');
+        if (newProfilePicUrl == null) {
+          throw Exception('No se pudo obtener la URL de la nueva imagen de ImgBB. Respuesta: $responseBody');
         }
       } else {
         debugPrint('EditProfileScreen: No new profile picture selected, skipping upload.'); // Debug print
@@ -170,10 +162,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('EditProfileScreen: build method called.'); // Debug print
+    final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Editar Perfil'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        foregroundColor: theme.colorScheme.onBackground,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -181,15 +177,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         actions: [
           _isLoading
               ? const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: CircularProgressIndicator(color: Colors.white),
+                  padding: EdgeInsets.all(12.0),
+                  child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
                 )
               : TextButton(
                   onPressed: _updateProfile,
                   child: Text(
                     'Guardar',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -197,7 +193,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0), // Consistent padding
+        padding: const EdgeInsets.all(24.0), 
         child: Form(
           key: _formKey,
           child: Column(
@@ -206,14 +202,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 onTap: _pickImage,
                 child: CircleAvatar(
                   radius: 60,
-                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  backgroundColor: theme.colorScheme.surface,
                   backgroundImage: _newProfilePicFile != null
                       ? FileImage(_newProfilePicFile!)
                       : (widget.initialProfile['profile_pic_url'] != null && widget.initialProfile['profile_pic_url'].isNotEmpty
                           ? NetworkImage(widget.initialProfile['profile_pic_url']) as ImageProvider
                           : null),
                   child: _newProfilePicFile == null && (widget.initialProfile['profile_pic_url'] == null || widget.initialProfile['profile_pic_url'].isEmpty)
-                      ? Icon(Icons.person, size: 60, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))
+                      ? Icon(Icons.person, size: 60, color: theme.colorScheme.onSurface.withOpacity(0.6))
                       : null,
                 ),
               ),
@@ -225,14 +221,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(height: 24),
               TextFormField(
                 controller: _usernameController,
-                decoration: const InputDecoration(labelText: 'Nombre de Usuario'),
+                decoration: InputDecoration(
+                  labelText: 'Nombre de Usuario',
+                  fillColor: theme.colorScheme.surface,
+                ),
+                style: TextStyle(color: theme.colorScheme.onSurface),
                 validator: (value) =>
                     (value == null || value.isEmpty) ? 'El nombre de usuario es requerido' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _bioController,
-                decoration: const InputDecoration(labelText: 'Biografía'),
+                decoration: InputDecoration(
+                  labelText: 'Biografía',
+                  fillColor: theme.colorScheme.surface,
+                ),
+                style: TextStyle(color: theme.colorScheme.onSurface),
                 maxLines: 3,
                 minLines: 1,
               ),
