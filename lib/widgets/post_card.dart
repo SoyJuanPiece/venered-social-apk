@@ -16,11 +16,15 @@ class PostCard extends StatefulWidget {
   State<PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends State<PostCard> {
+class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin {
   late bool _isLiked;
   late int _likeCount;
   late bool _isSaved; 
   final _userId = Supabase.instance.client.auth.currentUser!.id;
+  
+  bool _showBigHeart = false;
+  late AnimationController _heartController;
+  late Animation<double> _heartAnimation;
 
   @override
   void initState() {
@@ -28,6 +32,33 @@ class _PostCardState extends State<PostCard> {
     _likeCount = widget.post['likes_count'] ?? 0;
     _isLiked = widget.post['is_liked_by_user'] ?? false;
     _isSaved = widget.post['is_saved_by_user'] ?? false;
+
+    _heartController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _heartAnimation = CurvedAnimation(
+      parent: _heartController,
+      curve: Curves.elasticOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _heartController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleDoubleTap() async {
+    if (!_isLiked) {
+      _toggleLike();
+    }
+    setState(() => _showBigHeart = true);
+    _heartController.forward(from: 0).then((_) {
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted) setState(() => _showBigHeart = false);
+      });
+    });
   }
 
   Future<void> _toggleLike() async {
@@ -67,8 +98,7 @@ class _PostCardState extends State<PostCard> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.transparent,
       builder: (context) => CommentsSheet(postId: widget.post['id']),
     );
   }
@@ -77,32 +107,37 @@ class _PostCardState extends State<PostCard> {
     final isOwner = widget.post['user_id'] == _userId;
     showModalBottomSheet(
       context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-            if (isOwner)
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(2))),
+              if (isOwner)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                  onTap: () { Navigator.pop(context); _deletePost(); },
+                ),
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-                onTap: () { Navigator.pop(context); _deletePost(); },
+                leading: Icon(Icons.share_outlined, color: Theme.of(context).colorScheme.onSurface),
+                title: const Text('Compartir'),
+                onTap: () { Navigator.pop(context); _sharePost(); },
               ),
-            ListTile(
-              leading: Icon(Icons.share_outlined, color: Theme.of(context).colorScheme.onSurface),
-              title: const Text('Compartir'),
-              onTap: () { Navigator.pop(context); _sharePost(); },
-            ),
-            ListTile(
-              leading: Icon(Icons.copy, color: Theme.of(context).colorScheme.onSurface),
-              title: const Text('Copiar enlace'),
-              onTap: () => Navigator.pop(context),
-            ),
-            const SizedBox(height: 10),
-          ],
+              ListTile(
+                leading: Icon(Icons.copy, color: Theme.of(context).colorScheme.onSurface),
+                title: const Text('Copiar enlace'),
+                onTap: () => Navigator.pop(context),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
       ),
     );
@@ -112,11 +147,11 @@ class _PostCardState extends State<PostCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar'),
-        content: const Text('¿Borrar permanentemente?'),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        title: const Text('¿Eliminar publicación?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sí', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -141,19 +176,35 @@ class _PostCardState extends State<PostCard> {
 
     return Container(
       color: theme.colorScheme.surface,
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Divider(height: 1),
+          // Header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
-                  child: profilePic == null ? const Icon(Icons.person, size: 16) : null,
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFCAF45), Color(0xFFF77737), Color(0xFFE1306C), Color(0xFFC13584)],
+                      begin: Alignment.bottomLeft,
+                      end: Alignment.topRight,
+                    ),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(color: theme.colorScheme.surface, shape: BoxShape.circle),
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.grey[200],
+                      backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
+                      child: profilePic == null ? const Icon(Icons.person, size: 16) : null,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(username, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
@@ -162,55 +213,101 @@ class _PostCardState extends State<PostCard> {
               ],
             ),
           ),
-          if (widget.post['image_url'] != null)
-            GestureDetector(
-              onDoubleTap: _toggleLike,
-              child: FadeInImage.memoryNetwork(
-                placeholder: kTransparentImage,
-                image: widget.post['image_url'],
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: 400,
-              ),
-            ),
-          Row(
+          // Content with Animation Stack
+          Stack(
+            alignment: Alignment.center,
             children: [
-              IconButton(icon: Icon(_isLiked ? Icons.favorite : Icons.favorite_border, color: _isLiked ? Colors.red : theme.colorScheme.onSurface), onPressed: _toggleLike),
-              IconButton(icon: Icon(Icons.chat_bubble_outline, color: theme.colorScheme.onSurface), onPressed: _showComments),
-              IconButton(icon: Icon(Icons.send_outlined, color: theme.colorScheme.onSurface), onPressed: _sharePost),
-              const Spacer(),
-              IconButton(icon: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border, color: _isSaved ? Colors.blue : theme.colorScheme.onSurface), onPressed: _toggleSave),
+              if (widget.post['image_url'] != null)
+                GestureDetector(
+                  onDoubleTap: _handleDoubleTap,
+                  child: FadeInImage.memoryNetwork(
+                    placeholder: kTransparentImage,
+                    image: widget.post['image_url'],
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: MediaQuery.of(context).size.width,
+                  ),
+                ),
+              if (_showBigHeart)
+                ScaleTransition(
+                  scale: _heartAnimation,
+                  child: const Icon(Icons.favorite, color: Colors.white, size: 100),
+                ),
             ],
           ),
-          if (_likeCount > 0)
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text('$_likeCount Me gusta', style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface))),
-          if (widget.post['description'] != null && widget.post['description'].isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              child: RichText(
-                text: TextSpan(
-                  style: TextStyle(color: theme.colorScheme.onSurface),
-                  children: [
-                    TextSpan(text: '$username ', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    TextSpan(text: widget.post['description']),
-                  ],
-                ),
+          // Actions
+          Row(
+            children: [
+              _ActionButton(
+                icon: _isLiked ? Icons.favorite : Icons.favorite_border,
+                color: _isLiked ? Colors.red : theme.colorScheme.onSurface,
+                onPressed: _toggleLike,
               ),
-            ),
+              _ActionButton(icon: Icons.chat_bubble_outline, onPressed: _showComments),
+              _ActionButton(icon: Icons.send_outlined, onPressed: _sharePost),
+              const Spacer(),
+              _ActionButton(
+                icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
+                color: _isSaved ? Colors.blue : theme.colorScheme.onSurface,
+                onPressed: _toggleSave,
+              ),
+            ],
+          ),
+          // Stats & Text
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            child: InkWell(
-              onTap: _showComments,
-              child: Text(
-                widget.post['comments_count'] > 0 ? 'Ver los ${widget.post['comments_count']} comentarios' : 'Añadir un comentario...',
-                style: const TextStyle(color: Colors.grey, fontSize: 14),
-              ),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_likeCount > 0)
+                  Text('$_likeCount Me gusta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.onSurface)),
+                const SizedBox(height: 4),
+                if (widget.post['description'] != null && widget.post['description'].isNotEmpty)
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
+                      children: [
+                        TextSpan(text: '$username ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        TextSpan(text: widget.post['description']),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: _showComments,
+                  child: Text(
+                    widget.post['comments_count'] > 0 ? 'Ver los ${widget.post['comments_count']} comentarios' : 'Añadir un comentario...',
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateTime.parse(widget.post['created_at']).toLocal().toString().substring(0, 10),
+                  style: const TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 0.5),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          const Divider(height: 1),
+          const SizedBox(height: 14),
         ],
       ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color? color;
+  final VoidCallback onPressed;
+
+  const _ActionButton({required this.icon, this.color, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(icon, color: color ?? Theme.of(context).colorScheme.onSurface),
+      onPressed: onPressed,
+      splashRadius: 20,
     );
   }
 }
