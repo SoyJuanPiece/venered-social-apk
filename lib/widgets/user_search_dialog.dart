@@ -29,8 +29,7 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
         .from('profiles')
         .select('id,username,avatar_url')
         .ilike('username', '%$query%')
-        .limit(10)
-        .execute();
+        .limit(10);
 
     setState(() {
       _loading = false;

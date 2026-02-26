@@ -24,9 +24,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   bool _otherOnline = false;
   DateTime? _otherLastSeen;
-  late RealtimeSubscription _presenceSub;
-
-  @override
+  late StreamSubscription<List<Map<String, dynamic>>> _presenceSub;
   void initState() {
     super.initState();
     _setupStream();
@@ -37,7 +35,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    _presenceSub.unsubscribe();
+    _presenceSub.cancel();
     _setMyPresence(false);
     super.dispose();
   }
@@ -53,17 +51,19 @@ class _ChatScreenState extends State<ChatScreen> {
   void _setupPresence() {
     final otherId = widget.otherUser['id'];
     _presenceSub = supabase
-        .from('profiles:id=eq.$otherId')
-        .on(SupabaseEventTypes.update, (payload) {
-          final record = payload['new'] as Map<String, dynamic>;
+        .from('profiles')
+        .stream(primaryKey: ['id'])
+        .eq('id', otherId)
+        .listen((event) {
+          if (event.isEmpty) return;
+          final record = event.first;
           setState(() {
             _otherOnline = record['is_online'] == true;
             if (record['last_seen'] != null) {
               _otherLastSeen = DateTime.parse(record['last_seen']);
             }
           });
-        })
-        .subscribe();
+        });
   }
 
   Future<void> _setMyPresence(bool online) async {
