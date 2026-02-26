@@ -25,7 +25,6 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          # He mantenido tu versión, pero asegúrate de que sea la que usas localmente
           flutter-version: '3.35.2'
 
       # Cache Gradle dependencies
@@ -45,6 +44,10 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
+      - name: Compress APK to ZIP
+        run: |
+          zip -j venered_social_${{ github.ref_name }}.zip build/app/outputs/flutter-apk/app-release.apk
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -56,10 +59,12 @@ jobs:
             Versión: `${{ github.ref_name }}`
             
             **Cambios en esta versión:**
-            - Mejoras en el sistema de temas (Claro/Oscuro).
-            - Implementación de guardado de posts.
-            - Nuevas pantallas de Notificaciones y Mensajes.
-            - Correcciones de errores en comentarios y borrado de imágenes.
+            - Comentarios en tiempo real (Streams).
+            - Diseño de tarjetas original con bordes suaves y sombras.
+            - Soporte para posts de solo texto con gradientes.
+            - Visualizador de imágenes en pantalla completa.
+            - Deep Linking para compartir publicaciones.
+            - Rediseño de la página de registro.
           draft: false
           prerelease: false
         env:
@@ -71,16 +76,19 @@ jobs:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Send APK to Telegram
+      - name: Send ZIP to Telegram
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          document: build/app/outputs/flutter-apk/app-release.apk
+          document: venered_social_${{ github.ref_name }}.zip
           message: |
-            🎉 **Nueva APK de Venered Social Disponible** 🎉
+            🎉 **Venered Social v${{ github.ref_name }}** 🎉
 
-            **Versión:** ${{ github.ref_name }}
-            **Estado:** ✅ Éxito
+            **Estado:** ✅ Compilación Exitosa
+            **Archivo:** ZIP Comprimido adjunto.
 
-            ¡Descarga la última versión adjunta!
+            Si el archivo no carga, descárgalo aquí:
+            https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+
+            ¡Disfruta las mejoras de diseño y comentarios en tiempo real!
