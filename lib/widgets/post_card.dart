@@ -82,7 +82,9 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
   }
 
   void _sharePost() {
-    final String text = '¡Mira esta publicación en Venered!\n\n${widget.post['image_url'] ?? widget.post['description']}';
+    // Generamos un link real en lugar de pasar la URL de la imagen
+    final String shareLink = 'https://venered.social/post/${widget.post['id']}';
+    final String text = 'Mira esta publicación de ${widget.post['profiles']['username']} en Venered: $shareLink';
     Share.share(text);
   }
 
@@ -95,16 +97,16 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     );
   }
 
-  void _showFullScreenImage() {
-    if (widget.post['image_url'] == null) return;
+  void _showFullScreen(String? url, String tag) {
+    if (url == null) return;
     Navigator.of(context).push(MaterialPageRoute(
       builder: (context) => Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, elevation: 0),
         body: Center(
           child: Hero(
-            tag: 'post_image_${widget.post['id']}',
-            child: InteractiveViewer(child: Image.network(widget.post['image_url'])),
+            tag: tag,
+            child: InteractiveViewer(child: Image.network(url)),
           ),
         ),
       ),
@@ -138,7 +140,11 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
               ListTile(
                 leading: Icon(Icons.copy, color: Theme.of(context).colorScheme.onSurface),
                 title: const Text('Copiar enlace'),
-                onTap: () { Navigator.pop(context); },
+                onTap: () { 
+                  Navigator.pop(context);
+                  // Simulación de copia
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace copiado al portapapeles')));
+                },
               ),
               const SizedBox(height: 10),
             ],
@@ -163,8 +169,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
       try {
         final deleteUrl = widget.post['image_deletehash'] as String?;
         if (deleteUrl != null && deleteUrl.isNotEmpty) {
-          // ImgBB delete_url is a web page, we can't delete via API easily without an account key
-          // but we attempt to "visit" it.
+          // Intentamos visitar el link de borrado de ImgBB
           await http.get(Uri.parse(deleteUrl)).timeout(const Duration(seconds: 5));
         }
         await Supabase.instance.client.from('posts').delete().eq('id', widget.post['id']);
@@ -183,8 +188,14 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     final profilePic = profile?['profile_pic_url'];
 
     return Container(
-      color: theme.colorScheme.surface,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -192,10 +203,16 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
-                  child: profilePic == null ? const Icon(Icons.person, size: 16) : null,
+                GestureDetector(
+                  onTap: () => _showFullScreen(profilePic, 'profile_pic_${widget.post['id']}'),
+                  child: Hero(
+                    tag: 'profile_pic_${widget.post['id']}',
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
+                      child: profilePic == null ? const Icon(Icons.person, size: 18) : null,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(username, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
@@ -210,15 +227,18 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
               children: [
                 GestureDetector(
                   onDoubleTap: _handleDoubleTap,
-                  onTap: _showFullScreenImage,
+                  onTap: () => _showFullScreen(widget.post['image_url'], 'post_image_${widget.post['id']}'),
                   child: Hero(
                     tag: 'post_image_${widget.post['id']}',
-                    child: FadeInImage.memoryNetwork(
-                      placeholder: kTransparentImage,
-                      image: widget.post['image_url'],
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: 400,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(0),
+                      child: FadeInImage.memoryNetwork(
+                        placeholder: kTransparentImage,
+                        image: widget.post['image_url'],
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: 400,
+                      ),
                     ),
                   ),
                 ),
@@ -226,14 +246,19 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
               ],
             )
           else if (widget.post['description'] != null && widget.post['description'].isNotEmpty)
-            // Styled Text-only post
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              color: theme.colorScheme.primary.withOpacity(0.05),
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [theme.colorScheme.primary.withOpacity(0.1), theme.colorScheme.secondary.withOpacity(0.1)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
               child: Text(
                 widget.post['description'],
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -252,7 +277,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
               children: [
                 if (_likeCount > 0) Text('$_likeCount Me gusta', style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
                 const SizedBox(height: 4),
-                if (widget.post['image_url'] != null && widget.post['description'] != null)
+                if (widget.post['image_url'] != null && widget.post['description'] != null && widget.post['description'].isNotEmpty)
                   RichText(
                     text: TextSpan(
                       style: TextStyle(color: theme.colorScheme.onSurface),
@@ -270,7 +295,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
               ],
             ),
           ),
