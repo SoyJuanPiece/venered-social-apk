@@ -35,10 +35,14 @@ Ejecuta:
 flutter test
 ```
 
+## Versionado
+
+Cada conjunto de cambios se publica con un tag de Git para facilitar la
+compilación en CI/CD. El último tag disponible es `v1.1.0`, que incluye
+mejoras de diseño en mensajería, optimizaciones de RPC y configuración
+de App Links.
+
 ## Estructura
-- `lib/main.dart`: Código principal de la app
-- `test/app_test.dart`: Pruebas automáticas
-- `web/`: Archivos para web (incluye `.well-known/assetlinks.json` para enlaces de aplicación)
 
 ## Deep Linking / App Links
 La aplicación soporta enlaces universales (`https://venered.social/...`) y un esquema

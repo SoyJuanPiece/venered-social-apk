@@ -98,3 +98,5 @@ Fallo en el registro debido a `null value in column "username"`.
 - **Completar Funcionalidad de DMs:** Añadido botón de "nuevo chat" con un diálogo de búsqueda con autocompletado (typeahead) que consulta `profiles` y permite seleccionar un usuario antes de crear la conversación.
 - **Presencia en Tiempo Real en DMs:** Se agregaron columnas `is_online`/`last_seen` y la pantalla de chat ahora escucha cambios en el perfil del otro usuario; la propia sesión actualiza su estado al abrir/cerrar la conversación.
 - **Verificación de dominio para App Links:** añadido ejemplo de `assetlinks.json` en `/web/.well-known`, actualizadas configuraciones de Android (autoVerify) e iOS (`Associated Domains`). Se documentó el proceso en el README para que el enlace universal funcione tras subir el archivo al servidor.
+\
+- **Versión y despliegue:** cambios agrupados en el tag `v1.1.0` para asegurar que la build de CI compile con el estado actual del código.
