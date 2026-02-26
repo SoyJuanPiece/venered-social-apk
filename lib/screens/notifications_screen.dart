@@ -20,7 +20,7 @@ class NotificationsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                shape: BoxType.circle,
+                shape: BoxShape.circle,
                 border: Border.all(color: theme.colorScheme.onBackground, width: 2),
               ),
               child: Icon(Icons.notifications_none_outlined, size: 64, color: theme.colorScheme.onBackground),
