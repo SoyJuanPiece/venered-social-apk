@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_links/app_links.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:venered_social/screens/main_navigation_screen.dart';
 import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/register_page.dart';
-import 'package:venered_social/widgets/post_card.dart'; // To show post in a dialog or screen
+import 'package:venered_social/widgets/post_card.dart';
+import 'package:venered_social/services/notification_service.dart';
 
 // --- GESTOR DE TEMA ---
 class ThemeManager {
@@ -69,10 +71,19 @@ class DeepLinkHandler {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Supabase Initialization
   await Supabase.initialize(
     url: 'https://nlwhegfakwzdtaxehood.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd2hlZ2Zha3d6ZHRheGVob29kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MDA5ODYsImV4cCI6MjA4NzQ3Njk4Nn0.DI8_BUf1_ON92rYHYzZzjjBHw_fKvdA6Nbg5E_BKOVk',
   );
+  
+  // Firebase Initialization (Requires google-services.json)
+  try {
+    await Firebase.initializeApp();
+    await NotificationService.init();
+  } catch (e) {
+    debugPrint('Firebase initialization skipped: $e (Make sure google-services.json is present)');
+  }
   
   await ThemeManager.init();
   DeepLinkHandler.init();

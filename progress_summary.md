@@ -64,6 +64,16 @@ Fallo en el registro debido a `null value in column "username"`.
 - **Publicaciones Versátiles:** Opción de usar la Cámara o Galería, y soporte para posts de solo texto con fondos degradados.
 - **Deep Linking & Sharing:** Generación de enlaces reales (`venered.social/post/ID`) para compartir publicaciones en lugar de URLs de imágenes.
 
+### 10. Sistema de Notificaciones Push
+- **Servicio de Notificaciones:** Se ha implementado un `NotificationService` que integra Firebase Cloud Messaging (FCM) para gestionar las notificaciones push.
+- **Gestión de Tokens:** El servicio solicita los permisos necesarios, obtiene el token FCM del dispositivo y lo almacena en la tabla `profiles` de Supabase para poder enviar notificaciones dirigidas.
+- **Notificaciones en Primer Plano:** Utiliza el paquete `flutter_local_notifications` para mostrar una notificación local cuando la aplicación está abierta y en primer plano, asegurando que el usuario no se pierda ninguna alerta.
+
+### 11. Sistema de Mensajería Directa (DMs)
+- **Lista de Conversaciones en Tiempo Real:** `MessagesScreen` muestra las conversaciones del usuario actual en tiempo real, utilizando un `Stream` de Supabase. Cada elemento de la lista muestra el avatar del otro usuario, su nombre, el último mensaje y la hora.
+- **Vista de Chat Funcional:** `ChatScreen` permite a los usuarios ver los mensajes de una conversación específica y enviar nuevos mensajes. La vista se actualiza en tiempo real a medida que se reciben nuevos mensajes.
+- **Marcado de Mensajes como Leídos:** Los mensajes se marcan automáticamente como leídos al entrar en una conversación.
+
 ## 8. Optimizaciones de DevOps y Base de Datos
 
 - **CI/CD Robusto:**
@@ -84,6 +94,7 @@ Fallo en el registro debido a `null value in column "username"`.
 
 ## Próximas Tareas Pendientes
 
-- Implementación del sistema de Mensajería Directa (DMs).
-- Verificación de dominio para App Links (archivo assetlinks.json).
-- Sistema de notificaciones push en tiempo real.
+- **Optimizar Carga de DMs:** Reemplazar la consulta ineficiente (N+1) en `MessagesScreen` por una función `Postgres` (RPC) para obtener todas las conversaciones en una sola llamada.
+- **Completar Funcionalidad de DMs:** Implementar la lógica para iniciar nuevas conversaciones desde `MessagesScreen`.
+- **Presencia en Tiempo Real en DMs:** Reemplazar el estado estático "En línea" por un sistema de presencia real.
+- **Verificación de dominio para App Links:** (archivo assetlinks.json).

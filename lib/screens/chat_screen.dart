@@ -1,0 +1,256 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
+
+class ChatScreen extends StatefulWidget {
+  final String conversationId;
+  final Map<String, dynamic> otherUser;
+
+  const ChatScreen({
+    super.key,
+    required this.conversationId,
+    required this.otherUser,
+  });
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final supabase = Supabase.instance.client;
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  late Stream<List<Map<String, dynamic>>> _messagesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupStream();
+    _markAsRead();
+  }
+
+  void _setupStream() {
+    _messagesStream = supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('conversation_id', widget.conversationId)
+        .order('created_at', ascending: true);
+  }
+
+  Future<void> _markAsRead() async {
+    await supabase
+        .from('messages')
+        .update({'is_read': true})
+        .eq('conversation_id', widget.conversationId)
+        .neq('sender_id', supabase.auth.currentUser!.id);
+  }
+
+  Future<void> _sendMessage() async {
+    final content = _messageController.text.trim();
+    if (content.isEmpty) return;
+
+    _messageController.clear();
+
+    try {
+      final myId = supabase.auth.currentUser!.id;
+      
+      // Insert message
+      await supabase.from('messages').insert({
+        'conversation_id': widget.conversationId,
+        'sender_id': myId,
+        'content': content,
+      });
+
+      // Update conversation last_message_at
+      await supabase
+          .from('conversations')
+          .update({'last_message_at': DateTime.now().toIso8601String()})
+          .eq('id', widget.conversationId);
+
+      _scrollToBottom();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar mensaje: $e')),
+      );
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent + 100,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final myId = supabase.auth.currentUser!.id;
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: Colors.grey[200],
+              backgroundImage: widget.otherUser['avatar_url'] != null 
+                  ? NetworkImage(widget.otherUser['avatar_url']) 
+                  : null,
+              child: widget.otherUser['avatar_url'] == null 
+                  ? const Icon(Icons.person, size: 20, color: Colors.grey) 
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.otherUser['username'] ?? 'Usuario',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Text(
+                  'En línea',
+                  style: TextStyle(fontSize: 12, color: Colors.green),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(icon: const Icon(Icons.videocam_outlined), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.info_outline), onPressed: () {}),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _messagesStream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                final messages = snapshot.data ?? [];
+                
+                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = messages[index];
+                    final isMe = msg['sender_id'] == myId;
+                    final time = DateTime.parse(msg['created_at']);
+
+                    return Align(
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+                        decoration: BoxDecoration(
+                          color: isMe ? theme.colorScheme.primary : theme.colorScheme.surface,
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(20),
+                            topRight: const Radius.circular(20),
+                            bottomLeft: Radius.circular(isMe ? 20 : 0),
+                            bottomRight: Radius.circular(isMe ? 0 : 20),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              msg['content'],
+                              style: TextStyle(
+                                color: isMe ? Colors.white : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              DateFormat.Hm().format(time),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isMe ? Colors.white70 : Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          _buildMessageInput(theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageInput(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        border: Border(top: BorderSide(color: theme.dividerColor, width: 0.5)),
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                onPressed: () {},
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: theme.dividerColor),
+                ),
+                child: TextField(
+                  controller: _messageController,
+                  decoration: const InputDecoration(
+                    hintText: 'Enviar mensaje...',
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.send, color: theme.colorScheme.primary),
+              onPressed: _sendMessage,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
