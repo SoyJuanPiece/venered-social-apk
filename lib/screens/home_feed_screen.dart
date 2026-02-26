@@ -24,8 +24,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       final response = await Supabase.instance.client
           .from('posts_with_likes_count') // Query the view
           .select('*') // Select all columns from the view
-          .order('created_at', ascending: false)
-          .limit(10); // Limit to 10 posts for now
+          .order('created_at', ascending: false);
 
       debugPrint('Supabase posts response: $response'); // Log response
       return response as List<Map<String, dynamic>>;
@@ -45,7 +44,35 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text(
+          'Venered',
+          style: TextStyle(
+            fontFamily: 'Billabong', // Placeholder
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0.5,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.favorite_border),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Mensajería Directa (Próximamente)')),
+              );
+            },
+          ),
+        ],
+      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _postsFuture,
         builder: (context, snapshot) {

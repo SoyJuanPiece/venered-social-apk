@@ -104,17 +104,12 @@ class _PostCardState extends State<PostCard> {
 
     if (confirmed == true) {
       try {
-        // 1. Delete image from ImgBB if deletehash/URL exists
         final deleteUrl = widget.post['image_deletehash'] as String?;
         if (deleteUrl != null && deleteUrl.isNotEmpty) {
           debugPrint('Deleting image from ImgBB: $deleteUrl');
-          // ImgBB provides a delete page, but we can try to GET it to trigger deletion
-          // or at least notify the user. ImgBB's API for deletion is restricted via API key
-          // usually, but the delete_url they provide is a web link.
           await http.get(Uri.parse(deleteUrl)); 
         }
 
-        // 2. Delete record from Supabase
         await Supabase.instance.client.from('posts').delete().eq('id', widget.post['id']);
         
         if (widget.onDelete != null) widget.onDelete!();
@@ -155,7 +150,7 @@ class _PostCardState extends State<PostCard> {
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
-              leading: const Icon(Icons.copy),
+              leading: Icon(Icons.copy, color: Theme.of(context).iconTheme.color),
               title: const Text('Copiar enlace'),
               onTap: () => Navigator.pop(context),
             ),
@@ -168,6 +163,7 @@ class _PostCardState extends State<PostCard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final Map<String, dynamic>? profilesData = widget.post['profiles'] is Map ? widget.post['profiles'] : null;
     final String username = profilesData?['username'] ?? 'Usuario';
     final String? profilePicUrl = profilesData?['profile_pic_url'] as String?;
@@ -176,7 +172,7 @@ class _PostCardState extends State<PostCard> {
     final int commentsCount = widget.post['comments_count'] ?? 0;
 
     return Container(
-      color: Theme.of(context).cardTheme.color,
+      color: theme.cardTheme.color,
       margin: const EdgeInsets.only(bottom: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,10 +189,10 @@ class _PostCardState extends State<PostCard> {
                   child: profilePicUrl == null ? const Icon(Icons.person, size: 16, color: Colors.grey) : null,
                 ),
                 const SizedBox(width: 10),
-                Text(username, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(username, style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.more_horiz),
+                  icon: Icon(Icons.more_horiz, color: theme.iconTheme.color),
                   onPressed: _showMoreOptions,
                 ),
               ],
@@ -218,14 +214,14 @@ class _PostCardState extends State<PostCard> {
           Row(
             children: [
               IconButton(
-                icon: Icon(_isLiked ? Icons.favorite : Icons.favorite_border, color: _isLiked ? Colors.red : null),
+                icon: Icon(_isLiked ? Icons.favorite : Icons.favorite_border, color: _isLiked ? Colors.red : theme.iconTheme.color),
                 onPressed: _toggleLike,
               ),
-              IconButton(icon: const Icon(Icons.chat_bubble_outline), onPressed: _showComments),
-              IconButton(icon: const Icon(Icons.send_outlined), onPressed: () {}),
+              IconButton(icon: Icon(Icons.chat_bubble_outline, color: theme.iconTheme.color), onPressed: _showComments),
+              IconButton(icon: Icon(Icons.send_outlined, color: theme.iconTheme.color), onPressed: () {}),
               const Spacer(),
               IconButton(
-                icon: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border, color: _isSaved ? Colors.blue : null),
+                icon: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border, color: _isSaved ? Colors.blue : theme.iconTheme.color),
                 onPressed: _toggleSave,
               ),
             ],
@@ -234,7 +230,7 @@ class _PostCardState extends State<PostCard> {
           if (_likeCount > 0)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14.0),
-              child: Text('$_likeCount Me gusta', style: const TextStyle(fontWeight: FontWeight.bold)),
+              child: Text('$_likeCount Me gusta', style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
             ),
           // Description
           if (description.isNotEmpty)
@@ -242,7 +238,7 @@ class _PostCardState extends State<PostCard> {
               padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 4.0),
               child: RichText(
                 text: TextSpan(
-                  style: DefaultTextStyle.of(context).style,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface),
                   children: [
                     TextSpan(text: '$username ', style: const TextStyle(fontWeight: FontWeight.bold)),
                     TextSpan(text: description),
