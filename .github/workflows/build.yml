@@ -45,7 +45,27 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Upload APK
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
+          name: Release ${{ github.ref_name }}
+          body: |
+            🚀 **Venered Social - Nueva Versión Disponible**
+            
+            Versión: `${{ github.ref_name }}`
+            
+            **Cambios en esta versión:**
+            - Mejoras en el sistema de temas (Claro/Oscuro).
+            - Implementación de guardado de posts.
+            - Nuevas pantallas de Notificaciones y Mensajes.
+            - Correcciones de errores en comentarios y borrado de imágenes.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
