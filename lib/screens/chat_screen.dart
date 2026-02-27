@@ -45,10 +45,9 @@ class _ChatScreenState extends State<ChatScreen> {
   void _setupStream() {
     _messagesStream = supabase
         .from('messages')
-        .select()
+        .stream(primaryKey: ['id'])
         .eq('conversation_id', widget.conversationId)
-        .order('created_at', ascending: true)
-        .asStream();
+        .order('created_at', ascending: true);
   }
 
   void _setupPresence() {

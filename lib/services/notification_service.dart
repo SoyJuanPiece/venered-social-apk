@@ -6,6 +6,7 @@ import 'package:venered_social/utils.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  static StreamSubscription? _supabaseSub;
   
   static Future<void> init() async {
     // Request permission
@@ -35,10 +36,53 @@ class NotificationService {
       },
     );
 
-    // Listen for foreground messages
+    // Listen for foreground FCM messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      _showLocalNotification(message);
+      _showLocalNotification(message.notification?.title ?? 'Venered', message.notification?.body ?? '');
     });
+
+    // --- ESCUCHAR NOTIFICACIONES DE SUPABASE EN TIEMPO REAL ---
+    _startSupabaseListener();
+  }
+
+  static void _startSupabaseListener() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    _supabaseSub?.cancel();
+    _supabaseSub = Supabase.instance.client
+        .from('notifications')
+        .stream(primaryKey: ['id'])
+        .eq('receiver_id', user.id)
+        .listen((List<Map<String, dynamic>> data) async {
+          if (data.isEmpty) return;
+          
+          // Solo notificar sobre la última notificación si es reciente (ej: últimos 10 segundos)
+          final lastNotif = data.last;
+          final createdAt = DateTime.parse(lastNotif['created_at']);
+          if (DateTime.now().difference(createdAt).inSeconds > 10) return;
+          if (lastNotif['is_read'] == true) return;
+
+          // Obtener nombre del remitente para el título
+          final senderData = await Supabase.instance.client
+              .from('profiles')
+              .select('username')
+              .eq('id', lastNotif['sender_id'])
+              .maybeSingle();
+          
+          final senderName = senderData?['username'] ?? 'Alguien';
+          String title = 'Venered Social';
+          String body = lastNotif['content'] ?? '';
+
+          if (lastNotif['type'] == 'follow') {
+            title = '¡Nuevo seguidor!';
+            body = '$senderName $body';
+          } else if (lastNotif['type'] == 'message') {
+            title = 'Mensaje de $senderName';
+          }
+
+          _showLocalNotification(title, body);
+        });
   }
 
   static Future<void> _saveToken(String token) async {
@@ -52,25 +96,20 @@ class NotificationService {
     }
   }
 
-  static void _showLocalNotification(RemoteMessage message) {
-    final notification = message.notification;
-    final android = message.notification?.android;
-
-    if (notification != null && android != null) {
-      _localNotifications.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'venered_notifications',
-            'Venered Notifications',
-            importance: Importance.max,
-            priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
-          ),
+  static void _showLocalNotification(String title, String body) {
+    _localNotifications.show(
+      DateTime.now().millisecond,
+      title,
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'venered_notifications',
+          'Venered Notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
         ),
-      );
-    }
+      ),
+    );
   }
 }
