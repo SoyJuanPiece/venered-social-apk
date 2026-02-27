@@ -13,6 +13,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.5.0 # Versión corregida y actualizada
   shared_preferences: ^2.2.2 # Added for theme persistence
+  image_picker: ^1.1.2
+  http: ^0.13.6
+  transparent_image: ^2.0.1
 
 dev_dependencies:
   flutter_test:

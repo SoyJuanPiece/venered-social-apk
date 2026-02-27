@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:venered_social/widgets/comments_sheet.dart';
+import 'package:http/http.dart' as http;
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -152,6 +153,10 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     );
     if (confirmed == true) {
       try {
+        final deleteUrl = widget.post['image_deletehash'] as String?;
+        if (deleteUrl != null && deleteUrl.isNotEmpty) {
+          await http.get(Uri.parse(deleteUrl)).timeout(const Duration(seconds: 5));
+        }
         await Supabase.instance.client.from('posts').delete().eq('id', widget.post['id']);
         if (widget.onDelete != null) widget.onDelete!();
       } catch (e) {

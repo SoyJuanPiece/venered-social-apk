@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> initialProfile;
@@ -15,7 +18,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _usernameController;
   late TextEditingController _bioController;
+  File? _newProfilePicFile;
   bool _isLoading = false;
+
+  // WARNING: HARDCODING API KEYS IS A SECURITY RISK.
+  static const String _imgbbApiKey = 'c4fd2ded598485660696ba819347f0bb'; // PROVIDED IMGBB API KEY
 
 
   @override
@@ -34,6 +41,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _newProfilePicFile = File(pickedFile.path);
+      });
+    } else {
+    }
+  }
+
+  Future<void> _deleteImgbbImage(String deleteUrl) async {
+    try {
+      // ImgBB delete_url is usually a web page, but we try to trigger it
+      await http.get(Uri.parse(deleteUrl));
+    } catch (e) {
+    }
+  }
+
   Future<void> _updateProfile() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -45,9 +72,40 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       final userId = Supabase.instance.client.auth.currentUser!.id;
-      // profile update without picture changes
       String? newProfilePicUrl = widget.initialProfile['profile_pic_url'];
       String? newProfilePicDeletehash = widget.initialProfile['profile_pic_deletehash'];
+
+      // 1. Upload new profile picture if selected
+      if (_newProfilePicFile != null) {
+        // Attempt to delete old image if URL exists
+        if (widget.initialProfile['profile_pic_deletehash'] != null &&
+            widget.initialProfile['profile_pic_deletehash'].isNotEmpty) {
+          await _deleteImgbbImage(widget.initialProfile['profile_pic_deletehash']);
+        }
+
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('https://api.imgbb.com/1/upload?key=$_imgbbApiKey'),
+        )..files.add(await http.MultipartFile.fromPath('image', _newProfilePicFile!.path));
+
+        final response = await request.send();
+        final responseBody = await response.stream.bytesToString(); // Read response body once
+
+
+        if (response.statusCode != 200) {
+          throw Exception('Error al subir la nueva imagen de perfil a ImgBB: ${response.statusCode} - $responseBody');
+        }
+
+        final decodedResponse = json.decode(responseBody);
+        newProfilePicUrl = decodedResponse['data']['url'];
+        newProfilePicDeletehash = decodedResponse['data']['delete_url']; // Use delete_url consistently
+
+
+        if (newProfilePicUrl == null) {
+          throw Exception('No se pudo obtener la URL de la nueva imagen de ImgBB. Respuesta: $responseBody');
+        }
+      } else {
+        }
 
       // 2. Update profile data in Supabase
       await Supabase.instance.client.from('profiles').update({
@@ -121,6 +179,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           key: _formKey,
           child: Column(
             children: [
+              GestureDetector(
+                onTap: _pickImage,
+                child: CircleAvatar(
+                  radius: 60,
+                  backgroundColor: theme.colorScheme.surface,
+                  backgroundImage: _newProfilePicFile != null
+                      ? FileImage(_newProfilePicFile!)
+                      : (widget.initialProfile['profile_pic_url'] != null && widget.initialProfile['profile_pic_url'].isNotEmpty
+                          ? NetworkImage(widget.initialProfile['profile_pic_url']) as ImageProvider
+                          : null),
+                  child: _newProfilePicFile == null && (widget.initialProfile['profile_pic_url'] == null || widget.initialProfile['profile_pic_url'].isEmpty)
+                      ? Icon(Icons.person, size: 60, color: theme.colorScheme.onSurface.withOpacity(0.6))
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _pickImage,
+                child: const Text('Cambiar foto de perfil'),
+              ),
+              const SizedBox(height: 24),
               TextFormField(
                 controller: _usernameController,
                 decoration: InputDecoration(

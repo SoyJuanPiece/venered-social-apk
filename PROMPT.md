@@ -60,7 +60,7 @@ Crea una aplicación móvil completa de red social para Android usando Flutter, 
 
 - Flutter 3.x o superior.
 - Compatible con Android 8.0+.
-- Uso de paquetes recomendados: `provider` o `bloc`, `cached_network_image`, etc. (notificaciones, deep links y selección de imagen eliminados para reducir tamaño de APK)
+- Uso de paquetes recomendados: `provider` o `bloc`, `cached_network_image`, etc. (notificaciones y deep links eliminados; soporte de imágenes vuelve con ImgBB vía image_picker + http)
 - Código sin errores, siguiendo buenas prácticas de Dart y Flutter.
 - README con instrucciones de instalación y ejecución.
 - Preparada para integración de backend real.
