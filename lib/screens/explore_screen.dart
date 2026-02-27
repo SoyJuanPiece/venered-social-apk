@@ -199,10 +199,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
           title: Text(user['username'] ?? 'Usuario desconocido'),
           subtitle: Text(user['bio'] ?? ''),
           onTap: () {
-            // Navigate to profile (TODO: Implement generic profile screen)
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Ir al perfil de ${user['username']}')),
-            );
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) => ProfileScreen(userId: user['id']),
+            ));
           },
         );
       },
