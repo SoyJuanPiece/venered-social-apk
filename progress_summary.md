@@ -67,7 +67,7 @@ Fallo en el registro debido a `null value in column "username"`.
 ### 10. Sistema de Notificaciones Push
 - **Servicio de Notificaciones:** Se ha implementado un `NotificationService` que integra Firebase Cloud Messaging (FCM) para gestionar las notificaciones push.
 - **Gestión de Tokens:** El servicio solicita los permisos necesarios, obtiene el token FCM del dispositivo y lo almacena en la tabla `profiles` de Supabase para poder enviar notificaciones dirigidas.
-- **Notificaciones en Primer Plano:** Utiliza el paquete `flutter_local_notifications` para mostrar una notificación local cuando la aplicación está abierta y en primer plano, asegurando que el usuario no se pierda ninguna alerta.
+- **Notificaciones en Primer Plano:** se apoyaba en `flutter_local_notifications` y FCM, pero fue eliminado para simplificar la app; ahora solo se usan notificaciones almacenadas en Supabase.
 
 ### 11. Sistema de Mensajería Directa (DMs)
 - **Lista de Conversaciones en Tiempo Real:** `MessagesScreen` muestra las conversaciones del usuario actual en tiempo real, utilizando un `Stream` de Supabase. Cada elemento de la lista muestra el avatar del otro usuario, su nombre, el último mensaje y la hora.
@@ -87,7 +87,7 @@ Fallo en el registro debido a `null value in column "username"`.
 
 ## 9. Solución de Enlaces y Navegación Externa (Deep Linking)
 
-- **Manejo de Deep Links:** Implementación de `DeepLinkHandler` utilizando el paquete `app_links` para capturar URLs entrantes.
+- **Manejo de Deep Links:** anteriormente había un `DeepLinkHandler` con `app_links`, pero se quitó para reducir complejidad y peso.
 - **Navegación Inteligente:** La aplicación ahora es capaz de detectar enlaces tipo `venered.social/post/[ID]` o `venered://post/[ID]` y navegar automáticamente a la publicación específica.
 - **Corrección de Compartir:** Se actualizó la lógica de "Compartir" para generar enlaces dinámicos a la publicación en lugar de enlaces directos a archivos de imagen privados.
 - **Redirección de Registro:** Se configuró el soporte para el esquema `venered://` para permitir que el correo de confirmación de Supabase abra la aplicación directamente en lugar de intentar cargar `localhost:3000`.

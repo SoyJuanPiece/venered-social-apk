@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:app_links/app_links.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:venered_social/screens/main_navigation_screen.dart';
 import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/register_page.dart';
 import 'package:venered_social/widgets/post_card.dart';
-import 'package:venered_social/services/notification_service.dart';
 
 // --- GESTOR DE TEMA ---
 class ThemeManager {
@@ -28,44 +25,6 @@ class ThemeManager {
   }
 }
 
-// --- GESTOR DE DEEP LINKS ---
-class DeepLinkHandler {
-  static final _appLinks = AppLinks();
-  static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-  static void init() {
-    _appLinks.uriLinkStream.listen((uri) {
-      _handleUri(uri);
-    });
-  }
-
-  static void _handleUri(Uri uri) async {
-    dPrint('Incoming deep link: $uri');
-    if (uri.pathSegments.contains('post')) {
-      final postId = uri.pathSegments.last;
-      _navigateToPost(postId);
-    }
-  }
-
-  static void _navigateToPost(String postId) async {
-    try {
-      final post = await Supabase.instance.client
-          .from('posts_with_likes_count')
-          .select()
-          .eq('id', postId)
-          .single();
-
-      navigatorKey.currentState?.push(MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(title: const Text('Publicación')),
-          body: SingleChildScrollView(child: PostCard(post: post)),
-        ),
-      ));
-    } catch (e) {
-      dPrint('Error navigating to deep link post: $e');
-    }
-  }
-}
 
 // --- FUNCIÓN PRINCIPAL Y CONFIGURACIÓN DE LA APP ---
 Future<void> main() async {
@@ -77,16 +36,9 @@ Future<void> main() async {
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd2hlZ2Zha3d6ZHRheGVob29kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MDA5ODYsImV4cCI6MjA4NzQ3Njk4Nn0.DI8_BUf1_ON92rYHYzZzjjBHw_fKvdA6Nbg5E_BKOVk',
   );
   
-  // Firebase Initialization (Requires google-services.json)
-  try {
-    await Firebase.initializeApp();
-    await NotificationService.init();
-  } catch (e) {
-    dPrint('Firebase initialization skipped: $e (Make sure google-services.json is present)');
-  }
-  
+  // no external notification or deep-linking services used;
+  // all interactions rely on Supabase, keeping binary smaller.
   await ThemeManager.init();
-  DeepLinkHandler.init();
   
   runApp(const MyApp());
 }
@@ -101,7 +53,7 @@ class MyApp extends StatelessWidget {
       builder: (context, mode, child) {
         return MaterialApp(
           title: 'Venered Social',
-          navigatorKey: DeepLinkHandler.navigatorKey, // Essential for Deep Linking navigation
+          // no navigator key required without deep-link handling
           debugShowCheckedModeBanner: false,
           themeMode: mode,
           darkTheme: ThemeData(

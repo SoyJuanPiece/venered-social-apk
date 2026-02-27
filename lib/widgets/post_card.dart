@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:transparent_image/transparent_image.dart';
 import 'package:venered_social/widgets/comments_sheet.dart';
 import 'package:http/http.dart' as http;
-import 'package:share_plus/share_plus.dart';
 
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
@@ -81,11 +80,6 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     }
   }
 
-  void _sharePost() {
-    final String shareLink = 'https://venered.social/post/${widget.post['id']}';
-    final String text = 'Mira esta publicación en Venered: $shareLink';
-    Share.share(text);
-  }
 
   void _showComments() {
     showModalBottomSheet(
@@ -131,11 +125,6 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                   title: const Text('Eliminar', style: TextStyle(color: Colors.red)),
                   onTap: () { Navigator.pop(context); _deletePost(); },
                 ),
-              ListTile(
-                leading: Icon(Icons.share_outlined, color: Theme.of(context).colorScheme.onSurface),
-                title: const Text('Compartir'),
-                onTap: () { Navigator.pop(context); _sharePost(); },
-              ),
               ListTile(
                 leading: Icon(Icons.copy, color: Theme.of(context).colorScheme.onSurface),
                 title: const Text('Copiar enlace'),

@@ -13,14 +13,6 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
             
-            <!-- App Link Configuration -->
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="venered.social" />
-                <data android:scheme="venered" /> <!-- Added custom scheme -->
-            </intent-filter>
 
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
