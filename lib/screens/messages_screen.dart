@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:venered_social/screens/chat_screen.dart';
 import 'package:venered_social/widgets/user_search_dialog.dart';
 
@@ -26,14 +27,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void _setupStream() {
     final userId = supabase.auth.currentUser!.id;
 
-    // Escuchamos cambios en la tabla 'conversations' para saber cuándo hay nuevos mensajes o chats
+    // Escuchamos cambios en la tabla 'conversations'
+    // Como .stream() no soporta .or(), escuchamos la tabla y el filtrado real
+    // se hace dentro del asyncMap usando la vista SQL que ya tiene el filtro de usuario.
     _conversationsStream = supabase
         .from('conversations')
         .stream(primaryKey: ['id'])
-        .or('user1_id.eq.$userId,user2_id.eq.$userId')
         .order('last_message_at', ascending: false)
         .asyncMap((event) async {
-          // Cada vez que cambie una conversación, refrescamos la vista completa
+          // La vista 'view_conversations' ya filtra por auth.uid()
           final res = await supabase
               .from('view_conversations')
               .select()
