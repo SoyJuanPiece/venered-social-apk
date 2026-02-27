@@ -19,16 +19,24 @@ Este documento resume las mejoras y cambios más recientes implementados en la a
 - **Explorar:** Barra de búsqueda estética y chips de categorías modernos.
 - **Creación de Posts:** Interfaz de usuario intuitiva para la selección de imágenes y redacción de contenido con previsualización estilizada.
 
-### 3. Automatización y Despliegue (GitHub Actions)
-- **Compilación Automatizada:** Se han configurado y disparado nuevas compilaciones mediante tags.
-- **Control de Versiones:** Creación del tag `v1.52.38` para desplegar la versión con el nuevo diseño.
+### 3. Corrección de Carga Infinita en el Perfil
+- **Problema:** La pantalla de perfil se quedaba cargando indefinidamente cuando ocurría un error en la consulta a Supabase.
+- **Solución:** 
+    - Se implementó un manejo de errores robusto en los `FutureBuilder`.
+    - Se añadió un botón de **Reintentar** en caso de fallo en la carga de datos.
+    - Se simplificó la consulta de seguidores/seguidos para hacerla más compatible con el formato de respuesta de Supabase.
 
-### 4. Correcciones Técnicas y Dependencias
+### 4. Automatización y Despliegue (GitHub Actions)
+- **Compilación Automatizada:** Se han configurado y disparado nuevas compilaciones mediante tags.
+- **Control de Versiones:** Creación del tag `v1.52.39` para desplegar la versión con el nuevo diseño y la corrección del perfil.
+
+### 5. Correcciones Técnicas y Dependencias
 - **Compatibilidad de Librerías:** Actualización de `http` y `google_fonts` asegurando la estabilidad del proyecto.
 - **Limpieza de Código:** Eliminación de estilos redundantes a favor de un `ThemeData` centralizado y más potente.
 
 ## Próximos Pasos (Enfoque en Funcionalidad)
 - [x] Mejorar la interfaz de la pantalla de perfil (Completado).
+- [x] Corregir errores de carga en el perfil (Completado).
 - [ ] Implementar la funcionalidad real de "Tiempo transcurrido" (Time Ago) en los posts.
 - [ ] Optimizar la carga de imágenes para mejorar el rendimiento del scroll.
 - [ ] Añadir soporte para historias interactivas.
