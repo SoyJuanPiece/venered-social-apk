@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/settings_screen.dart';
 import 'package:venered_social/screens/edit_profile_screen.dart';
-import 'package:transparent_image/transparent_image.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -322,8 +321,7 @@ class _PaginatedPostGridState extends State<PaginatedPostGrid> {
           return const Center(child: CircularProgressIndicator());
         }
         final url = _posts[index]['image_url'];
-        return FadeInImage.memoryNetwork(
-            placeholder: kTransparentImage, image: url, fit: BoxFit.cover);
+        return Image.network(url, fit: BoxFit.cover);
       },
     );
   }
