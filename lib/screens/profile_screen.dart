@@ -42,9 +42,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final response = await Supabase.instance.client
           .from('profiles')
-          .select('*, followers:followers(count), following:followers(count)')
+          .select('*, followers:followers!following_id(count), following:followers!follower_id(count)')
           .eq('id', _userId)
-          .single();
+          .maybeSingle();
+
+      if (response == null) {
+        throw Exception("El perfil no existe en la tabla 'profiles'. ¿Ejecutaste el script SQL?");
+      }
 
       if (!_isCurrentUser) {
         final followCheck = await Supabase.instance.client
@@ -183,21 +187,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     }
                     if (snapshot.hasError) {
                       return Center(
-                        child: Column(
-                          children: [
-                            const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
-                            const SizedBox(height: 12),
-                            Text('Error al cargar perfil', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                            TextButton(onPressed: _refreshData, child: const Text('Reintentar')),
-                          ],
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Error al cargar perfil',
+                                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                snapshot.error.toString(),
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+                              ),
+                              TextButton(onPressed: _refreshData, child: const Text('Reintentar')),
+                            ],
+                          ),
                         ),
                       );
                     }
                     if (!snapshot.hasData) return const SizedBox.shrink();
                     
                     final profile = snapshot.data!;
-                    final followersCount = profile['followers'] is List ? (profile['followers'] as List).length : (profile['followers']?['count'] ?? 0);
-                    final followingCount = profile['following'] is List ? (profile['following'] as List).length : (profile['following']?['count'] ?? 0);
+                    // Extraer conteos de la estructura [{count: X}]
+                    final followersCount = (profile['followers'] as List?)?.firstOrNull?['count'] ?? 0;
+                    final followingCount = (profile['following'] as List?)?.firstOrNull?['count'] ?? 0;
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
