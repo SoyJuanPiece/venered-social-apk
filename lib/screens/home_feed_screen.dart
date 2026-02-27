@@ -30,7 +30,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
       return response as List<Map<String, dynamic>>;
     } catch (e) {
-      debugPrint('Error fetching posts: $e');
+      dPrint('Error fetching posts: $e');
       return [];
     }
   }

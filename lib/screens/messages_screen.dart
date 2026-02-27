@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/chat_screen.dart';
 import 'package:venered_social/widgets/user_search_dialog.dart';
-import 'package:intl/intl.dart';
+
+import '../utils.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -38,7 +39,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           });
           if (res.error != null) {
             // log and return empty list so the UI doesn't break
-            debugPrint('get_user_conversations rpc error: ${res.error}');
+            dPrint('get_user_conversations rpc error: ${res.error}');
             return <Map<String, dynamic>>[];
           }
           return (res.data as List<dynamic>)
@@ -133,7 +134,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     ),
                   ),
                   trailing: Text(
-                    DateFormat.Hm().format(updatedAt),
+                    formatHm(updatedAt),
                     style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4), fontSize: 12),
                   ),
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart';
+
+import '../formatters.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -128,7 +129,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ),
             subtitle: Text(
-              DateFormat.MMMd().add_Hm().format(createdAt),
+              formatMonthDayHourMinute(createdAt),
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             trailing: notification['post_id'] != null

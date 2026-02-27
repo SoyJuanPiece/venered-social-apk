@@ -46,7 +46,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
       return response as List<Map<String, dynamic>>;
     } catch (e) {
-      debugPrint('Error fetching explore posts: $e');
+      dPrint('Error fetching explore posts: $e');
       return [];
     }
   }
@@ -75,7 +75,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         _searchResults = response as List<Map<String, dynamic>>;
       });
     } catch (e) {
-      debugPrint('Error searching users: $e');
+      dPrint('Error searching users: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al buscar usuarios: $e')),
       );

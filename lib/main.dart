@@ -40,7 +40,7 @@ class DeepLinkHandler {
   }
 
   static void _handleUri(Uri uri) async {
-    debugPrint('Incoming deep link: $uri');
+    dPrint('Incoming deep link: $uri');
     if (uri.pathSegments.contains('post')) {
       final postId = uri.pathSegments.last;
       _navigateToPost(postId);
@@ -62,7 +62,7 @@ class DeepLinkHandler {
         ),
       ));
     } catch (e) {
-      debugPrint('Error navigating to deep link post: $e');
+      dPrint('Error navigating to deep link post: $e');
     }
   }
 }
@@ -82,7 +82,7 @@ Future<void> main() async {
     await Firebase.initializeApp();
     await NotificationService.init();
   } catch (e) {
-    debugPrint('Firebase initialization skipped: $e (Make sure google-services.json is present)');
+    dPrint('Firebase initialization skipped: $e (Make sure google-services.json is present)');
   }
   
   await ThemeManager.init();

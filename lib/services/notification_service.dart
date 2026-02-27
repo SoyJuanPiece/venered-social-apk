@@ -47,7 +47,7 @@ class NotificationService {
           .from('profiles')
           .update({'fcm_token': token})
           .eq('id', user.id);
-      debugPrint('FCM Token saved to Supabase');
+      dPrint('FCM Token saved to Supabase');
     }
   }
 

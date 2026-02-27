@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart';
+
+import '../formatters.dart';
 
 class ChatScreen extends StatefulWidget {
   final String conversationId;
@@ -158,7 +159,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   _otherOnline
                       ? 'En línea'
                       : (_otherLastSeen != null
-                          ? 'Últ. vez ${DateFormat.Hm().format(_otherLastSeen!)}'
+                          ? 'Últ. vez ${formatHm(_otherLastSeen!)}'
                           : ''),
                   style: TextStyle(
                       fontSize: 12,
@@ -244,7 +245,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              DateFormat.Hm().format(time),
+                              formatHm(time),
                               style: TextStyle(
                                 fontSize: 10,
                                 color: isMe ? Colors.white70 : Colors.grey,

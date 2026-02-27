@@ -63,7 +63,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
         setState(() { _isLiked = true; _likeCount++; });
       }
     } catch (e) {
-      debugPrint('Error toggling like: $e');
+      dPrint('Error toggling like: $e');
     }
   }
 
@@ -77,7 +77,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
         setState(() => _isSaved = true);
       }
     } catch (e) {
-      debugPrint('Error toggling save: $e');
+      dPrint('Error toggling save: $e');
     }
   }
 
@@ -172,7 +172,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
         await Supabase.instance.client.from('posts').delete().eq('id', widget.post['id']);
         if (widget.onDelete != null) widget.onDelete!();
       } catch (e) {
-        debugPrint('Error deleting: $e');
+        dPrint('Error deleting: $e');
       }
     }
   }
