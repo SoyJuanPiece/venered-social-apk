@@ -45,17 +45,17 @@ class _ChatScreenState extends State<ChatScreen> {
   void _setupStream() {
     _messagesStream = supabase
         .from('messages')
-        .asStream()
         .eq('conversation_id', widget.conversationId)
-        .order('created_at', ascending: true);
+        .order('created_at', ascending: true)
+        .asStream();
   }
 
   void _setupPresence() {
     final otherId = widget.otherUser['id'];
     _presenceSub = supabase
         .from('profiles')
-        .asStream()
         .eq('id', otherId)
+        .asStream()
         .listen((event) {
           if (event.isEmpty) return;
           final record = event.first;
