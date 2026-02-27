@@ -24,7 +24,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
         .select('*, profiles(username, profile_pic_url)') // Join with profiles table
         .eq('post_id', widget.postId)
         .order('created_at', ascending: true)
-        .stream(primaryKey: ['id'])
+        .asStream()
         .map((data) => List<Map<String, dynamic>>.from(data));
   }
 

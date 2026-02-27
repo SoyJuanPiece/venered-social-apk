@@ -94,6 +94,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<String> _getOrCreateConversation(
+      String otherUserId, Map<String, dynamic> otherUser) async {
+    final myId = Supabase.instance.client.auth.currentUser!.id;
+
+    // Check if a conversation already exists
+    final response = await Supabase.instance.client
+        .from('conversations')
+        .select('id')
+        .or('and(user1_id.eq.$myId,user2_id.eq.$otherUserId),and(user1_id.eq.$otherUserId,user2_id.eq.$myId)');
+
+    if (response.isNotEmpty) {
+      return response.first['id'] as String;
+    }
+
+    // Create a new conversation
+    final newConversation = await Supabase.instance.client
+        .from('conversations')
+        .insert({
+          'user1_id': myId,
+          'user2_id': otherUserId,
+          'last_message_at': DateTime.now().toIso8601String(),
+        })
+        .select('id')
+        .single();
+
+    return newConversation['id'] as String;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -200,10 +228,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: OutlinedButton(
-                                  onPressed: () {
-                                    Navigator.of(context).push(MaterialPageRoute(
-                                      builder: (context) => ChatScreen(peerId: _userId),
-                                    ));
+                                  onPressed: () async {
+                                    final profile = await _profileFuture;
+                                    final conversationId =
+                                        await _getOrCreateConversation(
+                                            _userId, profile);
+                                    if (mounted) {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) => ChatScreen(
+                                            conversationId: conversationId,
+                                            otherUser: profile,
+                                          ),
+                                        ),
+                                      );
+                                    }
                                   },
                                   child: const Text('Mensaje'),
                                 ),
