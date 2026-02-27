@@ -33,6 +33,10 @@ Este documento resume las mejoras y cambios más recientes implementados en la a
     - Se ha actualizado el método `stream` a `asStream` en las consultas de Supabase.
     - Se ha corregido el orden de los métodos en las consultas de Supabase para asegurar que los filtros se aplican antes de crear el stream.
 
+### 6. Script de Limpieza de Base de Datos Robustecido
+- **Problema:** El script de limpieza de base de datos original fallaba si alguna de las tablas listadas no existía en la base de datos, lo que impedía una ejecución completa en entornos con esquemas parciales.
+- **Solución:** Se ha modificado el script `clean_database.sql` para incluir bloques `DO $$ BEGIN ... EXCEPTION WHEN UNDEFINED_TABLE THEN ... END $$;` alrededor de cada instrucción `TRUNCATE TABLE`. Esto permite que el script omita elegantemente cualquier tabla inexistente e imprima un aviso en lugar de terminar la ejecución con un error. Se ha añadido también una nota importante en el script para recordar al usuario que la ausencia de tablas esperadas (como `public.conversations`) sugiere que el esquema de la base de datos no está completamente aplicado.
+
 ## Próximos Pasos
 - [ ] Implementar la funcionalidad de "Seguir" y "Dejar de seguir".
 - [ ] Implementar la funcionalidad de "Mensaje".

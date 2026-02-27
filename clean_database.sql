@@ -1,29 +1,62 @@
--- SQL Script para limpiar la base de datos de Venered Social para producción.
--- Este script eliminará *todos* los usuarios de prueba y su contenido asociado.
+-- This script will delete all data from the tables in the database.
+-- It will not delete the tables themselves and will not fail if a table does not exist.
 
--- Advertencia: Este script es destructivo y eliminará permanentemente datos.
--- Asegúrate de tener una copia de seguridad reciente de tu base de datos antes de ejecutarlo.
+DO $$ BEGIN
+  TRUNCATE TABLE public.posts RESTART IDENTITY CASCADE;
+EXCEPTION
+  WHEN UNDEFINED_TABLE THEN
+    RAISE NOTICE 'Table public.posts does not exist. Skipping truncation.';
+END $$;
 
--- 1. Eliminar todos los usuarios de la tabla auth.users.
---    Debido a las políticas ON DELETE CASCADE definidas en tu esquema,
---    esto también eliminará automáticamente los registros correspondientes en:
---    - public.profiles
---    - public.posts
---    - public.likes
---    - public.followers
-DELETE FROM auth.users;
+DO $$ BEGIN
+  TRUNCATE TABLE public.comments RESTART IDENTITY CASCADE;
+EXCEPTION
+  WHEN UNDEFINED_TABLE THEN
+    RAISE NOTICE 'Table public.comments does not exist. Skipping truncation.';
+END $$;
 
--- Consideraciones adicionales:
--- Si encuentras problemas de permisos al intentar DELETE FROM auth.users
--- en el editor SQL de Supabase (especialmente si no eres el rol 'postgres'),
--- puedes intentar vaciar las tablas públicas directamente. Sin embargo, esto
--- NO eliminará los usuarios de la tabla auth.users.
--- Para vaciar las tablas públicas (en caso de que la eliminación de auth.users no funcione):
--- TRUNCATE TABLE public.profiles RESTART IDENTITY CASCADE;
--- TRUNCATE TABLE public.posts RESTART IDENTITY CASCADE;
--- TRUNCATE TABLE public.likes RESTART IDENTITY CASCADE;
--- TRUNCATE TABLE public.followers RESTART IDENTITY CASCADE;
+DO $$ BEGIN
+  TRUNCATE TABLE public.followers RESTART IDENTITY CASCADE;
+EXCEPTION
+  WHEN UNDEFINED_TABLE THEN
+    RAISE NOTICE 'Table public.followers does not exist. Skipping truncation.';
+END $$;
 
--- Es importante recalcar que 'DELETE FROM auth.users;' es el método preferido
--- para una limpieza completa de usuarios y sus datos asociados, ya que respeta
--- la integridad referencial y las reglas de cascada.
+DO $$ BEGIN
+  TRUNCATE TABLE public.conversations RESTART IDENTITY CASCADE;
+EXCEPTION
+  WHEN UNDEFINED_TABLE THEN
+    RAISE NOTICE 'Table public.conversations does not exist. Skipping truncation.';
+END $$;
+
+DO $$ BEGIN
+  TRUNCATE TABLE public.conversation_participants RESTART IDENTITY CASCADE;
+EXCEPTION
+  WHEN UNDEFINED_TABLE THEN
+    RAISE NOTICE 'Table public.conversation_participants does not exist. Skipping truncation.';
+END $$;
+
+DO $$ BEGIN
+  TRUNCATE TABLE public.messages RESTART IDENTITY CASCADE;
+EXCEPTION
+  WHEN UNDEFINED_TABLE THEN
+    RAISE NOTICE 'Table public.messages does not exist. Skipping truncation.';
+END $$;
+
+DO $$ BEGIN
+  TRUNCATE TABLE public.notifications RESTART IDENTITY CASCADE;
+EXCEPTION
+  WHEN UNDEFINED_TABLE THEN
+    RAISE NOTICE 'Table public.notifications does not exist. Skipping truncation.';
+END $$;
+
+-- Note: This script does not truncate the 'profiles' table, as this
+-- is managed by Supabase Auth and contains user information.
+-- If you want to delete all users, you should do this from the
+-- Supabase dashboard.
+
+-- Important: If any of the above tables (e.g., public.conversations) are intended to exist
+-- but are consistently reported as "does not exist", it indicates that the
+-- database schema has not been fully applied. Please ensure you have run
+-- all necessary schema migration scripts (e.g., notifications_messages_schema.sql)
+-- against your database.
