@@ -25,20 +25,22 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
       _loading = true;
     });
 
-    final response = await supabase
-        .from('profiles')
-        .select('id,username,avatar_url')
-        .ilike('username', '%$query%')
-        .limit(10);
-
-    setState(() {
-      _loading = false;
-      if (response.error == null) {
-        _results = List<Map<String, dynamic>>.from(response.data as List);
-      } else {
+    try {
+      final results = await supabase
+          .from('profiles')
+          .select('id,username,avatar_url')
+          .ilike('username', '%$query%')
+          .limit(10);
+      setState(() {
+        _loading = false;
+        _results = List<Map<String, dynamic>>.from(results as List);
+      });
+    } catch (_) {
+      setState(() {
+        _loading = false;
         _results = [];
-      }
-    });
+      });
+    }
   }
 
   @override

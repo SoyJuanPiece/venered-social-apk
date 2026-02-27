@@ -123,7 +123,7 @@ class MyApp extends StatelessWidget {
               centerTitle: false,
               iconTheme: IconThemeData(color: Colors.white),
             ),
-            cardTheme: CardTheme(
+            cardTheme: CardThemeData(
               color: Colors.black,
               elevation: 0,
               margin: EdgeInsets.zero,
@@ -175,7 +175,7 @@ class MyApp extends StatelessWidget {
               centerTitle: false,
               iconTheme: IconThemeData(color: Colors.black),
             ),
-            cardTheme: CardTheme(
+            cardTheme: CardThemeData(
               color: Colors.white,
               elevation: 0,
               margin: EdgeInsets.zero,
