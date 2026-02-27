@@ -4,6 +4,7 @@ import 'package:venered_social/screens/chat_screen.dart';
 import 'package:venered_social/widgets/user_search_dialog.dart';
 
 import '../utils.dart';
+import '../formatters.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});

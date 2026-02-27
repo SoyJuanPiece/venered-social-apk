@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../utils.dart';
 import 'package:venered_social/widgets/post_card.dart';
 import 'package:venered_social/screens/create_post_screen.dart';
 import 'package:venered_social/screens/notifications_screen.dart';

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/profile_screen.dart'; // Import ProfileScreen - placeholder for now
 
+import '../utils.dart';
+
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
 

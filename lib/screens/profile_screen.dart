@@ -88,8 +88,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .order('created_at', ascending: false)
         .range(offset, offset + limit - 1);
 
-    final list = (response as List).map((e) => e['posts'] as Map<String, dynamic>);
-    return list.cast();
+    final list = (response as List)
+        .map((e) => e['posts'] as Map<String, dynamic>)
+        .toList();
+    return list;
   }
 
   @override
@@ -229,8 +231,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
             body: TabBarView(
               children: [
-                _buildPostGrid(_userPostsFuture, 'No has publicado nada aún.'),
-                _buildPostGrid(_savedPostsFuture, 'No tienes publicaciones guardadas.'),
+                PaginatedPostGrid(
+                  fetchPage: _fetchUserPosts,
+                  emptyMsg: 'No has publicado nada aún.',
+                ),
+                PaginatedPostGrid(
+                  fetchPage: _fetchSavedPosts,
+                  emptyMsg: 'No tienes publicaciones guardadas.',
+                ),
               ],
             ),
           ),
@@ -255,10 +263,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Generic widget that shows a grid and loads more as the user scrolls.
   // This keeps the app within Supabase free-tier by limiting the number of
   // rows fetched in each request.
-  Widget _buildPostGrid(Future<List<Map<String, dynamic>>> future, String emptyMsg) {
-    // not used now
-    throw UnimplementedError();
-  }
 
 }
 
@@ -325,7 +329,6 @@ class _PaginatedPostGridState extends State<PaginatedPostGrid> {
       },
     );
   }
-}
 }
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
