@@ -28,20 +28,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final userId = supabase.auth.currentUser!.id;
 
     // Escuchamos cambios en la tabla 'conversations'
-    // Como .stream() no soporta .or(), escuchamos la tabla y el filtrado real
-    // se hace dentro del asyncMap usando la vista SQL que ya tiene el filtro de usuario.
     _conversationsStream = supabase
         .from('conversations')
         .stream(primaryKey: ['id'])
         .order('last_message_at', ascending: false)
         .asyncMap((event) async {
-          // La vista 'view_conversations' ya filtra por auth.uid()
+          // Volvemos a obtener los datos de la vista para tener nombres y fotos actualizados
+          // Filtramos solo las conversaciones donde participa el usuario actual
           final res = await supabase
               .from('view_conversations')
-              .select()
-              .order('last_message_at', ascending: false);
+              .select();
           
-          return List<Map<String, dynamic>>.from(res);
+          // La vista ya filtra por auth.uid(), solo ordenamos
+          final list = List<Map<String, dynamic>>.from(res);
+          list.sort((a, b) => b['last_message_at'].compareTo(a['last_message_at']));
+          return list;
         });
   }
 

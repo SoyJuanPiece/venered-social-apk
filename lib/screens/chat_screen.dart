@@ -54,16 +54,15 @@ class _ChatScreenState extends State<ChatScreen> {
     final otherId = widget.otherUser['id'];
     _presenceSub = supabase
         .from('profiles')
-        .select()
+        .stream(primaryKey: ['id'])
         .eq('id', otherId)
-        .asStream()
-        .listen((event) {
+        .listen((List<Map<String, dynamic>> event) {
           if (event.isEmpty) return;
           final record = event.first;
           setState(() {
             _otherOnline = record['is_online'] == true;
             if (record['last_seen'] != null) {
-              _otherLastSeen = DateTime.parse(record['last_seen']);
+              _otherLastSeen = DateTime.tryParse(record['last_seen']);
             }
           });
         });

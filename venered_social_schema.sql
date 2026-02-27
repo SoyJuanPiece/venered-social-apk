@@ -169,7 +169,35 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+-- 13. ACTIVAR REALTIME PARA LAS TABLAS CRÍTICAS
+-- Esto es lo que permite que .stream() funcione en la App
+begin;
+  -- Eliminar si ya existían para evitar errores
+  alter publication supabase_realtime drop table if exists public.messages;
+  alter publication supabase_realtime drop table if exists public.conversations;
+  alter publication supabase_realtime drop table if exists public.notifications;
+  alter publication supabase_realtime drop table if exists public.profiles;
+
+  -- Añadir tablas a la publicación de tiempo real
+  alter publication supabase_realtime add table public.messages;
+  alter publication supabase_realtime add table public.conversations;
+  alter publication supabase_realtime add table public.notifications;
+  alter publication supabase_realtime add table public.profiles;
+commit;
+
+-- 14. TRIGGER PARA ACTUALIZAR LA CONVERSACIÓN AUTOMÁTICAMENTE
+-- Cada vez que llegue un mensaje, la conversación se marcará como actualizada
+CREATE OR REPLACE FUNCTION public.update_conversation_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.conversations
+  SET last_message_at = NOW()
+  WHERE id = NEW.conversation_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_message_update_chat ON public.messages;
+CREATE TRIGGER on_message_update_chat
+  AFTER INSERT ON public.messages
+  FOR EACH ROW EXECUTE FUNCTION public.update_conversation_timestamp();
