@@ -130,11 +130,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             future: _profileFuture,
                             builder: (context, snapshot) {
                               final url = snapshot.data?['profile_pic_url'];
-                              return CircleAvatar(
-                                radius: 40,
-                                backgroundColor: Colors.grey[200],
-                                backgroundImage: url != null ? NetworkImage(url) : null,
-                                child: url == null ? const Icon(Icons.person, size: 40, color: Colors.grey) : null,
+                              return Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      theme.colorScheme.primary,
+                                      theme.colorScheme.secondary,
+                                    ],
+                                  ),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 37,
+                                  backgroundColor: theme.scaffoldBackgroundColor,
+                                  backgroundImage: url != null ? NetworkImage(url) : null,
+                                  child: url == null
+                                      ? Icon(Icons.person, size: 40, color: Colors.grey)
+                                      : null,
+                                ),
                               );
                             },
                           ),
@@ -197,9 +211,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 pinned: true,
                 delegate: _SliverAppBarDelegate(
                   TabBar(
-                    indicatorColor: theme.colorScheme.onBackground,
-                    labelColor: theme.colorScheme.onBackground,
-                    unselectedLabelColor: Colors.grey,
+                    indicator: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    labelColor: theme.colorScheme.primary,
+                    unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
                     tabs: const [
                       Tab(icon: Icon(Icons.grid_on_outlined)),
                       Tab(icon: Icon(Icons.bookmark_border)),
