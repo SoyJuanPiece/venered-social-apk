@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart'; // Required for debugPrint
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> initialProfile;
@@ -31,19 +30,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _usernameController =
         TextEditingController(text: widget.initialProfile['username']);
     _bioController = TextEditingController(text: widget.initialProfile['bio']);
-    debugPrint('EditProfileScreen: initState called. Initial Profile: ${widget.initialProfile}'); // Debug print
   }
 
   @override
   void dispose() {
     _usernameController.dispose();
     _bioController.dispose();
-    debugPrint('EditProfileScreen: dispose called.'); // Debug print
     super.dispose();
   }
 
   Future<void> _pickImage() async {
-    debugPrint('EditProfileScreen: _pickImage called.'); // Debug print
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
@@ -52,25 +48,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _newProfilePicFile = File(pickedFile.path);
       });
     } else {
-      debugPrint('EditProfileScreen: No image selected.'); // Debug print
     }
   }
 
   Future<void> _deleteImgbbImage(String deleteUrl) async {
-    debugPrint('EditProfileScreen: _deleteImgbbImage called for URL: $deleteUrl'); // Debug print
     try {
       // ImgBB delete_url is usually a web page, but we try to trigger it
       await http.get(Uri.parse(deleteUrl));
-      debugPrint('Deletion request sent to ImgBB.');
     } catch (e) {
-      debugPrint('Error sending delete request to ImgBB: $e');
     }
   }
 
   Future<void> _updateProfile() async {
-    debugPrint('EditProfileScreen: _updateProfile called.'); // Debug print
     if (!_formKey.currentState!.validate()) {
-      debugPrint('EditProfileScreen: Form validation failed.'); // Debug print
       return;
     }
 
@@ -85,15 +75,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // 1. Upload new profile picture if selected
       if (_newProfilePicFile != null) {
-        debugPrint('EditProfileScreen: New profile picture selected.'); // Debug print
         // Attempt to delete old image if URL exists
         if (widget.initialProfile['profile_pic_deletehash'] != null &&
             widget.initialProfile['profile_pic_deletehash'].isNotEmpty) {
-          debugPrint('Deleting old profile picture from ImgBB...');
           await _deleteImgbbImage(widget.initialProfile['profile_pic_deletehash']);
         }
 
-        debugPrint('Uploading new profile picture to ImgBB...');
         final request = http.MultipartRequest(
           'POST',
           Uri.parse('https://api.imgbb.com/1/upload?key=$_imgbbApiKey'),
@@ -102,8 +89,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final response = await request.send();
         final responseBody = await response.stream.bytesToString(); // Read response body once
 
-        debugPrint('ImgBB upload status code: ${response.statusCode}');
-        debugPrint('ImgBB upload response body: $responseBody');
 
         if (response.statusCode != 200) {
           throw Exception('Error al subir la nueva imagen de perfil a ImgBB: ${response.statusCode} - $responseBody');
@@ -113,18 +98,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         newProfilePicUrl = decodedResponse['data']['url'];
         newProfilePicDeletehash = decodedResponse['data']['delete_url']; // Use delete_url consistently
 
-        debugPrint('ImgBB decoded upload response: $decodedResponse');
-        debugPrint('ImgBB new profile pic URL: $newProfilePicUrl');
 
         if (newProfilePicUrl == null) {
           throw Exception('No se pudo obtener la URL de la nueva imagen de ImgBB. Respuesta: $responseBody');
         }
       } else {
-        debugPrint('EditProfileScreen: No new profile picture selected, skipping upload.'); // Debug print
-      }
+        }
 
       // 2. Update profile data in Supabase
-      debugPrint('Updating profile data in Supabase...');
       await Supabase.instance.client.from('profiles').update({
         'username': _usernameController.text.trim(),
         'bio': _bioController.text.trim(),
@@ -132,7 +113,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'profile_pic_deletehash': newProfilePicDeletehash,
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', userId);
-      debugPrint('Profile data updated successfully.');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -143,7 +123,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Navigator.of(context).pop(); // Go back to ProfileScreen
       }
     } catch (e) {
-      debugPrint('Error in _updateProfile: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
