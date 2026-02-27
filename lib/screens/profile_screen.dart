@@ -70,7 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // We'll no longer fetch all posts at once; the PaginatedPostGrid below
   // will call the database in chunks. These helper methods provide the
   // requested page range.
-  Future<List<Map<String, dynamic>>> _fetchUserPosts({required int offset, required int limit}) async {
+  Future<List<Map<String, dynamic>>> _fetchUserPosts(int offset, int limit) async {
     final response = await Supabase.instance.client
         .from('posts')
         .select('image_url')
@@ -80,7 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return (response as List).cast();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchSavedPosts({required int offset, required int limit}) async {
+  Future<List<Map<String, dynamic>>> _fetchSavedPosts(int offset, int limit) async {
     final response = await Supabase.instance.client
         .from('saved_posts')
         .select('posts(image_url)')
