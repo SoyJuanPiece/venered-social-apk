@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:venered_social/screens/profile_screen.dart';
 
-/// A dialog that allows searching for users by username and returns the selected
-/// profile map when the user taps a result.
 class UserSearchDialog extends StatefulWidget {
   const UserSearchDialog({super.key});
 
@@ -21,14 +20,12 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
       setState(() => _results = []);
       return;
     }
-    setState(() {
-      _loading = true;
-    });
+    setState(() => _loading = true);
 
     try {
       final results = await supabase
           .from('profiles')
-          .select('id,username,avatar_url')
+          .select('id,username,profile_pic_url')
           .ilike('username', '%$query%')
           .limit(10);
       setState(() {
@@ -41,6 +38,14 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
         _results = [];
       });
     }
+  }
+
+  void _navigateToProfile(String userId) {
+    // First pop the dialog, then push the profile screen.
+    Navigator.pop(context);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (context) => ProfileScreen(userId: userId),
+    ));
   }
 
   @override
@@ -72,15 +77,15 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundImage: item['avatar_url'] != null
-                              ? NetworkImage(item['avatar_url']) as ImageProvider
+                          backgroundImage: item['profile_pic_url'] != null
+                              ? NetworkImage(item['profile_pic_url'])
                               : null,
-                          child: item['avatar_url'] == null
+                          child: item['profile_pic_url'] == null
                               ? const Icon(Icons.person)
                               : null,
                         ),
                         title: Text(item['username'] ?? ''),
-                        onTap: () => Navigator.pop(context, item),
+                        onTap: () => _navigateToProfile(item['id']),
                       ),
                     );
                 },

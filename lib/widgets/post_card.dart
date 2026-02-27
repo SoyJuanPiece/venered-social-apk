@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
+import 'package:venered_social/screens/profile_screen.dart';
 import 'package:venered_social/widgets/comments_sheet.dart';
 import 'package:http/http.dart' as http;
 
@@ -19,9 +19,9 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin {
   late bool _isLiked;
   late int _likeCount;
-  late bool _isSaved; 
+  late bool _isSaved;
   final _userId = Supabase.instance.client.auth.currentUser!.id;
-  
+
   bool _showBigHeart = false;
   late AnimationController _heartController;
   late Animation<double> _heartAnimation;
@@ -81,7 +81,6 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     }
   }
 
-
   void _showComments() {
     showModalBottomSheet(
       context: context,
@@ -104,6 +103,12 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
           ),
         ),
       ),
+    ));
+  }
+
+  void _navigateToProfile() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (context) => ProfileScreen(userId: widget.post['user_id']),
     ));
   }
 
@@ -178,7 +183,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(24), // More rounded for original feel
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5)),
@@ -191,29 +196,33 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => _showFullScreen(profilePic, 'profile_pic_${widget.post['id']}'),
-                    child: Hero(
-                      tag: 'profile_pic_${widget.post['id']}',
-                      child: CircleAvatar(
-                        radius: 20,
-                        backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
-                        child: profilePic == null ? const Icon(Icons.person, size: 20) : null,
+              child: GestureDetector(
+                onTap: _navigateToProfile,
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _showFullScreen(profilePic, 'profile_pic_${widget.post['id']}'),
+                      child: Hero(
+                        tag: 'profile_pic_${widget.post['id']} असलियत',
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
+                          child: profilePic == null ? const Icon(Icons.person, size: 20) : null,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(username, style: TextStyle(fontWeight: FontWeight.w800, color: theme.colorScheme.onSurface, fontSize: 15)),
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(Icons.more_horiz, color: theme.colorScheme.onSurface.withOpacity(0.6)), 
-                    onPressed: _showMoreOptions,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Text(username, style: TextStyle(fontWeight: FontWeight.w800, color: theme.colorScheme.onSurface, fontSize: 15)),
+                    const Spacer(),
+                    IconButton(
+                      icon: Icon(Icons.more_horiz, color: theme.colorScheme.onSurface.withOpacity(0.6)), 
+                      onPressed: _showMoreOptions,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
               ),
             ),
             if (widget.post['image_url'] != null)
@@ -253,7 +262,6 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                   textAlign: TextAlign.center,
                 ),
               ),
-            // Actions & Stats
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 16, 12),
               child: Column(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:venered_social/screens/profile_screen.dart';
 
 class CommentsSheet extends StatefulWidget {
   final String postId;
@@ -18,12 +19,12 @@ class _CommentsSheetState extends State<CommentsSheet> {
   @override
   void initState() {
     super.initState();
-    // Real-time stream for comments
     _commentsStream = Supabase.instance.client
         .from('comments')
-        .stream(primaryKey: ['id'])
+        .select('*, profiles(username, profile_pic_url)') // Join with profiles table
         .eq('post_id', widget.postId)
         .order('created_at', ascending: true)
+        .stream(primaryKey: ['id'])
         .map((data) => List<Map<String, dynamic>>.from(data));
   }
 
@@ -80,15 +81,37 @@ class _CommentsSheetState extends State<CommentsSheet> {
                   itemCount: comments.length,
                   itemBuilder: (context, index) {
                     final comment = comments[index];
-                    // Since Stream doesn't support complex joins easily, we fetch profile if needed or use a cached approach.
-                    // For now, we'll display the content and user_id. 
-                    // Note: Real-time with joins is complex in Supabase, best approach is usually a separate fetch or a view.
+                    final profile = comment['profiles'] as Map<String, dynamic>?;
+                    final username = profile?['username'] ?? 'Usuario';
+                    final profilePic = profile?['profile_pic_url'];
+                    final userId = comment['user_id'];
+
                     return ListTile(
-                      leading: const CircleAvatar(radius: 16, child: Icon(Icons.person, size: 16)),
-                      title: Text(comment['content'], style: TextStyle(color: theme.colorScheme.onSurface)),
+                      onTap: () {
+                        if (userId != null) {
+                          Navigator.pop(context); // Close sheet
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (context) => ProfileScreen(userId: userId),
+                          ));
+                        }
+                      },
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
+                        child: profilePic == null ? const Icon(Icons.person, size: 18) : null,
+                      ),
+                      title: RichText(
+                        text: TextSpan(
+                          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
+                          children: [
+                            TextSpan(text: '$username ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            TextSpan(text: comment['content']),
+                          ]
+                        ),
+                      ),
                       subtitle: Text(
-                        DateTime.parse(comment['created_at']).toLocal().toString().substring(0, 16),
-                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        DateTime.parse(comment['created_at']).toLocal().toString().substring(11, 16),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     );
                   },
