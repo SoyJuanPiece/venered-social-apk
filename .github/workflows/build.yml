@@ -43,15 +43,17 @@ jobs:
 
       - name: Delete old tags and releases
         run: |
-          # Eliminar todos los releases locales y remotos (si existen)
-          RELEASES=$(gh release list --limit 100 | awk '{print $1}')
+          # Obtener todos los tags de release y borrarlos uno por uno (ignorar errores)
+          RELEASES=$(gh release list --limit 100 --json tagName --jq '.[].tagName' || echo "")
           for release in $RELEASES; do
-            echo "Borrando release: $release"
-            gh release delete "$release" --yes --cleanup-tag
+            if [ -n "$release" ]; then
+              echo "Borrando release y tag: $release"
+              gh release delete "$release" --yes --cleanup-tag || true
+            fi
           done
           
-          # Eliminar tags locales
-          git tag -l | xargs -r git tag -d
+          # Borrar tags locales que queden (ignorar errores)
+          git tag -l | xargs -r git tag -d || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
