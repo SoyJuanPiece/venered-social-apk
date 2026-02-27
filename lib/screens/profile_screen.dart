@@ -16,8 +16,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late Future<int> _postsCountFuture;
   late Future<int> _followersCountFuture;
   late Future<int> _followingCountFuture;
-  late Future<List<Map<String, dynamic>>> _userPostsFuture;
-  late Future<List<Map<String, dynamic>>> _savedPostsFuture;
   final _userId = Supabase.instance.client.auth.currentUser!.id;
 
   @override
@@ -32,8 +30,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _postsCountFuture = _fetchPostsCount();
       _followersCountFuture = _fetchFollowersCount();
       _followingCountFuture = _fetchFollowingCount();
-      _userPostsFuture = _fetchUserPosts();
-      _savedPostsFuture = _fetchSavedPosts();
     });
   }
 
@@ -72,22 +68,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return response.count;
   }
 
-  Future<List<Map<String, dynamic>>> _fetchUserPosts() async {
-    return await Supabase.instance.client
+  // We'll no longer fetch all posts at once; the PaginatedPostGrid below
+  // will call the database in chunks. These helper methods provide the
+  // requested page range.
+  Future<List<Map<String, dynamic>>> _fetchUserPosts({required int offset, required int limit}) async {
+    final response = await Supabase.instance.client
         .from('posts')
         .select('image_url')
         .eq('user_id', _userId)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1);
+    return (response as List).cast();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchSavedPosts() async {
+  Future<List<Map<String, dynamic>>> _fetchSavedPosts({required int offset, required int limit}) async {
     final response = await Supabase.instance.client
         .from('saved_posts')
         .select('posts(image_url)')
         .eq('user_id', _userId)
-        .order('created_at', ascending: false);
-    
-    return (response as List).map((e) => e['posts'] as Map<String, dynamic>).toList();
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1);
+
+    final list = (response as List).map((e) => e['posts'] as Map<String, dynamic>);
+    return list.cast();
   }
 
   @override
@@ -250,25 +253,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Generic widget that shows a grid and loads more as the user scrolls.
+  // This keeps the app within Supabase free-tier by limiting the number of
+  // rows fetched in each request.
   Widget _buildPostGrid(Future<List<Map<String, dynamic>>> future, String emptyMsg) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        final posts = snapshot.data ?? [];
-        if (posts.isEmpty) return Center(child: Text(emptyMsg));
-        return GridView.builder(
-          padding: const EdgeInsets.all(1),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 1, mainAxisSpacing: 1),
-          itemCount: posts.length,
-          itemBuilder: (context, index) {
-            final url = posts[index]['image_url'];
-            return FadeInImage.memoryNetwork(placeholder: kTransparentImage, image: url, fit: BoxFit.cover);
-          },
-        );
+    // not used now
+    throw UnimplementedError();
+  }
+
+}
+
+// ------------------------------------------------------------
+// Helper widget for pagination
+// ------------------------------------------------------------
+
+class PaginatedPostGrid extends StatefulWidget {
+  final Future<List<Map<String, dynamic>>> Function(int offset, int limit) fetchPage;
+  final String emptyMsg;
+
+  const PaginatedPostGrid({super.key, required this.fetchPage, required this.emptyMsg});
+
+  @override
+  State<PaginatedPostGrid> createState() => _PaginatedPostGridState();
+}
+
+class _PaginatedPostGridState extends State<PaginatedPostGrid> {
+  static const int _pageSize = 18;
+  final List<Map<String, dynamic>> _posts = [];
+  bool _loading = false;
+  bool _hasMore = true;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNext();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels > _scrollController.position.maxScrollExtent - 200 && !_loading && _hasMore) {
+        _loadNext();
+      }
+    });
+  }
+
+  Future<void> _loadNext() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    final newItems = await widget.fetchPage(_posts.length, _pageSize);
+    setState(() {
+      _loading = false;
+      _posts.addAll(newItems);
+      if (newItems.length < _pageSize) _hasMore = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_posts.isEmpty && !_loading) {
+      return Center(child: Text(widget.emptyMsg));
+    }
+    return GridView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(1),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3, crossAxisSpacing: 1, mainAxisSpacing: 1),
+      itemCount: _posts.length + (_hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index >= _posts.length) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final url = _posts[index]['image_url'];
+        return FadeInImage.memoryNetwork(
+            placeholder: kTransparentImage, image: url, fit: BoxFit.cover);
       },
     );
   }
+}
 }
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
