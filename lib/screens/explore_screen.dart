@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:venered_social/screens/profile_screen.dart'; // Import ProfileScreen - placeholder for now
+import 'package:google_fonts/google_fonts.dart';
+import 'package:venered_social/screens/profile_screen.dart';
 
 import '../utils.dart';
 
@@ -19,11 +20,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   final List<String> _categories = [
     'Para ti',
+    'Tendencias',
     'Fotografía',
-    'Movimiento',
-    'Audio',
+    'Arte',
     'Tecnología',
-    'Naturaleza',
+    'Viajes',
+    'Deportes',
   ];
 
   @override
@@ -44,7 +46,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
           .from('posts_with_likes_count')
           .select('image_url')
           .order('created_at', ascending: false)
-          .limit(50);
+          .limit(60);
 
       return response as List<Map<String, dynamic>>;
     } catch (e) {
@@ -70,7 +72,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       final response = await Supabase.instance.client
           .from('profiles')
           .select('id, username, profile_pic_url, bio')
-          .ilike('username', '%$query%') // Case-insensitive search
+          .ilike('username', '%$query%')
           .limit(20);
 
       setState(() {
@@ -78,100 +80,113 @@ class _ExploreScreenState extends State<ExploreScreen> {
       });
     } catch (e) {
       dPrint('Error searching users: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al buscar usuarios: $e')),
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: 'Buscar',
-            prefixIcon: const Icon(Icons.search),
-            filled: true,
-            fillColor: Theme.of(context).colorScheme.surfaceVariant,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(vertical: 0),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        title: Container(
+          height: 45,
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey[900] : Colors.grey[200],
+            borderRadius: BorderRadius.circular(12),
           ),
-          onChanged: _searchUsers,
+          child: TextField(
+            controller: _searchController,
+            style: GoogleFonts.poppins(fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Buscar personas...',
+              hintStyle: GoogleFonts.poppins(color: Colors.grey, fontSize: 14),
+              prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey, size: 20),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+            ),
+            onChanged: _searchUsers,
+          ),
         ),
         automaticallyImplyLeading: false,
       ),
       body: _isSearching
-          ? _buildSearchResults()
+          ? _buildSearchResults(theme)
           : Column(
               children: [
-                // Category Chips
+                const SizedBox(height: 8),
                 SizedBox(
-                  height: 50,
+                  height: 40,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                    physics: const BouncingScrollPhysics(),
                     itemCount: _categories.length,
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                        child: Chip(
-                          label: Text(_categories[index]),
-                          backgroundColor: Theme.of(context).colorScheme.surface,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.2)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: index == 0 ? theme.colorScheme.primary : (isDark ? Colors.grey[900] : Colors.white),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: index == 0 ? Colors.transparent : (isDark ? Colors.grey[800]! : Colors.grey[300]!),
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _categories[index],
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: index == 0 ? FontWeight.w600 : FontWeight.w500,
+                                color: index == 0 ? Colors.white : theme.colorScheme.onSurface,
+                              ),
+                            ),
                           ),
                         ),
                       );
                     },
                   ),
                 ),
-                // Posts Grid
+                const SizedBox(height: 12),
                 Expanded(
                   child: FutureBuilder<List<Map<String, dynamic>>>(
                     future: _explorePostsFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
-                      } else if (snapshot.hasError) {
-                        return Center(
-                            child: Text('Error: ${snapshot.error.toString()}'));
-                      } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Center(
-                            child: Text('No hay publicaciones para explorar.'));
-                      } else {
-                        final posts = snapshot.data!;
-                        return GridView.builder(
-                          padding: const EdgeInsets.all(2.0),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3, // 3 columns
-                            crossAxisSpacing: 2.0,
-                            mainAxisSpacing: 2.0,
-                          ),
-                          itemCount: posts.length,
-                          itemBuilder: (context, index) {
-                            final post = posts[index];
-                            final postImageUrl = post['image_url'];
-                            return postImageUrl != null
+                      }
+                      final posts = snapshot.data ?? [];
+                      if (posts.isEmpty) {
+                        return Center(child: Text('No hay nada para explorar aún.', style: GoogleFonts.poppins(color: Colors.grey)));
+                      }
+                      return GridView.builder(
+                        padding: const EdgeInsets.all(2.0),
+                        physics: const BouncingScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 2.0,
+                          mainAxisSpacing: 2.0,
+                        ),
+                        itemCount: posts.length,
+                        itemBuilder: (context, index) {
+                          final post = posts[index];
+                          final postImageUrl = post['image_url'];
+                          return ClipRRect(
+                            child: postImageUrl != null
                                 ? Image.network(
                                     postImageUrl,
                                     fit: BoxFit.cover,
                                   )
-                                : Container(
-                                    color: Theme.of(context).colorScheme.surface);
-                          },
-                        );
-                      }
+                                : Container(color: isDark ? Colors.grey[900] : Colors.grey[200]),
+                          );
+                        },
+                      );
                     },
                   ),
                 ),
@@ -180,24 +195,34 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  Widget _buildSearchResults() {
+  Widget _buildSearchResults(ThemeData theme) {
     if (_searchResults.isEmpty) {
-      return const Center(child: Text('No se encontraron usuarios.'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off_rounded, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            Text('No se encontraron usuarios.', style: GoogleFonts.poppins(color: Colors.grey)),
+          ],
+        ),
+      );
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: _searchResults.length,
       itemBuilder: (context, index) {
         final user = _searchResults[index];
         final profilePicUrl = user['profile_pic_url'];
         return ListTile(
           leading: CircleAvatar(
-            backgroundImage:
-                profilePicUrl != null ? NetworkImage(profilePicUrl) : null,
-            child: profilePicUrl == null ? const Icon(Icons.person) : null,
+            backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+            backgroundImage: profilePicUrl != null ? NetworkImage(profilePicUrl) : null,
+            child: profilePicUrl == null ? Icon(Icons.person, color: theme.colorScheme.primary) : null,
           ),
-          title: Text(user['username'] ?? 'Usuario desconocido'),
-          subtitle: Text(user['bio'] ?? ''),
+          title: Text(user['username'] ?? '', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          subtitle: Text(user['bio'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontSize: 12)),
           onTap: () {
             Navigator.of(context).push(MaterialPageRoute(
               builder: (context) => ProfileScreen(userId: user['id']),

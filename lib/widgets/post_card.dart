@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:venered_social/screens/profile_screen.dart';
 import 'package:venered_social/widgets/comments_sheet.dart';
 import 'package:http/http.dart' as http;
@@ -118,28 +119,38 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 10),
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 12),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 12),
               if (isOwner)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.red),
-                  title: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  title: Text('Eliminar post', style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.w600)),
                   onTap: () { Navigator.pop(context); _deletePost(); },
                 ),
               ListTile(
-                leading: Icon(Icons.copy, color: Theme.of(context).colorScheme.onSurface),
-                title: const Text('Copiar enlace'),
+                leading: const Icon(Icons.link_outlined),
+                title: Text('Copiar enlace', style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
                 onTap: () { 
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace copiado')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Enlace copiado al portapapeles'),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    )
+                  );
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -151,10 +162,15 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('¿Eliminar?'),
+        title: Text('¿Eliminar publicación?', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text('Esta acción no se puede deshacer.', style: GoogleFonts.poppins()),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sí', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar', style: GoogleFonts.poppins(color: Colors.grey))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            child: Text('Eliminar', style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.bold))
+          ),
         ],
       ),
     );
@@ -175,63 +191,86 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final profile = widget.post['profiles'] as Map<String, dynamic>?;
     final username = profile?['username'] ?? 'Usuario';
     final profilePic = profile?['profile_pic_url'];
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5)),
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: GestureDetector(
-                onTap: _navigateToProfile,
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => _showFullScreen(profilePic, 'profile_pic_${widget.post['id']}'),
-                      child: Hero(
-                        tag: 'profile_pic_${widget.post['id']} असलियत',
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
-                          child: profilePic == null ? const Icon(Icons.person, size: 20) : null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(username, style: TextStyle(fontWeight: FontWeight.w800, color: theme.colorScheme.onSurface, fontSize: 15)),
-                    const Spacer(),
-                    IconButton(
-                      icon: Icon(Icons.more_horiz, color: theme.colorScheme.onSurface.withOpacity(0.6)), 
-                      onPressed: _showMoreOptions,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: _navigateToProfile,
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                    backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
+                    child: profilePic == null ? Icon(Icons.person, color: theme.colorScheme.primary, size: 20) : null,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _navigateToProfile,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          username,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        if (widget.post['created_at'] != null)
+                          Text(
+                            'Hace un momento', // TODO: Implement time ago
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: theme.colorScheme.onSurface.withOpacity(0.5),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.more_vert_rounded, color: theme.colorScheme.onSurface.withOpacity(0.6), size: 20), 
+                  onPressed: _showMoreOptions,
+                ),
+              ],
             ),
-            if (widget.post['image_url'] != null)
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  GestureDetector(
-                    onDoubleTap: _handleDoubleTap,
-                    onTap: () => _showFullScreen(widget.post['image_url'], 'post_image_${widget.post['id']}'),
+          ),
+          
+          // Media/Content
+          if (widget.post['image_url'] != null)
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                GestureDetector(
+                  onDoubleTap: _handleDoubleTap,
+                  onTap: () => _showFullScreen(widget.post['image_url'], 'post_image_${widget.post['id']}'),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
                     child: Hero(
                       tag: 'post_image_${widget.post['id']}',
                       child: Image.network(
@@ -242,82 +281,136 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                       ),
                     ),
                   ),
-                  if (_showBigHeart) ScaleTransition(scale: _heartAnimation, child: const Icon(Icons.favorite, color: Colors.white, size: 100)),
-                ],
-              )
-            else if (widget.post['description'] != null && widget.post['description'].isNotEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(40),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [theme.colorScheme.primary.withOpacity(0.15), theme.colorScheme.secondary.withOpacity(0.15)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
                 ),
-                child: Text(
-                  widget.post['description'],
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
-                  textAlign: TextAlign.center,
+                if (_showBigHeart) 
+                  ScaleTransition(
+                    scale: _heartAnimation, 
+                    child: const Icon(Icons.favorite, color: Colors.white, size: 80, shadows: [Shadow(blurRadius: 20, color: Colors.black26)])
+                  ),
+              ],
+            )
+          else if (widget.post['description'] != null && widget.post['description'].isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.primary.withOpacity(0.1),
+                    theme.colorScheme.secondary.withOpacity(0.1)
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+              child: Text(
+                widget.post['description'],
+                style: GoogleFonts.poppins(
+                  fontSize: 18, 
+                  fontWeight: FontWeight.w600, 
+                  color: theme.colorScheme.onSurface,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          
+          // Actions & Info
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _ActionButton(
+                      icon: _isLiked ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+                      color: _isLiked ? Colors.redAccent : theme.colorScheme.onSurface,
+                      onTap: _toggleLike,
+                    ),
+                    const SizedBox(width: 16),
+                    _ActionButton(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      color: theme.colorScheme.onSurface,
+                      onTap: _showComments,
+                    ),
+                    const SizedBox(width: 16),
+                    _ActionButton(
+                      icon: Icons.send_outlined,
+                      color: theme.colorScheme.onSurface,
+                      onTap: () {},
+                    ),
+                    const Spacer(),
+                    _ActionButton(
+                      icon: _isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                      color: _isSaved ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+                      onTap: _toggleSave,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        icon: Icon(_isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, 
-                        color: _isLiked ? Colors.red : theme.colorScheme.onSurface), 
-                        onPressed: _toggleLike,
-                      ),
-                      IconButton(icon: Icon(Icons.chat_bubble_rounded, color: theme.colorScheme.onSurface), onPressed: _showComments),
-                      const Spacer(),
-                      IconButton(
-                        icon: Icon(_isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, 
-                        color: _isSaved ? Colors.blue : theme.colorScheme.onSurface), 
-                        onPressed: _toggleSave,
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_likeCount > 0) 
-                          Text('$_likeCount Me gusta', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
-                        const SizedBox(height: 6),
-                        if (widget.post['image_url'] != null && widget.post['description'] != null && widget.post['description'].isNotEmpty)
-                          RichText(
+                      if (_likeCount > 0) 
+                        Text(
+                          '$_likeCount Me gusta', 
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 13),
+                        ),
+                      if (widget.post['image_url'] != null && widget.post['description'] != null && widget.post['description'].isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: RichText(
                             text: TextSpan(
-                              style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
+                              style: GoogleFonts.poppins(color: theme.colorScheme.onSurface, fontSize: 13, height: 1.3),
                               children: [
-                                TextSpan(text: '$username ', style: const TextStyle(fontWeight: FontWeight.w800)),
+                                TextSpan(text: '$username ', style: const TextStyle(fontWeight: FontWeight.w700)),
                                 TextSpan(text: widget.post['description']),
                               ],
                             ),
                           ),
-                        const SizedBox(height: 8),
-                        InkWell(
-                          onTap: _showComments,
-                          child: Text(
-                            widget.post['comments_count'] > 0 ? 'Ver los ${widget.post['comments_count']} comentarios' : 'Sé el primero en comentar...',
-                            style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: _showComments,
+                        child: Text(
+                          widget.post['comments_count'] > 0 
+                              ? 'Ver los ${widget.post['comments_count']} comentarios' 
+                              : 'Sé el primero en comentar...',
+                          style: GoogleFonts.poppins(
+                            color: theme.colorScheme.onSurface.withOpacity(0.5), 
+                            fontSize: 12, 
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionButton({required this.icon, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Icon(icon, color: color, size: 26),
     );
   }
 }

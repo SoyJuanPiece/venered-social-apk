@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:venered_social/screens/chat_screen.dart';
 import 'package:venered_social/screens/settings_screen.dart';
 import 'package:venered_social/screens/edit_profile_screen.dart';
@@ -64,7 +65,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .order('created_at', ascending: false);
     return (response as List).cast();
   }
-    Future<void> _toggleFollow() async {
+
+  Future<void> _toggleFollow() async {
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
     final targetUserId = _userId;
 
@@ -88,7 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Error al ${isCurrentlyFollowed ? 'dejar de seguir' : 'seguir'} usuario.'),
-          backgroundColor: Colors.red,
+          backgroundColor: Colors.redAccent,
         ));
       }
     }
@@ -98,7 +100,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       String otherUserId, Map<String, dynamic> otherUser) async {
     final myId = Supabase.instance.client.auth.currentUser!.id;
 
-    // Check if a conversation already exists
     final response = await Supabase.instance.client
         .from('conversations')
         .select('id')
@@ -108,7 +109,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return response.first['id'] as String;
     }
 
-    // Create a new conversation
     final newConversation = await Supabase.instance.client
         .from('conversations')
         .insert({
@@ -125,25 +125,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
+        centerTitle: true,
         title: FutureBuilder<Map<String, dynamic>>(
           future: _profileFuture,
           builder: (context, snapshot) => Text(
-            snapshot.data?['username'] ?? (_isCurrentUser ? 'Perfil' : ''),
-            style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onBackground),
+            snapshot.data?['username'] ?? '',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+              color: theme.colorScheme.onSurface,
+            ),
           ),
         ),
         actions: [
           if (_isCurrentUser)
             IconButton(
-              icon: const Icon(Icons.settings_outlined),
+              icon: Icon(Icons.settings_outlined, color: theme.colorScheme.onSurface),
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) => const SettingsScreen())),
             ),
@@ -154,15 +158,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
                 child: FutureBuilder<Map<String, dynamic>>(
                   future: _profileFuture,
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Center(child: Padding(
+                        padding: EdgeInsets.all(40.0),
+                        child: CircularProgressIndicator(),
+                      ));
                     }
                     final profile = snapshot.data!;
                     final followers = profile['followers']?[0]?['count'] ?? 0;
@@ -173,10 +180,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Row(
                           children: [
-                             CircleAvatar(
-                                radius: 40,
-                                backgroundImage: NetworkImage(profile['profile_pic_url'] ?? ''),
+                            Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
+                                ),
                               ),
+                              child: CircleAvatar(
+                                radius: 42,
+                                backgroundColor: theme.scaffoldBackgroundColor,
+                                child: CircleAvatar(
+                                  radius: 38,
+                                  backgroundImage: profile['profile_pic_url'] != null 
+                                      ? NetworkImage(profile['profile_pic_url']) 
+                                      : null,
+                                  child: profile['profile_pic_url'] == null 
+                                      ? Icon(Icons.person, size: 40, color: theme.colorScheme.primary) 
+                                      : null,
+                                ),
+                              ),
+                            ),
                             Expanded(
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -194,15 +219,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Text(profile['username'] ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
-                        if (profile['bio'] != null) Text(profile['bio']),
                         const SizedBox(height: 16),
+                        Text(
+                          profile['username'] ?? '',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                        if (profile['bio'] != null && profile['bio'].isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              profile['bio'],
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: theme.colorScheme.onSurface.withOpacity(0.8),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 24),
                         if (_isCurrentUser)
                           SizedBox(
                             width: double.infinity,
-                            child: OutlinedButton(
+                            child: ElevatedButton(
                               onPressed: () async {
                                 await Navigator.of(context).push(
                                     MaterialPageRoute(
@@ -210,6 +250,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             EditProfileScreen(initialProfile: profile)));
                                 _refreshData();
                               },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isDark ? Colors.grey[900] : Colors.grey[200],
+                                foregroundColor: theme.colorScheme.onSurface,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
                               child: const Text('Editar perfil'),
                             ),
                           )
@@ -217,15 +263,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Row(
                             children: [
                               Expanded(
-                                child: ElevatedButton(
-                                  onPressed: _toggleFollow,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: profile['is_followed'] ? Colors.grey : theme.primaryColor,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    gradient: profile['is_followed'] 
+                                      ? null 
+                                      : const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
+                                    color: profile['is_followed'] ? (isDark ? Colors.grey[900] : Colors.grey[200]) : null,
                                   ),
-                                  child: Text(profile['is_followed'] ? 'Dejar de seguir' : 'Seguir'),
+                                  child: ElevatedButton(
+                                    onPressed: _toggleFollow,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      shadowColor: Colors.transparent,
+                                      foregroundColor: profile['is_followed'] ? theme.colorScheme.onSurface : Colors.white,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    child: Text(
+                                      profile['is_followed'] ? 'Siguiendo' : 'Seguir',
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: OutlinedButton(
                                   onPressed: () async {
@@ -244,6 +305,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       );
                                     }
                                   },
+                                  style: OutlinedButton.styleFrom(
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    side: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[300]!),
+                                  ),
                                   child: const Text('Mensaje'),
                                 ),
                               ),
@@ -254,19 +319,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                 ),
               ),
-              const Divider(),
+              const Divider(height: 1),
               FutureBuilder<List<Map<String, dynamic>>>(
                 future: _postsFuture,
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const SizedBox.shrink();
                   }
                   final posts = snapshot.data!;
+                  if (posts.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(60.0),
+                        child: Column(
+                          children: [
+                            Icon(Icons.camera_alt_outlined, size: 48, color: Colors.grey[400]),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Aún no hay publicaciones',
+                              style: GoogleFonts.poppins(color: Colors.grey, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       crossAxisSpacing: 2,
                       mainAxisSpacing: 2,
@@ -274,8 +355,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     itemCount: posts.length,
                     itemBuilder: (context, index) {
                       final post = posts[index];
-                      return Image.network(post['image_url'],
-                          fit: BoxFit.cover);
+                      return Image.network(
+                        post['image_url'],
+                        fit: BoxFit.cover,
+                      );
                     },
                   );
                 },
@@ -289,10 +372,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildStat(int count, String label) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(count.toString(),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        Text(
+          count.toString(),
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500),
+        ),
       ],
     );
   }

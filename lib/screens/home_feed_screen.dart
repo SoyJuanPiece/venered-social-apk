@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../utils.dart';
 import 'package:venered_social/widgets/post_card.dart';
@@ -40,28 +41,39 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Venered',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -1.2,
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(bounds),
+          child: Text(
+            'Venered',
+            style: GoogleFonts.grandHotel(
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none_outlined, size: 28),
+            icon: Icon(Icons.favorite_border_rounded, color: theme.colorScheme.onSurface, size: 26),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const NotificationsScreen())),
           ),
           IconButton(
-            icon: const Icon(Icons.messenger_outline_rounded, size: 26),
+            icon: Icon(Icons.chat_bubble_outline_rounded, color: theme.colorScheme.onSurface, size: 24),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const MessagesScreen())),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: RefreshIndicator(
@@ -70,18 +82,20 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           await _postsFuture;
         },
         child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
           slivers: [
             // Stories Section
             SliverToBoxAdapter(
               child: Container(
-                height: 110,
+                height: 120,
                 decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: theme.dividerTheme.color ?? Colors.grey, width: 0.5)),
+                  border: Border(bottom: BorderSide(color: isDark ? Colors.grey[900]! : Colors.grey[200]!, width: 0.5)),
                 ),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  itemCount: 10,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: 8,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   itemBuilder: (context, index) {
                     return _buildStoryItem(index == 0, theme);
                   },
@@ -97,7 +111,21 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                 }
                 final posts = snapshot.data ?? [];
                 if (posts.isEmpty) {
-                  return const SliverFillRemaining(child: Center(child: Text('No hay publicaciones.')));
+                  return SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.feed_outlined, size: 64, color: Colors.grey[300]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Aún no hay publicaciones.',
+                            style: GoogleFonts.poppins(color: Colors.grey, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
                 }
                 return SliverList(
                   delegate: SliverChildBuilderDelegate(
@@ -113,30 +141,22 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: theme.colorScheme.primary,
-        onPressed: () async {
-          await Navigator.of(context).push(MaterialPageRoute(builder: (context) => CreatePostScreen()));
-          setState(() { _postsFuture = _fetchPosts(); });
-        },
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
     );
   }
 
   Widget _buildStoryItem(bool isMe, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(2.5),
+            padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: isMe ? null : const LinearGradient(
-                colors: [Color(0xFFFCAF45), Color(0xFFF77737), Color(0xFFE1306C), Color(0xFFC13584)],
-                begin: Alignment.bottomLeft,
-                end: Alignment.topRight,
+                colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
               color: isMe ? Colors.grey[300] : null,
             ),
@@ -145,15 +165,21 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               decoration: BoxDecoration(color: theme.scaffoldBackgroundColor, shape: BoxShape.circle),
               child: CircleAvatar(
                 radius: 30,
-                backgroundColor: Colors.grey[200],
-                child: isMe ? const Icon(Icons.add, color: Colors.blue) : const Icon(Icons.person, color: Colors.grey, size: 35),
+                backgroundColor: theme.colorScheme.surface,
+                child: isMe 
+                    ? Icon(Icons.add_rounded, color: theme.colorScheme.primary, size: 30) 
+                    : Icon(Icons.person_rounded, color: Colors.grey[400], size: 35),
               ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             isMe ? 'Tu historia' : 'Usuario',
-            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface),
+            style: GoogleFonts.poppins(
+              fontSize: 11, 
+              color: theme.colorScheme.onSurface,
+              fontWeight: isMe ? FontWeight.w600 : FontWeight.w400,
+            ),
           ),
         ],
       ),
