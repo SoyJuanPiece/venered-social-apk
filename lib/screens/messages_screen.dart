@@ -24,39 +24,36 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   void _setupStream() {
-    // We'll subscribe to the user's participant rows just to be notified about
-    // any change (new conversation, participant removed, etc.). Every time the
-    // event arrives we call an RPC that returns all the information in a
-    // single query, avoiding the previous N+1 pattern.
     final userId = supabase.auth.currentUser!.id;
 
+    // Escuchamos cambios en la tabla 'conversations' para saber cuándo hay nuevos mensajes o chats
     _conversationsStream = supabase
-        .from('conversation_participants')
+        .from('conversations')
         .stream(primaryKey: ['id'])
-        .eq('user_id', userId)
+        .or('user1_id.eq.$userId,user2_id.eq.$userId')
+        .order('last_message_at', ascending: false)
         .asyncMap((event) async {
-          final res = await supabase.rpc('get_user_conversations', params: {
-            'p_user_id': userId,
-          });
-          if (res.error != null) {
-            // log and return empty list so the UI doesn't break
-            dPrint('get_user_conversations rpc error: ${res.error}');
-            return <Map<String, dynamic>>[];
-          }
-          return (res.data as List<dynamic>)
-              .cast<Map<String, dynamic>>();
+          // Cada vez que cambie una conversación, refrescamos la vista completa
+          final res = await supabase
+              .from('view_conversations')
+              .select()
+              .order('last_message_at', ascending: false);
+          
+          return List<Map<String, dynamic>>.from(res);
         });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final myId = supabase.auth.currentUser!.id;
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Mensajes', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Mensajes', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
         backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0.5,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.add_comment_outlined),
@@ -77,67 +74,65 @@ class _MessagesScreenState extends State<MessagesScreen> {
             return _buildEmptyState(theme);
           }
 
-          return ListView.separated(
+          return ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: conversations.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 4),
             itemBuilder: (context, index) {
               final chat = conversations[index];
-              final otherUsername = chat['other_username'] as String?;
-              final otherAvatar = chat['other_avatar_url'] as String?;
-              final lastContent = chat['last_message_content'] as String?;
+              final otherUsername = chat['other_username'] ?? 'Usuario';
+              final otherAvatar = chat['other_avatar_url'];
+              final lastContent = chat['last_message_content'];
               final lastSender = chat['last_message_sender_id'];
-              final updatedAt = DateTime.parse(chat['updated_at']);
+              final updatedAt = DateTime.parse(chat['last_message_at'] ?? DateTime.now().toIso8601String());
 
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                elevation: 1,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ChatScreen(
-                        conversationId: chat['conversation_id'],
-                        otherUser: {
-                          'id': chat['other_user_id'],
-                          'username': otherUsername,
-                          'avatar_url': otherAvatar,
-                        },
-                      ),
+              return ListTile(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(
+                      conversationId: chat['conversation_id'],
+                      otherUser: {
+                        'id': chat['other_user_id'],
+                        'username': otherUsername,
+                        'avatar_url': otherAvatar,
+                      },
                     ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  leading: CircleAvatar(
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                leading: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
+                  ),
+                  child: CircleAvatar(
                     radius: 28,
-                    backgroundColor: theme.colorScheme.onBackground.withOpacity(0.1),
+                    backgroundColor: theme.scaffoldBackgroundColor,
                     backgroundImage: otherAvatar != null ? NetworkImage(otherAvatar) : null,
-                    child: otherAvatar == null
-                        ? Icon(Icons.person, color: theme.colorScheme.onBackground.withOpacity(0.4))
-                        : null,
+                    child: otherAvatar == null ? Icon(Icons.person, color: theme.colorScheme.primary) : null,
                   ),
-                  title: Text(
-                    otherUsername ?? 'Usuario',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16, color: theme.colorScheme.onSurface),
+                ),
+                title: Text(
+                  otherUsername,
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w700, 
+                    fontSize: 15,
                   ),
-                  subtitle: Text(
-                    lastContent ?? 'No hay mensajes aún',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: lastContent != null && lastSender != supabase.auth.currentUser!.id
-                          ? theme.colorScheme.onSurface.withOpacity(0.8)
-                          : theme.colorScheme.onSurface.withOpacity(0.4),
-                      fontWeight: lastContent != null && lastSender != supabase.auth.currentUser!.id
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
+                ),
+                subtitle: Text(
+                  lastContent ?? '¡Di hola!',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: lastSender != myId ? theme.colorScheme.onSurface : Colors.grey,
+                    fontWeight: lastSender != myId ? FontWeight.w600 : FontWeight.w400,
                   ),
-                  trailing: Text(
-                    formatHm(updatedAt),
-                    style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4), fontSize: 12),
-                  ),
+                ),
+                trailing: Text(
+                  formatHm(updatedAt),
+                  style: GoogleFonts.poppins(color: Colors.grey, fontSize: 11),
                 ),
               );
             },
@@ -148,7 +143,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Future<void> _startNewChat() async {
-    // show a richer search dialog that returns the selected profile map
     final profile = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => const UserSearchDialog(),
@@ -157,36 +151,45 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (profile == null) return;
 
     final otherId = profile['id'] as String;
-    if (otherId == supabase.auth.currentUser!.id) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No puedes iniciar chat contigo mismo')),
-      );
+    final myId = supabase.auth.currentUser!.id;
+
+    if (otherId == myId) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No puedes chatear contigo mismo')));
       return;
     }
 
     try {
-      final convRes = await supabase.rpc('create_conversation', params: {
-        'p_user1': supabase.auth.currentUser!.id,
-        'p_user2': otherId,
-      });
+      // Verificar si ya existe
+      final existing = await supabase
+          .from('conversations')
+          .select('id')
+          .or('and(user1_id.eq.$myId,user2_id.eq.$otherId),and(user1_id.eq.$otherId,user2_id.eq.$myId)')
+          .maybeSingle();
 
-      if (convRes.error != null) {
-        throw convRes.error!;
+      String convId;
+      if (existing != null) {
+        convId = existing['id'];
+      } else {
+        final newConv = await supabase.from('conversations').insert({
+          'user1_id': myId,
+          'user2_id': otherId,
+        }).select('id').single();
+        convId = newConv['id'];
       }
-      final convId = convRes.data as String;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ChatScreen(
-            conversationId: convId,
-            otherUser: profile,
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatScreen(
+              conversationId: convId,
+              otherUser: profile,
+            ),
           ),
-        ),
-      );
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error iniciando chat: $e')),
-      );
+      dPrint('Error starting chat: $e');
     }
   }
 
