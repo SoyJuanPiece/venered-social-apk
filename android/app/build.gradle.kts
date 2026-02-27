@@ -18,7 +18,10 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        // jvmTarget string way is deprecated; use compilerOptions DSL
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 
     defaultConfig {
@@ -51,10 +54,10 @@ android {
     // split per ABI produces separate binaries for each architecture
     splits {
         abi {
-            enable = true
+            isEnable = true
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86_64")
-            universalApk = false
+            isUniversalApk = false
         }
     }
 }
