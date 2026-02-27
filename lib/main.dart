@@ -33,8 +33,8 @@ Future<void> main() async {
 
   // Supabase Initialization
   await Supabase.initialize(
-    url: 'https://nlwhegfakwzdtaxehood.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd2hlZ2Zha3d6ZHRheGVob29kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MDA5ODYsImV4cCI6MjA4NzQ3Njk4Nn0.DI8_BUf1_ON92rYHYzZzjjBHw_fKvdA6Nbg5E_BKOVk',
+    url: 'https://tmpbeurmpiocsefpwnkq.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtcGJldXJtcGlvY3NlZnB3bmtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMTY5NTgsImV4cCI6MjA4Nzc5Mjk1OH0.AtPvatPKCTHGkA5nL17YyNp5edxEQBvpB7-_GzZkwKI',
   );
   
   await ThemeManager.init();

@@ -41,24 +41,64 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Delete old tags and releases
+        run: |
+          # Eliminar todos los releases locales y remotos (si existen)
+          RELEASES=$(gh release list --limit 100 | awk '{print $1}')
+          for release in $RELEASES; do
+            echo "Borrando release: $release"
+            gh release delete "$release" --yes --cleanup-tag
+          done
+          
+          # Eliminar tags locales
+          git tag -l | xargs -r git tag -d
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build APKs (split per ABI)
         run: flutter build apk --release --split-per-abi
 
+      - name: Build App Bundle (.aab)
+        run: flutter build appbundle --release
+
       - name: Compress APKs to ZIP
         run: |
-          zip -j venered_social_${{ github.ref_name }}.zip build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/app-x86_64-release.apk
-
-      - name: Prepare list of APKs
-        run: |
-          ls build/app/outputs/flutter-apk/*.apk
-          echo "APKS=build/app/outputs/flutter-apk/app-*-release.apk" >> $GITHUB_ENV
+          zip -j venered_social_v1.0.zip build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/app-x86_64-release.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
-          name: Release ${{ github.ref_name }}
-          generate_release_notes: true
+          files: |
+            venered_social_v1.0.zip
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            build/app/outputs/flutter-apk/app-x86_64-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+          name: "Venered Social v1.0 (Lanzamiento Oficial)"
+          body: |
+            🚀 **¡Lanzamiento Oficial de Venered Social v1.0!** 🚀
+
+            Esta versión marca un antes y un después en la aplicación, con un enfoque total en el diseño "Premium" y la estabilidad.
+
+            ### ✨ Novedades Visuales (Rediseño Total)
+            *   **Tipografía de Élite:** Integración de Google Fonts (Poppins) en toda la aplicación.
+            *   **Estética Vibrante:** Nueva paleta de colores con gradientes Indigo/Rosa y bordes redondeados (24px).
+            *   **Pantallas Renovadas:** Rediseño completo de Login, Registro, Home Feed, Perfil y Explorar.
+            *   **Identidad de Marca:** Logo estilizado con gradientes en puntos clave.
+
+            ### 🛠️ Mejoras Técnicas y Robustez
+            *   **Perfil Sin Errores:** Se corrigió el cargado infinito y se añadió manejo de errores con botón de reintento.
+            *   **Deep Linking:** Ahora puedes confirmar tu correo de Supabase y volver automáticamente a la app (venered://login).
+            *   **Base de Datos:** Migración a un nuevo proyecto optimizado en Supabase.
+            *   **Optimización de Compilación:** Ahora se incluyen APKs por arquitectura y el App Bundle (.aab).
+
+            ### 📦 Archivos Incluidos
+            *   **ZIP Comprimido:** Con todos los APKs.
+            *   **Split APKs:** Optimizados para cada tipo de móvil (v7a, v8a, x64).
+            *   **App Bundle (.aab):** Versión oficial para subir a la Play Store.
+
+            *Nota: Se han eliminado todos los releases y tags anteriores para mantener esta versión como la base oficial.*
+          generate_release_notes: false
           draft: false
           prerelease: false
         env:
@@ -75,14 +115,16 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          document: venered_social_${{ github.ref_name }}.zip
+          document: venered_social_v1.0.zip
           message: |
-            🎉 **Venered Social v${{ github.ref_name }}** 🎉
+            🎉 **Venered Social v1.0 (Oficial)** 🎉
 
-            **Estado:** ✅ Compilación Exitosa
-            **Archivo:** ZIP Comprimido adjunto.
+            **Estado:** ✅ Lanzamiento Exitoso
+            **Nota:** Esta es la versión oficial 1.0. Se han eliminado las versiones anteriores del servidor.
 
-            Si el archivo no carga, descárgalo aquí:
-            https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+            📥 **Archivo ZIP con APKs adjunto.**
 
-            ¡Disfruta las mejoras de diseño y comentarios en tiempo real!
+            🌐 **Descarga directa:**
+            https://github.com/${{ github.repository }}/releases/latest
+
+            ¡Disfruta la nueva experiencia premium de Venered!
