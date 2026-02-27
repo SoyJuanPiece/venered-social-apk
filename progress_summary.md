@@ -24,7 +24,14 @@ Este documento resume las mejoras y cambios más recientes implementados en la a
 
 ### 4. Configuración de GitHub Actions
 - **Problema:** La compilación automática no se iniciaba al hacer `push` a la rama `main`.
-- **Solución:** Se ha creado un nuevo tag (`v1.52.32`) para activar el workflow de GitHub Actions y compilar la aplicación. Adicionalmente se ha identificado que el workflow solo se activa con tags y no con push a main.
+- **Solución:** Se ha creado un nuevo tag (`v1.52.35`) para activar el workflow de GitHub Actions y compilar la aplicación. Adicionalmente se ha identificado que el workflow solo se activa con tags y no con push a main.
+
+### 5. Corrección de Errores de Compilación
+- **Problema:** La aplicación no compilaba debido a errores relacionados con la actualización de la librería de Supabase.
+- **Solución:**
+    - Se ha corregido la llamada a la `ChatScreen` para pasar los parámetros correctos.
+    - Se ha actualizado el método `stream` a `asStream` en las consultas de Supabase.
+    - Se ha corregido el orden de los métodos en las consultas de Supabase para asegurar que los filtros se aplican antes de crear el stream.
 
 ## Próximos Pasos
 - [ ] Implementar la funcionalidad de "Seguir" y "Dejar de seguir".
