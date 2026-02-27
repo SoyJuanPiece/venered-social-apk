@@ -101,10 +101,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
       _refreshData();
     } catch (e) {
+      debugPrint('Error toggling follow: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error al ${isCurrentlyFollowed ? 'dejar de seguir' : 'seguir'} usuario.'),
+          content: Text('Error: $e'),
           backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
         ));
       }
     }
@@ -114,26 +116,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       String otherUserId, Map<String, dynamic> otherUser) async {
     final myId = Supabase.instance.client.auth.currentUser!.id;
 
-    final response = await Supabase.instance.client
-        .from('conversations')
-        .select('id')
-        .or('and(user1_id.eq.$myId,user2_id.eq.$otherUserId),and(user1_id.eq.$otherUserId,user2_id.eq.$myId)');
+    try {
+      // Intentar encontrar conversación existente
+      final response = await Supabase.instance.client
+          .from('conversations')
+          .select('id')
+          .or('and(user1_id.eq.$myId,user2_id.eq.$otherUserId),and(user1_id.eq.$otherUserId,user2_id.eq.$myId)');
 
-    if (response.isNotEmpty) {
-      return response.first['id'] as String;
+      if (response.isNotEmpty) {
+        return response.first['id'] as String;
+      }
+
+      // Crear nueva si no existe
+      final newConversation = await Supabase.instance.client
+          .from('conversations')
+          .insert({
+            'user1_id': myId,
+            'user2_id': otherUserId,
+            'last_message_at': DateTime.now().toIso8601String(),
+          })
+          .select('id')
+          .maybeSingle();
+
+      if (newConversation == null) {
+        throw Exception("No se pudo crear la conversación. Verifica los permisos RLS.");
+      }
+
+      return newConversation['id'] as String;
+    } catch (e) {
+      debugPrint('Error in _getOrCreateConversation: $e');
+      rethrow;
     }
-
-    final newConversation = await Supabase.instance.client
-        .from('conversations')
-        .insert({
-          'user1_id': myId,
-          'user2_id': otherUserId,
-          'last_message_at': DateTime.now().toIso8601String(),
-        })
-        .select('id')
-        .single();
-
-    return newConversation['id'] as String;
   }
 
   @override

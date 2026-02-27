@@ -110,21 +110,54 @@ ALTER TABLE public.followers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
--- 11. POLÍTICAS DE LECTURA PÚBLICA
+-- 11. POLÍTICAS DE RLS (Seguridad)
+
+-- Perfiles: Todos pueden ver, solo el dueño puede editar
 DROP POLICY IF EXISTS "Permitir lectura de perfiles a todos" ON public.profiles;
 CREATE POLICY "Permitir lectura de perfiles a todos" ON public.profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Permitir actualización a dueños" ON public.profiles;
+CREATE POLICY "Permitir actualización a dueños" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
+-- Posts: Todos pueden ver, solo el dueño puede crear/borrar
 DROP POLICY IF EXISTS "Permitir lectura de posts a todos" ON public.posts;
 CREATE POLICY "Permitir lectura de posts a todos" ON public.posts FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Permitir creación a autenticados" ON public.posts;
+CREATE POLICY "Permitir creación a autenticados" ON public.posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Permitir borrado a dueños" ON public.posts;
+CREATE POLICY "Permitir borrado a dueños" ON public.posts FOR DELETE USING (auth.uid() = user_id);
 
+-- Likes: Todos pueden ver, solo autenticados pueden dar/quitar like
 DROP POLICY IF EXISTS "Permitir lectura de likes a todos" ON public.likes;
 CREATE POLICY "Permitir lectura de likes a todos" ON public.likes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Permitir dar like a autenticados" ON public.likes;
+CREATE POLICY "Permitir dar like a autenticados" ON public.likes FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Permitir quitar like a dueños" ON public.likes;
+CREATE POLICY "Permitir quitar like a dueños" ON public.likes FOR DELETE USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "Permitir lectura de comentarios a todos" ON public.comments;
-CREATE POLICY "Permitir lectura de comentarios a todos" ON public.comments FOR SELECT USING (true);
-
+-- Seguidores: Todos pueden ver, solo autenticados pueden seguir/dejar de seguir
 DROP POLICY IF EXISTS "Permitir lectura de seguidores a todos" ON public.followers;
 CREATE POLICY "Permitir lectura de seguidores a todos" ON public.followers FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Permitir seguir a autenticados" ON public.followers;
+CREATE POLICY "Permitir seguir a autenticados" ON public.followers FOR INSERT WITH CHECK (auth.uid() = follower_id);
+DROP POLICY IF EXISTS "Permitir dejar de seguir a dueños" ON public.followers;
+CREATE POLICY "Permitir dejar de seguir a dueños" ON public.followers FOR DELETE USING (auth.uid() = follower_id);
+
+-- Conversaciones: Solo los participantes pueden ver/crear
+DROP POLICY IF EXISTS "Usuarios pueden ver sus conversaciones" ON public.conversations;
+CREATE POLICY "Usuarios pueden ver sus conversaciones" ON public.conversations FOR SELECT USING (auth.uid() = user1_id OR auth.uid() = user2_id);
+DROP POLICY IF EXISTS "Usuarios pueden crear conversaciones" ON public.conversations;
+CREATE POLICY "Usuarios pueden crear conversaciones" ON public.conversations FOR INSERT WITH CHECK (auth.uid() = user1_id OR auth.uid() = user2_id);
+
+-- Mensajes: Solo los participantes de la conversación pueden ver/enviar
+DROP POLICY IF EXISTS "Usuarios pueden ver mensajes de sus chats" ON public.messages;
+CREATE POLICY "Usuarios pueden ver mensajes de sus chats" ON public.messages FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.conversations 
+    WHERE id = conversation_id AND (user1_id = auth.uid() OR user2_id = auth.uid())
+  )
+);
+DROP POLICY IF EXISTS "Usuarios pueden enviar mensajes" ON public.messages;
+CREATE POLICY "Usuarios pueden enviar mensajes" ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
 
 -- 12. DISPARADOR (Trigger) PARA CREAR PERFIL AUTOMÁTICAMENTE AL REGISTRARSE
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
