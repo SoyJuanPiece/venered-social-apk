@@ -2,42 +2,34 @@
 
 Este documento resume las mejoras y cambios más recientes implementados en la aplicación Venered Social.
 
-## Mejoras Recientes (Julio 2024)
+## Mejoras Recientes (Febrero 2026)
 
-### 1. Funcionalidad de Búsqueda y Navegación de Perfiles
-- **Problema:** Los usuarios no podían navegar a los perfiles de otros usuarios desde los resultados de búsqueda.
-- **Solución:** Se ha implementado la funcionalidad que permite a los usuarios tocar el nombre de un usuario en los resultados de búsqueda para ser redirigidos a su perfil.
+### 1. Rediseño Estético "Premium" (Gran Refactorización Visual)
+- **Problema:** La interfaz se sentía básica y poco moderna para los estándares actuales de redes sociales.
+- **Solución:** Se ha realizado una refactorización masiva de la UI/UX en toda la aplicación:
+    - **Tipografía Elevada:** Integración de `google_fonts` usando **Poppins** como fuente principal para una lectura clara y profesional.
+    - **Identidad Visual:** Implementación de un logo estilizado con gradientes (Indigo a Rosa Vibrante) y una paleta de colores coherente en toda la app.
+    - **Tema Moderno:** Actualización de colores de fondo (`0xFF0A0A0A` para modo oscuro) y superficies para un look más "limpio".
+    - **Componentes Refinados:** Rediseño total de `PostCard`, botones, campos de texto y navegación con bordes más redondeados (hasta 24px) y sombras suaves.
 
-### 2. Mejora en la Sección de Comentarios
-- **Problema:**
-    - No se mostraban los nombres de los usuarios que habían comentado.
-    - No era posible acceder a los perfiles de los usuarios desde la sección de comentarios.
-- **Solución:**
-    - Se ha modificado la consulta a la base de datos para incluir la información del perfil del usuario (nombre y foto de perfil) junto con cada comentario.
-    - Se ha rediseñado la interfaz de la sección de comentarios para mostrar la foto de perfil y el nombre de usuario.
-    - Se ha añadido la funcionalidad de que al tocar en un comentario, el usuario es redirigido al perfil del autor del comentario.
+### 2. Actualización de Pantallas Principales
+- **Login y Registro:** Nuevas pantallas de acceso con diseño visualmente impactante, gradientes y mejor espaciado.
+- **Home Feed:** AppBar minimalista con logo en gradiente y sección de historias rediseñada con micro-interacciones.
+- **Perfil de Usuario:** Rediseño elegante con estadísticas destacadas, bordes de avatar con gradiente y cuadrícula de posts mejorada.
+- **Explorar:** Barra de búsqueda estética y chips de categorías modernos.
+- **Creación de Posts:** Interfaz de usuario intuitiva para la selección de imágenes y redacción de contenido con previsualización estilizada.
 
-### 3. Pantalla de Perfil Dinámica
-- **Problema:** La pantalla de perfil solo mostraba la información del usuario que había iniciado sesión.
-- **Solución:** Se ha modificado la pantalla de perfil para que muestre la información de cualquier usuario de la aplicación.
-    - Cuando se visita el perfil de otro usuario, se muestran los botones "Seguir" (o "Dejar de seguir") y "Mensaje".
+### 3. Automatización y Despliegue (GitHub Actions)
+- **Compilación Automatizada:** Se han configurado y disparado nuevas compilaciones mediante tags.
+- **Control de Versiones:** Creación del tag `v1.52.38` para desplegar la versión con el nuevo diseño.
 
-### 4. Configuración de GitHub Actions
-- **Problema:** La compilación automática no se iniciaba al hacer `push` a la rama `main`.
-- **Solución:** Se ha creado un nuevo tag (`v1.52.35`) para activar el workflow de GitHub Actions y compilar la aplicación. Adicionalmente se ha identificado que el workflow solo se activa con tags y no con push a main.
+### 4. Correcciones Técnicas y Dependencias
+- **Compatibilidad de Librerías:** Actualización de `http` y `google_fonts` asegurando la estabilidad del proyecto.
+- **Limpieza de Código:** Eliminación de estilos redundantes a favor de un `ThemeData` centralizado y más potente.
 
-### 5. Corrección de Errores de Compilación
-- **Problema:** La aplicación no compilaba debido a errores relacionados con la actualización de la librería de Supabase.
-- **Solución:**
-    - Se ha corregido la llamada a la `ChatScreen` para pasar los parámetros correctos.
-    - Se ha actualizado el método `stream` a `asStream` en las consultas de Supabase.
-    - Se ha corregido el orden de los métodos en las consultas de Supabase para asegurar que los filtros se aplican antes de crear el stream.
-
-### 6. Script de Limpieza de Base de Datos Robustecido
-- **Problema:** El script de limpieza de base de datos original fallaba si alguna de las tablas listadas no existía en la base de datos, lo que impedía una ejecución completa en entornos con esquemas parciales.
-- **Solución:** Se ha modificado el script `clean_database.sql` para incluir bloques `DO $$ BEGIN ... EXCEPTION WHEN UNDEFINED_TABLE THEN ... END $$;` alrededor de cada instrucción `TRUNCATE TABLE`. Esto permite que el script omita elegantemente cualquier tabla inexistente e imprima un aviso en lugar de terminar la ejecución con un error. Se ha añadido también una nota importante en el script para recordar al usuario que la ausencia de tablas esperadas (como `public.conversations`) sugiere que el esquema de la base de datos no está completamente aplicado.
-
-## Próximos Pasos
-- [ ] Implementar la funcionalidad de "Seguir" y "Dejar de seguir".
-- [ ] Implementar la funcionalidad de "Mensaje".
-- [ ] Mejorar la interfaz de la pantalla de perfil.
+## Próximos Pasos (Enfoque en Funcionalidad)
+- [x] Mejorar la interfaz de la pantalla de perfil (Completado).
+- [ ] Implementar la funcionalidad real de "Tiempo transcurrido" (Time Ago) en los posts.
+- [ ] Optimizar la carga de imágenes para mejorar el rendimiento del scroll.
+- [ ] Añadir soporte para historias interactivas.
+- [ ] Refinar las animaciones de transición entre pantallas.

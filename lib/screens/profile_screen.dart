@@ -39,31 +39,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchProfile() async {
-    final response = await Supabase.instance.client
-        .from('profiles')
-        .select('*, followers:followers!following_id(count), following:followers!follower_id(count)')
-        .eq('id', _userId)
-        .single();
+    try {
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select('*, followers:followers(count), following:followers(count)')
+          .eq('id', _userId)
+          .single();
 
-    if (!_isCurrentUser) {
-      final followCheck = await Supabase.instance.client
-          .from('followers')
-          .select('id')
-          .eq('follower_id', Supabase.instance.client.auth.currentUser!.id)
-          .eq('following_id', _userId)
-          .maybeSingle();
-      response['is_followed'] = followCheck != null;
+      if (!_isCurrentUser) {
+        final followCheck = await Supabase.instance.client
+            .from('followers')
+            .select('id')
+            .eq('follower_id', Supabase.instance.client.auth.currentUser!.id)
+            .eq('following_id', _userId)
+            .maybeSingle();
+        response['is_followed'] = followCheck != null;
+      }
+      return response;
+    } catch (e) {
+      debugPrint('Error fetching profile: $e');
+      rethrow;
     }
-    return response;
   }
 
   Future<List<Map<String, dynamic>>> _fetchPosts() async {
-    final response = await Supabase.instance.client
-        .from('posts')
-        .select('image_url')
-        .eq('user_id', _userId)
-        .order('created_at', ascending: false);
-    return (response as List).cast();
+    try {
+      final response = await Supabase.instance.client
+          .from('posts')
+          .select('image_url')
+          .eq('user_id', _userId)
+          .order('created_at', ascending: false);
+      return (response as List).cast();
+    } catch (e) {
+      debugPrint('Error fetching posts: $e');
+      return [];
+    }
   }
 
   Future<void> _toggleFollow() async {
@@ -165,15 +175,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: FutureBuilder<Map<String, dynamic>>(
                   future: _profileFuture,
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: Padding(
                         padding: EdgeInsets.all(40.0),
                         child: CircularProgressIndicator(),
                       ));
                     }
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                            const SizedBox(height: 12),
+                            Text('Error al cargar perfil', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                            TextButton(onPressed: _refreshData, child: const Text('Reintentar')),
+                          ],
+                        ),
+                      );
+                    }
+                    if (!snapshot.hasData) return const SizedBox.shrink();
+                    
                     final profile = snapshot.data!;
-                    final followers = profile['followers']?[0]?['count'] ?? 0;
-                    final following = profile['following']?[0]?['count'] ?? 0;
+                    final followersCount = profile['followers'] is List ? (profile['followers'] as List).length : (profile['followers']?['count'] ?? 0);
+                    final followingCount = profile['following'] is List ? (profile['following'] as List).length : (profile['following']?['count'] ?? 0);
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,8 +236,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       return _buildStat(postSnapshot.data?.length ?? 0, 'Posts');
                                     }
                                   ),
-                                  _buildStat(followers, 'Seguidores'),
-                                  _buildStat(following, 'Seguidos'),
+                                  _buildStat(followersCount, 'Seguidores'),
+                                  _buildStat(followingCount, 'Seguidos'),
                                 ],
                               ),
                             ),
