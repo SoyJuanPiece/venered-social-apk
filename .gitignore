@@ -4,3 +4,7 @@ build/
 flutter/
 *.tar.xz
 *.apk
+
+# Firebase - NO COMPROMETER LLAVES PÚBLICAS
+android/app/google-services.json
+test/google-services.json
