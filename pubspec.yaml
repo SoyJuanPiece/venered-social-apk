@@ -1,7 +1,7 @@
 name: venered_social
 description: Aplicación de red social tipo Instagram/Threads en Flutter.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0
 
 environment:
   sdk: '>=3.3.0 <4.0.0' # Ajustado para la versión de Dart en Flutter 3.19.x
