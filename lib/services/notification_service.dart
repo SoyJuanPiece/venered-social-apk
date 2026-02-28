@@ -7,7 +7,7 @@ import 'package:venered_social/utils.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Manejado automáticamente si trae 'notification'
+  // Manejado por el OS
 }
 
 class NotificationService {
@@ -15,65 +15,50 @@ class NotificationService {
   static StreamSubscription? _supabaseSub;
   static String? _lastNotifId;
 
-  // Definición del canal para Android (Importancia Máxima)
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'venered_high_importance_channel', // id
-    'Notificaciones de Venered', // title
-    description: 'Este canal se usa para notificaciones importantes de mensajes.', // description
+    'venered_messages',
+    'Mensajes de Venered',
+    description: 'Canal para notificaciones de chat.',
     importance: Importance.max,
     playSound: true,
     enableVibration: true,
-    showBadge: true,
   );
   
   static Future<void> init() async {
-    final messaging = FirebaseMessaging.instance;
+    // 1. PRIMERO: Activar el escucha de Supabase (Siempre debe funcionar)
+    _startSupabaseListener();
+
+    // 2. INICIALIZAR NOTIFICACIONES LOCALES
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings();
+    await _localNotifications.initialize(const InitializationSettings(android: androidInit, iOS: iosInit));
     
-    // 1. Pedir permisos de forma explícita
-    NotificationSettings settings = await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
-
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      dPrint('Permiso de notificaciones concedido');
-    }
-
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-    // 2. Crear el canal en Android
     await _localNotifications
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_channel);
 
-    // 3. Inicializar notificaciones locales
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings();
-    
-    await _localNotifications.initialize(
-      const InitializationSettings(android: androidInit, iOS: iosInit),
-      onDidReceiveNotificationResponse: (details) {
-        // Manejar clic en la notificación
-      },
-    );
+    // 3. INTENTAR FIREBASE (Si falla, no bloquea lo anterior)
+    try {
+      final messaging = FirebaseMessaging.instance;
+      
+      // Pedir permisos
+      await messaging.requestPermission(alert: true, badge: true, sound: true);
 
-    // 4. Token de Firebase
-    final token = await messaging.getToken();
-    if (token != null) _saveToken(token);
-    messaging.onTokenRefresh.listen(_saveToken);
+      // Configurar handlers
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        if (message.notification != null) {
+          _showLocalNotification(message.notification!.title ?? 'Venered', message.notification!.body ?? '');
+        }
+      });
 
-    // 5. Escuchar mensajes de Firebase (App abierta)
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification?.android;
-      if (notification != null && android != null) {
-        _showLocalNotification(notification.title ?? 'Venered', notification.body ?? '');
-      }
-    });
-
-    _startSupabaseListener();
+      // Intentar obtener token (aquí es donde daba el error TOO_MANY_REGISTRATIONS)
+      final token = await messaging.getToken().timeout(const Duration(seconds: 5));
+      if (token != null) _saveToken(token);
+      
+    } catch (e) {
+      dPrint('Aviso: Firebase no pudo registrarse, se usará solo Supabase: $e');
+    }
   }
 
   static void _startSupabaseListener() {
@@ -137,7 +122,6 @@ class NotificationService {
           channelDescription: _channel.description,
           importance: Importance.max,
           priority: Priority.high,
-          ticker: 'ticker',
           icon: '@mipmap/ic_launcher',
         ),
       ),
