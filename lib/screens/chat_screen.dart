@@ -79,11 +79,24 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _markAsRead() async {
+    final myId = supabase.auth.currentUser!.id;
+    
+    // Mark messages as read
     await supabase
         .from('messages')
         .update({'is_read': true})
         .eq('conversation_id', widget.conversationId)
-        .neq('sender_id', supabase.auth.currentUser!.id);
+        .neq('sender_id', myId);
+
+    // Mark notifications as read for this conversation
+    try {
+      await supabase
+          .from('notifications')
+          .update({'is_read': true})
+          .eq('receiver_id', myId)
+          .eq('related_id', widget.conversationId)
+          .eq('type', 'message');
+    } catch (_) {}
   }
 
   Future<void> _sendMessage() async {

@@ -25,6 +25,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
     super.initState();
     _loadConversations();
     _setupRealtime();
+    _markNotificationsAsRead();
+  }
+
+  Future<void> _markNotificationsAsRead() async {
+    final myId = supabase.auth.currentUser!.id;
+    try {
+      await supabase
+          .from('notifications')
+          .update({'is_read': true})
+          .eq('receiver_id', myId)
+          .eq('type', 'message');
+    } catch (e) {
+      dPrint('Error marking notifications as read: $e');
+    }
   }
 
   @override

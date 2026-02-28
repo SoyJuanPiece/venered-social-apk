@@ -17,11 +17,24 @@ class HomeFeedScreen extends StatefulWidget {
 
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
   late Future<List<Map<String, dynamic>>> _postsFuture;
+  late Stream<int> _unreadMessagesStream;
 
   @override
   void initState() {
     super.initState();
     _postsFuture = _fetchPosts();
+    _unreadMessagesStream = _setupUnreadCounter();
+  }
+
+  Stream<int> _setupUnreadCounter() {
+    final myId = Supabase.instance.client.auth.currentUser!.id;
+    return Supabase.instance.client
+        .from('notifications')
+        .stream(primaryKey: ['id'])
+        .eq('receiver_id', myId)
+        .eq('type', 'message')
+        .eq('is_read', false)
+        .map((event) => event.length);
   }
 
   Future<List<Map<String, dynamic>>> _fetchPosts() async {
@@ -69,9 +82,20 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
             icon: Icon(Icons.favorite_border_rounded, color: theme.colorScheme.onSurface, size: 26),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const NotificationsScreen())),
           ),
-          IconButton(
-            icon: Icon(Icons.chat_bubble_outline_rounded, color: theme.colorScheme.onSurface, size: 24),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const MessagesScreen())),
+          StreamBuilder<int>(
+            stream: _unreadMessagesStream,
+            builder: (context, snapshot) {
+              final count = snapshot.data ?? 0;
+              return Badge(
+                label: Text(count.toString()),
+                isLabelVisible: count > 0,
+                backgroundColor: theme.colorScheme.secondary,
+                child: IconButton(
+                  icon: Icon(Icons.chat_bubble_outline_rounded, color: theme.colorScheme.onSurface, size: 24),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const MessagesScreen())),
+                ),
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],
