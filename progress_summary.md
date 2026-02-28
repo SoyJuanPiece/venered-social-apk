@@ -4,10 +4,10 @@ Este documento resume las mejoras y cambios más recientes implementados en la a
 
 ## Mejoras Recientes (Febrero 2026)
 
-### 1. Mensajería y Tiempo Real (v2.4)
-- **Chat en Tiempo Real:** Implementación de flujos de datos (`Streams`) nativos de Supabase para mensajes instantáneos sin necesidad de refrescar la pantalla.
-- **Lista de Chats Dinámica:** Rediseño de la pantalla de mensajes para mostrar conversaciones activas, fotos de perfil y últimos mensajes en tiempo real usando vistas SQL optimizadas (`view_conversations`).
-- **Presencia de Usuario:** Sistema de detección de usuarios en línea y última conexión.
+### 1. Mensajería y Tiempo Real (Estabilización Final v1.0)
+- **Carga Robusta de Chats:** Se ha rediseñado `MessagesScreen` para que realice una carga inicial explícita mediante `select()`, asegurando que todos los mensajes (enviados y recibidos) aparezcan de inmediato al abrir la aplicación.
+- **Sincronización Multipunto:** Implementación de suscripciones Realtime tanto a la tabla de `conversations` como a la de `messages`, garantizando que la lista de chats se actualice al instante ante cualquier actividad.
+- **Flujo de Búsqueda Optimizado:** El buscador de usuarios en la sección de mensajes ahora devuelve el perfil seleccionado directamente para iniciar un chat, eliminando pasos innecesarios por el perfil del usuario.
 
 ### 2. Sistema de Notificaciones Automáticas
 - **Triggers de Base de Datos:** Configuración de disparadores en Supabase que generan automáticamente una notificación cuando:
@@ -23,10 +23,13 @@ Este documento resume las mejoras y cambios más recientes implementados en la a
 ### 4. Lanzamiento Oficial y Rediseño Premium
 - **Estética de Alta Gama:** Implementación total de `Google Fonts (Poppins)`, gradientes y bordes redondeados.
 - **Deep Linking:** Configuración de `venered://login` para una autenticación fluida vía email.
+- **Estructura de Versiones Limpia:** Se han eliminado todas las etiquetas y releases antiguos, estableciendo la versión **1.0** como la base oficial y única del proyecto.
+- **Automatización de Build:** Actualización del workflow de GitHub Actions para detectar etiquetas numéricas y generar releases automáticos.
 
 ## Próximos Pasos (Hoja de Ruta 2.x)
 - [x] Chat y lista de mensajes en tiempo real (Completado).
 - [x] Notificaciones automáticas de seguidores y mensajes (Completado).
+- [x] Estabilización de la carga inicial de conversaciones (Completado).
 - [ ] Implementar la funcionalidad de "Tiempo transcurrido" (Time Ago) en los posts.
 - [ ] Optimizar el rendimiento de la carga de imágenes en el feed.
 - [ ] Implementar Historias dinámicas.
