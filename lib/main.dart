@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_core/firebase_core.dart'; // Importar Firebase
 import 'package:venered_social/screens/main_navigation_screen.dart';
 import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/register_page.dart';
@@ -34,6 +35,13 @@ class ThemeManager {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inicializar Firebase (¡Paso fundamental!)
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Error al inicializar Firebase: $e');
+  }
+
   // Inicializar Logger
   await LoggerService.init();
 
@@ -57,7 +65,7 @@ Future<void> main() async {
   
   await ThemeManager.init();
 
-  // Inicializar Notificaciones
+  // Inicializar Notificaciones (después de Firebase y Supabase)
   try {
     await NotificationService.init();
   } catch (e) {
