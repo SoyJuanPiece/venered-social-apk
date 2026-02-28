@@ -14,6 +14,7 @@ dependencies:
   google_fonts: ^6.2.1
   supabase_flutter: ^2.5.0 # Versión corregida y actualizada
   shared_preferences: ^2.2.2 # Added for theme persistence
+  path_provider: ^2.1.3
   image_picker: ^1.1.2
   http: ^1.1.0
   transparent_image: ^2.0.1

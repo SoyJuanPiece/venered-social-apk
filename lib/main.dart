@@ -6,6 +6,8 @@ import 'package:venered_social/screens/main_navigation_screen.dart';
 import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/register_page.dart';
 import 'package:venered_social/widgets/post_card.dart';
+import 'package:venered_social/services/logger_service.dart';
+import 'dart:ui';
 
 // --- GESTOR DE TEMA ---
 class ThemeManager {
@@ -30,6 +32,21 @@ class ThemeManager {
 // --- FUNCIÓN PRINCIPAL Y CONFIGURACIÓN DE LA APP ---
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar Logger
+  await LoggerService.init();
+
+  // Capturar errores de Flutter (UI)
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    LoggerService.log('Flutter Error', details.exception, details.stack);
+  };
+
+  // Capturar errores asíncronos (Plataforma/Dart)
+  PlatformDispatcher.instance.onError = (error, stack) {
+    LoggerService.log('Async Error', error, stack);
+    return true;
+  };
 
   // Supabase Initialization
   await Supabase.initialize(
