@@ -1,66 +1,33 @@
 # Venered Social
 
-Una red social moderna tipo Instagram/Threads, hecha en Flutter, lista para producción y web.
+Una red social moderna tipo Instagram/Threads, hecha en Flutter, con diseño Premium y notificaciones en tiempo real.
 
 ## Características principales
-- Feed con animaciones y stories
-- Perfil editable, seguidores/seguidos, publicaciones editables/eliminables
-- Mensajería directa
-- Búsqueda avanzada de usuarios y posts
-- Notificaciones en tiempo real (simuladas)
-- Verificación de cuentas
-- Accesibilidad y adaptabilidad (a11y, dark/light)
-- Pruebas automáticas incluidas
+- ✨ **Diseño Premium:** Estética moderna con Google Fonts (Poppins) y gradientes vibrantes.
+- 📱 **Multiplataforma:** Optimizada para Android (APK/AAB) y Web.
+- ✉️ **Mensajería Directa:** Chats en tiempo real con indicadores de presencia y mensajes no leídos.
+- 🔔 **Notificaciones Push:** Integración con Firebase Cloud Messaging y Supabase Realtime.
+- 👤 **Perfiles Completos:** Gestión de seguidores, seguidos, biografía y fotos de perfil.
+- 🌑 **Modo Oscuro/Claro:** Adaptabilidad total según las preferencias del sistema.
 
 ## Instalación y ejecución
 
-1. Instala Flutter 3.x+
-2. Ejecuta:
-   ```
+1. Instala Flutter 3.35.x o superior.
+2. Configura tu proyecto en Supabase y Firebase.
+3. Ejecuta:
+   ```bash
    flutter pub get
-   flutter run -d chrome
-   ```
-3. Para web, también puedes compilar y servir:
-   ```
-   flutter build web
-   python3 -m http.server 8090 --directory build/web
+   flutter run
    ```
 
-## Pruebas
+## ⚖️ Licencia
 
-El repositorio incluye tests básicos (contador y UI del diálogo de búsqueda).
-Ejecuta:
+Este proyecto es de **Código Visible (Source Available)** pero bajo una **Licencia de Uso Personal y No Comercial**.
 
-```
-flutter test
-```
+- ✅ Se permite: Ver, estudiar, descargar y modificar el código para fines de aprendizaje.
+- ❌ Se prohíbe: Copiar la aplicación, redistribuirla, venderla o utilizarla para crear productos comerciales que compitan con Venered Social.
 
-## Versionado
-
-Cada conjunto de cambios se publica con un tag de Git para facilitar la
-compilación en CI/CD. El último tag disponible es `v1.1.0`, que incluye
-mejoras de diseño en mensajería, optimizaciones de RPC y configuración
-de App Links.
-
-## Estructura
-
-## Deep Linking / App Links
-La aplicación soporta enlaces universales (`https://venered.social/...`) y un esquema
-personalizado `venered://`. Para que los links funcionen automáticamente en Android
-será necesario:
-
-1. Hospedar el archivo `assetlinks.json` en `https://venered.social/.well-known/assetlinks.json`.
-   - El repositorio contiene un ejemplo en `web/.well-known/assetlinks.json`.
-   - Reemplaza `<REPLACE_WITH_REAL_SHA256_FINGERPRINT>` con el fingerprint SHA-256 del
-     certificado usado para firmar la APK/Bundle (`keytool -list -v -keystore ...`).
-2. Asegurarse de que el `AndroidManifest.xml` tenga `android:autoVerify="true"` (ya está).
-
-En iOS, agrega el dominio a la key `com.apple.developer.associated-domains` en el
-`Info.plist` (ya incluido) y sube el archivo `apple-app-site-association` al servidor.
-
-Con esto, al abrir enlaces como `https://venered.social/post/<id>` el sistema ofrecerá
-abrir la aplicación directamente. También se usa `venered://post/<id>` como esquema
-alternativo para correos de confirmación de Supabase.
+Consulta el archivo [LICENSE](LICENSE) para ver los términos legales completos.
 
 ## Créditos
-Desarrollado por SoyJuanPiece y GitHub Copilot.
+Desarrollado por **JuanPiece**.
