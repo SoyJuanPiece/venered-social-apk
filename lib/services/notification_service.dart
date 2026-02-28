@@ -62,30 +62,34 @@ class NotificationService {
   static void startListening() {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
-      dPrint('Error: No se puede escuchar notificaciones sin usuario');
+      dPrint('DEBUG NOTIF: No se puede escuchar - Usuario nulo');
       return;
     }
 
-    dPrint('Activando escucha de Supabase para usuario: ${user.id}');
+    dPrint('DEBUG NOTIF: Iniciando Stream de Supabase para: ${user.id}');
 
     _supabaseSub?.cancel();
     _supabaseSub = Supabase.instance.client
         .from('notifications')
         .stream(primaryKey: ['id'])
         .listen((List<Map<String, dynamic>> data) async {
-          // Filtramos en el cliente para asegurar que el stream no se rompa por filtros de servidor
+          dPrint('DEBUG NOTIF: Recibidos ${data.length} registros en el stream');
+          
           final myUnread = data.where((n) => 
             n['receiver_id'] == user.id && 
             n['is_read'] == false
           ).toList();
 
-          if (myUnread.isEmpty) return;
+          if (myUnread.isEmpty) {
+            dPrint('DEBUG NOTIF: No hay notificaciones no leídas para este usuario');
+            return;
+          }
           
           final lastNotif = myUnread.last;
           if (_lastNotifId == lastNotif['id']) return;
           _lastNotifId = lastNotif['id'];
 
-          dPrint('¡Notificación recibida de Supabase!');
+          dPrint('DEBUG NOTIF: ¡Procesando nueva notificación! Tipo: ${lastNotif['type']}');
 
           final senderData = await Supabase.instance.client
               .from('profiles')
@@ -105,6 +109,8 @@ class NotificationService {
           }
 
           _showLocalNotification(title, body);
+        }, onError: (e) {
+          dPrint('DEBUG NOTIF ERROR: $e');
         });
   }
 
@@ -113,11 +119,15 @@ class NotificationService {
     if (user != null) {
       try {
         await Supabase.instance.client.from('profiles').update({'fcm_token': token}).eq('id', user.id);
-      } catch (_) {}
+        dPrint('DEBUG NOTIF: Token FCM guardado con éxito');
+      } catch (e) {
+        dPrint('DEBUG NOTIF ERROR al guardar token: $e');
+      }
     }
   }
 
   static void _showLocalNotification(String title, String body) {
+    dPrint('DEBUG NOTIF: Lanzando notificación local: $title');
     _localNotifications.show(
       DateTime.now().hashCode,
       title,
@@ -129,7 +139,13 @@ class NotificationService {
           channelDescription: _channel.description,
           importance: Importance.max,
           priority: Priority.high,
+          ticker: 'ticker',
           icon: '@mipmap/ic_launcher',
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
         ),
       ),
     );

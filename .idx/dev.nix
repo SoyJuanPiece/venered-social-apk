@@ -1,6 +1,8 @@
 {pkgs}: {
   channel = "stable-24.05";
   packages = [
+    pkgs.flutter
+    pkgs.dart
     pkgs.jdk17
     pkgs.unzip
   ];

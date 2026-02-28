@@ -25,12 +25,15 @@ Este documento resume las mejoras y cambios más recientes implementados en la a
 - **Estética de Alta Gama:** Implementación total de `Google Fonts (Poppins)`, gradientes y bordes redondeados.
 - **Estructura de Versiones Limpia:** Versión **1.0** establecida como la base oficial, con automatización de build en GitHub Actions corregida para etiquetas numéricas.
 
+### 5. UI/UX y Funcionalidades del Feed
+- **Tiempo Transcurrido (Time Ago):** Se ha implementado la funcionalidad de "Time Ago" en los posts, mostrando el tiempo transcurrido desde su publicación de forma legible para el usuario (e.g., "Hace 5 minutos", "Hace 2 horas").
+
 ## Próximos Pasos (Hoja de Ruta 2.x)
 - [x] Chat y lista de mensajes en tiempo real (Completado).
 - [x] Notificaciones automáticas de seguidores y mensajes (Completado).
 - [x] Estabilización de la carga inicial de conversaciones (Completado).
 - [x] Integración de servicio de notificaciones en el arranque (Completado).
-- [ ] Implementar la funcionalidad de "Tiempo transcurrido" (Time Ago) en los posts.
+- [x] Implementar la funcionalidad de "Tiempo transcurrido" (Time Ago) en los posts (Completado).
 - [ ] Optimizar el rendimiento de la carga de imágenes en el feed.
 - [ ] Implementar Historias dinámicas.
 - [ ] Refinar animaciones de entrada en tarjetas y perfiles.

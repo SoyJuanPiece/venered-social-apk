@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:venered_social/screens/profile_screen.dart';
 import 'package:venered_social/widgets/comments_sheet.dart';
 import 'package:http/http.dart' as http;
+import 'package:venered_social/formatters.dart'; // Import the formatters utility
 
 import '../utils.dart';
 
@@ -243,7 +244,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                         ),
                         if (widget.post['created_at'] != null)
                           Text(
-                            'Hace un momento', // TODO: Implement time ago
+                            formatTimeAgo(DateTime.parse(widget.post['created_at'])),
                             style: GoogleFonts.poppins(
                               fontSize: 11,
                               color: theme.colorScheme.onSurface.withOpacity(0.5),

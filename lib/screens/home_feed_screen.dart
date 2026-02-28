@@ -28,21 +28,27 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   Stream<int> _setupUnreadCounter() {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return Stream.value(0);
+    if (user == null) {
+      dPrint('DEBUG FEED: No hay usuario para el contador');
+      return Stream.value(0);
+    }
+
+    dPrint('DEBUG FEED: Iniciando stream de contador para ${user.id}');
 
     return Supabase.instance.client
         .from('notifications')
         .stream(primaryKey: ['id'])
         .map((event) {
-          // Contamos las notificaciones de tipo mensaje no leídas para este usuario
-          return event.where((n) => 
+          final count = event.where((n) => 
             n['receiver_id'] == user.id && 
             n['type'] == 'message' && 
             n['is_read'] == false
           ).length;
+          dPrint('DEBUG FEED: Nuevo conteo de mensajes: $count');
+          return count;
         })
         .handleError((e) {
-          dPrint('Error en stream de contador: $e');
+          dPrint('DEBUG FEED ERROR en stream de contador: $e');
           return 0;
         });
   }
