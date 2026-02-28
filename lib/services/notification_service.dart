@@ -5,6 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:venered_social/utils.dart';
 
+// Manejador para mensajes en segundo plano (debe ser una función global)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // No necesitamos hacer nada aquí si enviamos notificaciones con 'notification' payload, 
+  // Firebase las muestra solo. Si enviamos solo 'data', aquí llamaríamos a _showLocalNotification.
+}
+
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   static StreamSubscription? _supabaseSub;
@@ -18,31 +25,25 @@ class NotificationService {
       sound: true,
     );
 
+    // Set background handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
     // Get FCM Token and save to Supabase
-    final token = await messaging.getToken();
-    if (token != null) {
-      _saveToken(token);
-    }
-
-    // Listen for token refreshes
-    messaging.onTokenRefresh.listen(_saveToken);
-
-    // Initialize local notifications
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings();
-    await _localNotifications.initialize(
-      const InitializationSettings(android: androidInit, iOS: iosInit),
-      onDidReceiveNotificationResponse: (details) {
-        // Handle notification click
-      },
-    );
-
+...
     // Listen for foreground FCM messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      _showLocalNotification(message.notification?.title ?? 'Venered', message.notification?.body ?? '');
+      _showLocalNotification(
+        message.notification?.title ?? 'Venered', 
+        message.notification?.body ?? '',
+      );
     });
 
-    // --- ESCUCHAR NOTIFICACIONES DE SUPABASE EN TIEMPO REAL ---
+    // Handle messages when app is opened from notification
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      // Aquí podrías navegar a la pantalla de chat si quisieras
+    });
+
+    // --- ESCUCHAR NOTIFICACIONES DE SUPABASE (Solo para cuando la app está abierta) ---
     _startSupabaseListener();
   }
 

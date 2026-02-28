@@ -59,3 +59,5 @@ dependencies {
     // Use a known compatible version available on Maven Central / Google
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.2.2")
 }
+
+apply(plugin = "com.google.gms.google-services")
