@@ -7,7 +7,7 @@ import 'package:venered_social/utils.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Manejado por el OS
+  // Manejado por el sistema
 }
 
 class NotificationService {
@@ -16,19 +16,16 @@ class NotificationService {
   static String? _lastNotifId;
 
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'venered_messages',
-    'Mensajes de Venered',
-    description: 'Canal para notificaciones de chat.',
+    'venered_messages_v2',
+    'Canal de Mensajes Venered',
+    description: 'Notificaciones emergentes de chat.',
     importance: Importance.max,
     playSound: true,
     enableVibration: true,
   );
   
   static Future<void> init() async {
-    // 1. PRIMERO: Activar el escucha de Supabase (Siempre debe funcionar)
-    _startSupabaseListener();
-
-    // 2. INICIALIZAR NOTIFICACIONES LOCALES
+    // 1. Inicializar Notificaciones Locales (Independiente del usuario)
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings();
     await _localNotifications.initialize(const InitializationSettings(android: androidInit, iOS: iosInit));
@@ -37,48 +34,58 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_channel);
 
-    // 3. INTENTAR FIREBASE (Si falla, no bloquea lo anterior)
+    // 2. Si ya hay un usuario al arrancar (sesión persistente), encender el oído
+    if (Supabase.instance.client.auth.currentUser != null) {
+      startListening();
+    }
+
+    // 3. Configurar Firebase (con escudo contra errores)
     try {
       final messaging = FirebaseMessaging.instance;
-      
-      // Pedir permisos
       await messaging.requestPermission(alert: true, badge: true, sound: true);
-
-      // Configurar handlers
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         if (message.notification != null) {
           _showLocalNotification(message.notification!.title ?? 'Venered', message.notification!.body ?? '');
         }
       });
 
-      // Intentar obtener token (aquí es donde daba el error TOO_MANY_REGISTRATIONS)
       final token = await messaging.getToken().timeout(const Duration(seconds: 5));
       if (token != null) _saveToken(token);
-      
     } catch (e) {
-      dPrint('Aviso: Firebase no pudo registrarse, se usará solo Supabase: $e');
+      dPrint('Firebase no disponible (usando Supabase Realtime): $e');
     }
   }
 
-  static void _startSupabaseListener() {
+  // MÉTODO CLAVE: Se debe llamar al iniciar sesión
+  static void startListening() {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      dPrint('Error: No se puede escuchar notificaciones sin usuario');
+      return;
+    }
+
+    dPrint('Activando escucha de Supabase para usuario: ${user.id}');
 
     _supabaseSub?.cancel();
     _supabaseSub = Supabase.instance.client
         .from('notifications')
         .stream(primaryKey: ['id'])
-        .eq('receiver_id', user.id)
         .listen((List<Map<String, dynamic>> data) async {
-          if (data.isEmpty) return;
+          // Filtramos en el cliente para asegurar que el stream no se rompa por filtros de servidor
+          final myUnread = data.where((n) => 
+            n['receiver_id'] == user.id && 
+            n['is_read'] == false
+          ).toList();
+
+          if (myUnread.isEmpty) return;
           
-          final unread = data.where((n) => n['is_read'] == false).toList();
-          if (unread.isEmpty) return;
-          
-          final lastNotif = unread.last;
+          final lastNotif = myUnread.last;
           if (_lastNotifId == lastNotif['id']) return;
           _lastNotifId = lastNotif['id'];
+
+          dPrint('¡Notificación recibida de Supabase!');
 
           final senderData = await Supabase.instance.client
               .from('profiles')

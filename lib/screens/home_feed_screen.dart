@@ -27,17 +27,23 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   }
 
   Stream<int> _setupUnreadCounter() {
-    final myId = Supabase.instance.client.auth.currentUser!.id;
-    // Escuchamos todos los cambios y filtramos en el cliente para evitar errores de tipo en el StreamBuilder
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return Stream.value(0);
+
     return Supabase.instance.client
         .from('notifications')
         .stream(primaryKey: ['id'])
         .map((event) {
+          // Contamos las notificaciones de tipo mensaje no leídas para este usuario
           return event.where((n) => 
-            n['receiver_id'] == myId && 
+            n['receiver_id'] == user.id && 
             n['type'] == 'message' && 
             n['is_read'] == false
           ).length;
+        })
+        .handleError((e) {
+          dPrint('Error en stream de contador: $e');
+          return 0;
         });
   }
 
@@ -88,6 +94,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           ),
           StreamBuilder<int>(
             stream: _unreadMessagesStream,
+            initialData: 0,
             builder: (context, snapshot) {
               final count = snapshot.data ?? 0;
               return Badge(
