@@ -28,13 +28,17 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   Stream<int> _setupUnreadCounter() {
     final myId = Supabase.instance.client.auth.currentUser!.id;
+    // Escuchamos todos los cambios y filtramos en el cliente para evitar errores de tipo en el StreamBuilder
     return Supabase.instance.client
         .from('notifications')
         .stream(primaryKey: ['id'])
-        .eq('receiver_id', myId)
-        .eq('type', 'message')
-        .eq('is_read', false)
-        .map((event) => event.length);
+        .map((event) {
+          return event.where((n) => 
+            n['receiver_id'] == myId && 
+            n['type'] == 'message' && 
+            n['is_read'] == false
+          ).length;
+        });
   }
 
   Future<List<Map<String, dynamic>>> _fetchPosts() async {

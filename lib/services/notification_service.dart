@@ -29,7 +29,24 @@ class NotificationService {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // Get FCM Token and save to Supabase
-...
+    final token = await messaging.getToken();
+    if (token != null) {
+      _saveToken(token);
+    }
+
+    // Listen for token refreshes
+    messaging.onTokenRefresh.listen(_saveToken);
+
+    // Initialize local notifications
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings();
+    await _localNotifications.initialize(
+      const InitializationSettings(android: androidInit, iOS: iosInit),
+      onDidReceiveNotificationResponse: (details) {
+        // Handle notification click
+      },
+    );
+
     // Listen for foreground FCM messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       _showLocalNotification(
@@ -55,15 +72,19 @@ class NotificationService {
     _supabaseSub = Supabase.instance.client
         .from('notifications')
         .stream(primaryKey: ['id'])
-        .eq('receiver_id', user.id)
         .listen((List<Map<String, dynamic>> data) async {
           if (data.isEmpty) return;
           
-          // Solo notificar sobre la última notificación si es reciente (ej: últimos 10 segundos)
-          final lastNotif = data.last;
-          final createdAt = DateTime.parse(lastNotif['created_at']);
-          if (DateTime.now().difference(createdAt).inSeconds > 10) return;
-          if (lastNotif['is_read'] == true) return;
+          // Filtrar manualmente por receptor y tipo en el cliente para mayor compatibilidad
+          final myNotifs = data.where((n) => 
+            n['receiver_id'] == user.id && 
+            n['is_read'] == false &&
+            (DateTime.now().difference(DateTime.parse(n['created_at'])).inSeconds < 10)
+          ).toList();
+
+          if (myNotifs.isEmpty) return;
+          
+          final lastNotif = myNotifs.last;
 
           // Obtener nombre del remitente para el título
           final senderData = await Supabase.instance.client
@@ -90,11 +111,15 @@ class NotificationService {
   static Future<void> _saveToken(String token) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
-      await Supabase.instance.client
-          .from('profiles')
-          .update({'fcm_token': token})
-          .eq('id', user.id);
-      dPrint('FCM Token saved to Supabase');
+      try {
+        await Supabase.instance.client
+            .from('profiles')
+            .update({'fcm_token': token})
+            .eq('id', user.id);
+        dPrint('FCM Token saved to Supabase');
+      } catch (e) {
+        dPrint('Error saving FCM token: $e');
+      }
     }
   }
 
