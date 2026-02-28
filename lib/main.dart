@@ -7,6 +7,7 @@ import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/register_page.dart';
 import 'package:venered_social/widgets/post_card.dart';
 import 'package:venered_social/services/logger_service.dart';
+import 'package:venered_social/services/notification_service.dart';
 import 'dart:ui';
 
 // --- GESTOR DE TEMA ---
@@ -55,6 +56,13 @@ Future<void> main() async {
   );
   
   await ThemeManager.init();
+
+  // Inicializar Notificaciones
+  try {
+    await NotificationService.init();
+  } catch (e) {
+    debugPrint('Error al inicializar notificaciones: $e');
+  }
   
   runApp(const MyApp());
 }

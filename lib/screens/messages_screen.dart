@@ -16,34 +16,66 @@ class MessagesScreen extends StatefulWidget {
 
 class _MessagesScreenState extends State<MessagesScreen> {
   final supabase = Supabase.instance.client;
-  late Stream<List<Map<String, dynamic>>> _conversationsStream;
+  List<Map<String, dynamic>> _conversations = [];
+  bool _loading = true;
+  RealtimeChannel? _channel;
 
   @override
   void initState() {
     super.initState();
-    _setupStream();
+    _loadConversations();
+    _setupRealtime();
   }
 
-  void _setupStream() {
+  @override
+  void dispose() {
+    _channel?.unsubscribe();
+    super.dispose();
+  }
+
+  Future<void> _loadConversations() async {
+    try {
+      final res = await supabase
+          .from('view_conversations')
+          .select();
+      
+      final list = List<Map<String, dynamic>>.from(res);
+      // Sort by last message time
+      list.sort((a, b) {
+        final dateA = DateTime.parse(a['last_message_at'] ?? DateTime.now().toIso8601String());
+        final dateB = DateTime.parse(b['last_message_at'] ?? DateTime.now().toIso8601String());
+        return dateB.compareTo(dateA);
+      });
+
+      if (mounted) {
+        setState(() {
+          _conversations = list;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      dPrint('Error loading conversations: $e');
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  void _setupRealtime() {
     final userId = supabase.auth.currentUser!.id;
 
-    // Escuchamos cambios en la tabla 'conversations'
-    _conversationsStream = supabase
-        .from('conversations')
-        .stream(primaryKey: ['id'])
-        .order('last_message_at', ascending: false)
-        .asyncMap((event) async {
-          // Volvemos a obtener los datos de la vista para tener nombres y fotos actualizados
-          // Filtramos solo las conversaciones donde participa el usuario actual
-          final res = await supabase
-              .from('view_conversations')
-              .select();
-          
-          // La vista ya filtra por auth.uid(), solo ordenamos
-          final list = List<Map<String, dynamic>>.from(res);
-          list.sort((a, b) => b['last_message_at'].compareTo(a['last_message_at']));
-          return list;
-        });
+    // Listen to changes in conversations and messages to refresh the list
+    _channel = supabase.channel('messages_list_updates').onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'conversations',
+      callback: (payload) => _loadConversations(),
+    ).onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'messages',
+      callback: (payload) => _loadConversations(),
+    ).subscribe();
   }
 
   @override
@@ -64,84 +96,76 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _conversationsStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          final conversations = snapshot.data ?? [];
-          
-          if (conversations.isEmpty) {
-            return _buildEmptyState(theme);
-          }
+      body: _loading 
+        ? const Center(child: CircularProgressIndicator())
+        : _conversations.isEmpty
+            ? _buildEmptyState(theme)
+            : RefreshIndicator(
+                onRefresh: _loadConversations,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: _conversations.length,
+                  itemBuilder: (context, index) {
+                    final chat = _conversations[index];
+                    final otherUsername = chat['other_username'] ?? 'Usuario';
+                    final otherAvatar = chat['other_avatar_url'];
+                    final lastContent = chat['last_message_content'];
+                    final lastSender = chat['last_message_sender_id'];
+                    final updatedAt = DateTime.parse(chat['last_message_at'] ?? DateTime.now().toIso8601String());
 
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: conversations.length,
-            itemBuilder: (context, index) {
-              final chat = conversations[index];
-              final otherUsername = chat['other_username'] ?? 'Usuario';
-              final otherAvatar = chat['other_avatar_url'];
-              final lastContent = chat['last_message_content'];
-              final lastSender = chat['last_message_sender_id'];
-              final updatedAt = DateTime.parse(chat['last_message_at'] ?? DateTime.now().toIso8601String());
-
-              return ListTile(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatScreen(
-                      conversationId: chat['conversation_id'],
-                      otherUser: {
-                        'id': chat['other_user_id'],
-                        'username': otherUsername,
-                        'avatar_url': otherAvatar,
-                      },
-                    ),
-                  ),
+                    return ListTile(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatScreen(
+                            conversationId: chat['conversation_id'],
+                            otherUser: {
+                              'id': chat['other_user_id'],
+                              'username': otherUsername,
+                              'avatar_url': otherAvatar,
+                            },
+                          ),
+                        ),
+                      ).then((_) => _loadConversations()),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      leading: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
+                        ),
+                        child: CircleAvatar(
+                          radius: 28,
+                          backgroundColor: theme.scaffoldBackgroundColor,
+                          backgroundImage: (otherAvatar != null && otherAvatar.isNotEmpty) ? NetworkImage(otherAvatar) : null,
+                          child: (otherAvatar == null || otherAvatar.isEmpty) ? Icon(Icons.person, color: theme.colorScheme.primary) : null,
+                        ),
+                      ),
+                      title: Text(
+                        otherUsername,
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w700, 
+                          fontSize: 15,
+                        ),
+                      ),
+                      subtitle: Text(
+                        lastContent ?? '¡Di hola!',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: lastSender != myId ? theme.colorScheme.onSurface : Colors.grey,
+                          fontWeight: lastSender != myId ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                      trailing: Text(
+                        formatHm(updatedAt),
+                        style: GoogleFonts.poppins(color: Colors.grey, fontSize: 11),
+                      ),
+                    );
+                  },
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                leading: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
-                  ),
-                  child: CircleAvatar(
-                    radius: 28,
-                    backgroundColor: theme.scaffoldBackgroundColor,
-                    backgroundImage: otherAvatar != null ? NetworkImage(otherAvatar) : null,
-                    child: otherAvatar == null ? Icon(Icons.person, color: theme.colorScheme.primary) : null,
-                  ),
-                ),
-                title: Text(
-                  otherUsername,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w700, 
-                    fontSize: 15,
-                  ),
-                ),
-                subtitle: Text(
-                  lastContent ?? '¡Di hola!',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: lastSender != myId ? theme.colorScheme.onSurface : Colors.grey,
-                    fontWeight: lastSender != myId ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-                trailing: Text(
-                  formatHm(updatedAt),
-                  style: GoogleFonts.poppins(color: Colors.grey, fontSize: 11),
-                ),
-              );
-            },
-          );
-        },
-      ),
+              ),
     );
   }
 

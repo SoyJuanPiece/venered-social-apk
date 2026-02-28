@@ -9,27 +9,27 @@ Este documento resume las mejoras y cambios más recientes implementados en la a
 - **Sincronización Multipunto:** Implementación de suscripciones Realtime tanto a la tabla de `conversations` como a la de `messages`, garantizando que la lista de chats se actualice al instante ante cualquier actividad.
 - **Flujo de Búsqueda Optimizado:** El buscador de usuarios en la sección de mensajes ahora devuelve el perfil seleccionado directamente para iniciar un chat, eliminando pasos innecesarios por el perfil del usuario.
 
-### 2. Sistema de Notificaciones Automáticas
-- **Triggers de Base de Datos:** Configuración de disparadores en Supabase que generan automáticamente una notificación cuando:
+### 2. Sistema de Notificaciones (Push & Real-time)
+- **Integración App-Side:** Activación del `NotificationService` en el punto de entrada de la aplicación (`main.dart`), permitiendo que la app pida permisos y empiece a escuchar eventos desde el arranque.
+- **Triggers de Base de Datos:** Configuración de disparadores en Supabase que generan automáticamente una notificación en la tabla `notifications` cuando:
     - Un usuario recibe un nuevo seguidor.
     - Un usuario recibe un mensaje privado.
-- **Listener de App:** Integración de un servicio global en Flutter que escucha nuevas notificaciones y las muestra localmente en el dispositivo (Push síncrono).
+- **Notificaciones Locales:** La aplicación detecta las nuevas filas en la tabla de notificaciones y lanza un aviso visual (UI Toast/Notification) en tiempo real al usuario receptor.
 
 ### 3. Resolución de Errores Críticos y Estabilidad
-- **Corrección de Compilación:** Solución a errores de dependencias y tipos de datos en los Streams de Supabase.
+- **Esquema SQL Maestro:** Unificación de todas las tablas, vistas y triggers en un único script de inicialización limpia (`venered_social_schema.sql`).
 - **Seguridad RLS:** Implementación de políticas de Row Level Security (RLS) completas para permitir acciones de seguir/dejar de seguir y envío de mensajes de forma segura.
-- **UI de Diagnóstico:** Mejora en la visibilidad de errores técnicos para facilitar la depuración por parte del administrador.
+- **Gestión de Perfiles:** Se añadió soporte para `fcm_token` en los perfiles para futuras notificaciones push externas.
 
 ### 4. Lanzamiento Oficial y Rediseño Premium
 - **Estética de Alta Gama:** Implementación total de `Google Fonts (Poppins)`, gradientes y bordes redondeados.
-- **Deep Linking:** Configuración de `venered://login` para una autenticación fluida vía email.
-- **Estructura de Versiones Limpia:** Se han eliminado todas las etiquetas y releases antiguos, estableciendo la versión **1.0** como la base oficial y única del proyecto.
-- **Automatización de Build:** Actualización del workflow de GitHub Actions para detectar etiquetas numéricas y generar releases automáticos.
+- **Estructura de Versiones Limpia:** Versión **1.0** establecida como la base oficial, con automatización de build en GitHub Actions corregida para etiquetas numéricas.
 
 ## Próximos Pasos (Hoja de Ruta 2.x)
 - [x] Chat y lista de mensajes en tiempo real (Completado).
 - [x] Notificaciones automáticas de seguidores y mensajes (Completado).
 - [x] Estabilización de la carga inicial de conversaciones (Completado).
+- [x] Integración de servicio de notificaciones en el arranque (Completado).
 - [ ] Implementar la funcionalidad de "Tiempo transcurrido" (Time Ago) en los posts.
 - [ ] Optimizar el rendimiento de la carga de imágenes en el feed.
 - [ ] Implementar Historias dinámicas.

@@ -40,12 +40,8 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
     }
   }
 
-  void _navigateToProfile(String userId) {
-    // First pop the dialog, then push the profile screen.
-    Navigator.pop(context);
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (context) => ProfileScreen(userId: userId),
-    ));
+  void _selectUser(Map<String, dynamic> user) {
+    Navigator.pop(context, user);
   }
 
   @override
@@ -66,27 +62,24 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
           if (_results.isNotEmpty)
             SizedBox(
               height: 200,
+              width: double.maxFinite,
               child: ListView.separated(
                 itemCount: _results.length,
                 separatorBuilder: (_, __) => const Divider(),
                 itemBuilder: (context, index) {
                   final item = _results[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
-                      elevation: 0.5,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage: item['profile_pic_url'] != null
-                              ? NetworkImage(item['profile_pic_url'])
-                              : null,
-                          child: item['profile_pic_url'] == null
-                              ? const Icon(Icons.person)
-                              : null,
-                        ),
-                        title: Text(item['username'] ?? ''),
-                        onTap: () => _navigateToProfile(item['id']),
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        backgroundImage: item['profile_pic_url'] != null
+                            ? NetworkImage(item['profile_pic_url'])
+                            : null,
+                        child: item['profile_pic_url'] == null
+                            ? const Icon(Icons.person)
+                            : null,
                       ),
+                      title: Text(item['username'] ?? ''),
+                      onTap: () => _selectUser(item),
                     );
                 },
               ),
