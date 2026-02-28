@@ -27,15 +27,16 @@ class LoggerService {
     if (_logFile == null) return;
 
     final timestamp = DateTime.now().toString();
-    final logEntry = '''
-[$timestamp]
-MENSAJE: $message
-${error != null ? 'ERROR: $error' : ''}
-${stackTrace != null ? 'STACKTRACE:
-$stackTrace' : ''}
--------------------------------------------------------
-
-''';
+    
+    String logEntry = '[$timestamp]\n';
+    logEntry += 'MENSAJE: $message\n';
+    if (error != null) {
+      logEntry += 'ERROR: $error\n';
+    }
+    if (stackTrace != null) {
+      logEntry += 'STACKTRACE:\n$stackTrace\n';
+    }
+    logEntry += '-------------------------------------------------------\n\n';
 
     try {
       await _logFile!.writeAsString(logEntry, mode: FileMode.append);
