@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:venered_social/utils.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -25,7 +26,12 @@ class NotificationService {
   );
   
   static Future<void> init() async {
-    // 1. Inicializar Notificaciones Locales (Independiente del usuario)
+    // 1. Inicializar OneSignal (¡Lo nuevo!)
+    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    OneSignal.initialize("7bbfe4e6-c2e8-40da-96eb-cfc528bcb6e6");
+    OneSignal.Notifications.requestPermission(true);
+
+    // 2. Inicializar Notificaciones Locales
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings();
     await _localNotifications.initialize(const InitializationSettings(android: androidInit, iOS: iosInit));
@@ -34,12 +40,14 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_channel);
 
-    // 2. Si ya hay un usuario al arrancar (sesión persistente), encender el oído
+    // 3. Si ya hay un usuario al arrancar, encender el oído
     if (Supabase.instance.client.auth.currentUser != null) {
       startListening();
+      // Registrar usuario en OneSignal por su ID de Supabase
+      OneSignal.login(Supabase.instance.client.auth.currentUser!.id);
     }
 
-    // 3. Configurar Firebase (con escudo contra errores)
+    // 4. Configurar Firebase (con escudo contra errores)
     try {
       final messaging = FirebaseMessaging.instance;
       await messaging.requestPermission(alert: true, badge: true, sound: true);
@@ -54,7 +62,7 @@ class NotificationService {
       final token = await messaging.getToken().timeout(const Duration(seconds: 5));
       if (token != null) _saveToken(token);
     } catch (e) {
-      dPrint('Firebase no disponible (usando Supabase Realtime): $e');
+      dPrint('Firebase no disponible: $e');
     }
   }
 
@@ -65,6 +73,9 @@ class NotificationService {
       dPrint('DEBUG NOTIF: No se puede escuchar - Usuario nulo');
       return;
     }
+
+    // Asegurar Login en OneSignal al arrancar la escucha
+    OneSignal.login(user.id);
 
     dPrint('DEBUG NOTIF: Iniciando Stream de Supabase para: ${user.id}');
 
