@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../utils.dart';
 
 class ModerationPanelScreen extends StatefulWidget {
   const ModerationPanelScreen({super.key});
@@ -11,23 +12,47 @@ class ModerationPanelScreen extends StatefulWidget {
 
 class _ModerationPanelScreenState extends State<ModerationPanelScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final _searchController = TextEditingController();
+  List<Map<String, dynamic>> _searchResults = [];
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  Future<void> _searchUsers(String query) async {
+    if (query.isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    setState(() => _isSearching = true);
+    try {
+      final results = await Supabase.instance.client
+          .from('profiles')
+          .select()
+          .ilike('username', '%$query%')
+          .limit(10);
+      setState(() => _searchResults = List<Map<String, dynamic>>.from(results));
+    } catch (e) {
+      dPrint('Error searching: $e');
+    } finally {
+      setState(() => _isSearching = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Panel de Moderación'),
+        title: const Text('Panel de Administración'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Verificaciones', icon: Icon(Icons.verified_user)),
+            Tab(text: 'Verif.', icon: Icon(Icons.verified_user)),
             Tab(text: 'Reportes', icon: Icon(Icons.report)),
+            Tab(text: 'Usuarios', icon: Icon(Icons.people)),
           ],
         ),
       ),
@@ -36,9 +61,89 @@ class _ModerationPanelScreenState extends State<ModerationPanelScreen> with Sing
         children: [
           _buildVerificationList(),
           _buildReportsList(),
+          _buildUsersList(),
         ],
       ),
     );
+  }
+
+  Widget _buildUsersList() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Buscar usuario por nombre...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onChanged: _searchUsers,
+          ),
+        ),
+        if (_isSearching) const LinearProgressIndicator(),
+        Expanded(
+          child: _searchResults.isEmpty
+              ? const Center(child: Text('Escribe para buscar usuarios'))
+              : ListView.builder(
+                  itemCount: _searchResults.length,
+                  itemBuilder: (context, index) {
+                    final user = _searchResults[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: user['profile_pic_url'] != null ? NetworkImage(user['profile_pic_url']) : null,
+                        child: user['profile_pic_url'] == null ? const Icon(Icons.person) : null,
+                      ),
+                      title: Text(user['username'] ?? 'Sin nombre'),
+                      subtitle: Text('Rol actual: ${user['role'] ?? 'user'}'),
+                      trailing: const Icon(Icons.edit_note),
+                      onTap: () => _showRoleDialog(user),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  void _showRoleDialog(Map<String, dynamic> user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Cambiar rol de ${user['username']}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('Usuario Normal'),
+              onTap: () => _updateUserRole(user['id'], 'user'),
+            ),
+            ListTile(
+              title: const Text('Moderador'),
+              onTap: () => _updateUserRole(user['id'], 'moderator'),
+            ),
+            ListTile(
+              title: const Text('Administrador'),
+              onTap: () => _updateUserRole(user['id'], 'admin'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateUserRole(String userId, String newRole) async {
+    try {
+      await Supabase.instance.client.from('profiles').update({'role': newRole}).eq('id', userId);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Rol actualizado a $newRole')));
+        _searchUsers(_searchController.text);
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
   }
 
   Widget _buildVerificationList() {
@@ -98,8 +203,7 @@ class _ModerationPanelScreenState extends State<ModerationPanelScreen> with Sing
               margin: const EdgeInsets.all(8),
               child: ListTile(
                 title: Text('Motivo: ${rep['reason']}', style: const TextStyle(color: Colors.redAccent)),
-                subtitle: Text('Reportado: ${rep['reported_username']}
-Contenido: ${rep['post_content'] ?? 'N/A'}'),
+                subtitle: Text('Reportado: ${rep['reported_username']}\nContenido: ${rep['post_content'] ?? 'N/A'}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.block, color: Colors.red),
                   onPressed: () => _banUser(rep['reported_user_id']),

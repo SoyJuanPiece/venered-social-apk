@@ -26,8 +26,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadUserRole() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
-      final res = await Supabase.instance.client.from('profiles').select('role').eq('id', user.id).single();
-      setState(() => _userRole = res['role'] ?? 'user');
+      try {
+        final res = await Supabase.instance.client.from('profiles').select('role').eq('id', user.id).single();
+        if (mounted) setState(() => _userRole = res['role'] ?? 'user');
+      } catch (e) {
+        debugPrint('Error loading role: $e');
+      }
     }
   }
 
@@ -70,13 +74,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.admin_panel_settings, color: Colors.orange),
-              title: const Text('Panel de Moderación'),
+              title: const Text('Panel de Administración'),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ModerationPanelScreen())),
             ),
           ],
           const Divider(),
-...
-
+          const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text('Apariencia', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
