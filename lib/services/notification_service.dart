@@ -26,24 +26,28 @@ class NotificationService {
   );
   
   static Future<void> init() async {
-    // 1. Inicializar OneSignal (¡Lo nuevo!)
+    // 1. Inicializar OneSignal
     OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
     OneSignal.initialize("7bbfe4e6-c2e8-40da-96eb-cfc528bcb6e6");
     OneSignal.Notifications.requestPermission(true);
 
-    // 2. Inicializar Notificaciones Locales
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    // 2. Inicializar Notificaciones Locales con el icono correcto
+    const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
     const iosInit = DarwinInitializationSettings();
-    await _localNotifications.initialize(const InitializationSettings(android: androidInit, iOS: iosInit));
     
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_channel);
+    try {
+      await _localNotifications.initialize(const InitializationSettings(android: androidInit, iOS: iosInit));
+      
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_channel);
+    } catch (e) {
+      dPrint('Error inicializando notificaciones locales: $e');
+    }
 
-    // 3. Si ya hay un usuario al arrancar, encender el oído
+    // 3. Si ya hay un usuario al arrancar, vincular OneSignal
     if (Supabase.instance.client.auth.currentUser != null) {
       startListening();
-      // Registrar usuario en OneSignal por su ID de Supabase
       OneSignal.login(Supabase.instance.client.auth.currentUser!.id);
     }
 
@@ -66,43 +70,28 @@ class NotificationService {
     }
   }
 
-  // MÉTODO CLAVE: Se debe llamar al iniciar sesión
   static void startListening() {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
-      dPrint('DEBUG NOTIF: No se puede escuchar - Usuario nulo');
-      return;
-    }
+    if (user == null) return;
 
-    // VINCULAR USUARIO CON ONESIGNAL
-    // Esto es CRÍTICO para que OneSignal sepa a quién enviar la notificación
-    dPrint('DEBUG NOTIF: Vinculando OneSignal con ID: ${user.id}');
     OneSignal.login(user.id);
-
-    dPrint('DEBUG NOTIF: Iniciando Stream de Supabase para: ${user.id}');
 
     _supabaseSub?.cancel();
     _supabaseSub = Supabase.instance.client
         .from('notifications')
         .stream(primaryKey: ['id'])
         .listen((List<Map<String, dynamic>> data) async {
-          dPrint('DEBUG NOTIF: Recibidos ${data.length} registros en el stream');
           
           final myUnread = data.where((n) => 
             n['receiver_id'] == user.id && 
             n['is_read'] == false
           ).toList();
 
-          if (myUnread.isEmpty) {
-            dPrint('DEBUG NOTIF: No hay notificaciones no leídas para este usuario');
-            return;
-          }
+          if (myUnread.isEmpty) return;
           
           final lastNotif = myUnread.last;
           if (_lastNotifId == lastNotif['id']) return;
           _lastNotifId = lastNotif['id'];
-
-          dPrint('DEBUG NOTIF: ¡Procesando nueva notificación! Tipo: ${lastNotif['type']}');
 
           final senderData = await Supabase.instance.client
               .from('profiles')
@@ -132,15 +121,13 @@ class NotificationService {
     if (user != null) {
       try {
         await Supabase.instance.client.from('profiles').update({'fcm_token': token}).eq('id', user.id);
-        dPrint('DEBUG NOTIF: Token FCM guardado con éxito');
       } catch (e) {
-        dPrint('DEBUG NOTIF ERROR al guardar token: $e');
+        dPrint('Error guardando token FCM: $e');
       }
     }
   }
 
   static void _showLocalNotification(String title, String body) {
-    dPrint('DEBUG NOTIF: Lanzando notificación local: $title');
     _localNotifications.show(
       DateTime.now().hashCode,
       title,
@@ -153,7 +140,7 @@ class NotificationService {
           importance: Importance.max,
           priority: Priority.high,
           ticker: 'ticker',
-          icon: '@mipmap/ic_launcher',
+          icon: '@mipmap/launcher_icon', // Nombre corregido aquí también
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
