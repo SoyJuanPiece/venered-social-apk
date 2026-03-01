@@ -28,7 +28,7 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
       final response = await Supabase.instance.client.auth.mfa.enroll(factorType: FactorType.totp);
       setState(() {
         _factorId = response.id;
-        _secret = response.totp.secret;
+        _secret = response.totp?.secret;
       });
     } catch (e) {
       if (mounted) {
