@@ -12,7 +12,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
-        // Esto es lo que faltaba para corregir el error:
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -22,7 +21,8 @@ android {
 
     defaultConfig {
         applicationId = "com.juanpiece.venered"
-        minSdk = flutter.minSdkVersion
+        // Subimos de 21 a 23 como requiere firebase_messaging
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -47,7 +47,6 @@ flutter {
 
 dependencies {
     implementation("com.google.android.material:material:1.10.0")
-    // Librería necesaria para el desugaring
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 }
 
