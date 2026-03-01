@@ -1,39 +1,26 @@
-# Resumen de Progreso - Venered Social
+# Progreso del Proyecto - Venered Social
 
-Este documento resume las mejoras y cambios más recientes implementados en la aplicación Venered Social.
+## Estado Actual: v1.2 (Fase de Notificaciones y Pulido)
 
-## Mejoras Recientes (Febrero 2026)
+### Últimas Mejoras Implementadas
+- **Sistema de Notificaciones OneSignal Pro:**
+    - Automatización total mediante Triggers en Supabase.
+    - Personalización de mensajes: `"Tienes un mensaje de [Usuario]"` (Privacidad).
+    - Soporte para: Mensajes, Likes, Comentarios y Followers.
+- **Control de SPAM (Relevancia):**
+    - Implementado "Cool-down" de 15 minutos para Likes y Comentarios en el mismo post.
+    - Los mensajes de chat siempre tienen prioridad y llegan al instante.
+- **Arquitectura de Base de Datos:**
+    - Consolidado script `MASTER_SETUP_VENERED.sql` para despliegue rápido.
+    - Limpieza de archivos SQL en la raíz; organizados en `/supabase/scripts/`.
+- **Identidad Visual:**
+    - Configurado `flutter_launcher_icons` en `pubspec.yaml`.
+    - Estructura de assets lista para el nuevo icono de mensajería.
 
-### 1. Mensajería y Tiempo Real (Estabilización Final v1.0)
-- **Carga Robusta de Chats:** Se ha rediseñado `MessagesScreen` para que realice una carga inicial explícita mediante `select()`, asegurando que todos los mensajes (enviados y recibidos) aparezcan de inmediato al abrir la aplicación.
-- **Sincronización Multipunto:** Implementación de suscripciones Realtime tanto a la tabla de `conversations` como a la de `messages`, garantizando que la lista de chats se actualice al instante ante cualquier actividad.
-- **Flujo de Búsqueda Optimizado:** El buscador de usuarios en la sección de mensajes ahora devuelve el perfil seleccionado directamente para iniciar un chat, eliminando pasos innecesarios por el perfil del usuario.
+### Pendientes / Próximos Pasos
+1. **Generación de Iconos:** Colocar el archivo `app_icon.png` y ejecutar el generador.
+2. **Pruebas de Carga:** Verificar que el control de spam funciona bajo ráfagas de likes.
+3. **Optimización de UI:** Revisar si las notificaciones dentro de la app necesitan un diseño más moderno.
 
-### 2. Sistema de Notificaciones (Push & Real-time)
-- **Integración App-Side:** Activación del `NotificationService` en el punto de entrada de la aplicación (`main.dart`), permitiendo que la app pida permisos y empiece a escuchar eventos desde el arranque.
-- **Triggers de Base de Datos:** Configuración de disparadores en Supabase que generan automáticamente una notificación en la tabla `notifications` cuando:
-    - Un usuario recibe un nuevo seguidor.
-    - Un usuario recibe un mensaje privado.
-- **Notificaciones Locales:** La aplicación detecta las nuevas filas en la tabla de notificaciones y lanza un aviso visual (UI Toast/Notification) en tiempo real al usuario receptor.
-
-### 3. Resolución de Errores Críticos y Estabilidad
-- **Esquema SQL Maestro:** Unificación de todas las tablas, vistas y triggers en un único script de inicialización limpia (`venered_social_schema.sql`).
-- **Seguridad RLS:** Implementación de políticas de Row Level Security (RLS) completas para permitir acciones de seguir/dejar de seguir y envío de mensajes de forma segura.
-- **Gestión de Perfiles:** Se añadió soporte para `fcm_token` en los perfiles para futuras notificaciones push externas.
-
-### 4. Lanzamiento Oficial y Rediseño Premium
-- **Estética de Alta Gama:** Implementación total de `Google Fonts (Poppins)`, gradientes y bordes redondeados.
-- **Estructura de Versiones Limpia:** Versión **1.0** establecida como la base oficial, con automatización de build en GitHub Actions corregida para etiquetas numéricas.
-
-### 5. UI/UX y Funcionalidades del Feed
-- **Tiempo Transcurrido (Time Ago):** Se ha implementado la funcionalidad de "Time Ago" en los posts, mostrando el tiempo transcurrido desde su publicación de forma legible para el usuario (e.g., "Hace 5 minutos", "Hace 2 horas").
-
-## Próximos Pasos (Hoja de Ruta 2.x)
-- [x] Chat y lista de mensajes en tiempo real (Completado).
-- [x] Notificaciones automáticas de seguidores y mensajes (Completado).
-- [x] Estabilización de la carga inicial de conversaciones (Completado).
-- [x] Integración de servicio de notificaciones en el arranque (Completado).
-- [x] Implementar la funcionalidad de "Tiempo transcurrido" (Time Ago) en los posts (Completado).
-- [ ] Optimizar el rendimiento de la carga de imágenes en el feed.
-- [ ] Implementar Historias dinámicas.
-- [ ] Refinar animaciones de entrada en tarjetas y perfiles.
+---
+*Actualizado el 01 de Marzo, 2026*

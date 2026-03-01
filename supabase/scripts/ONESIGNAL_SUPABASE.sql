@@ -17,7 +17,7 @@ BEGIN
     url := 'https://onesignal.com/api/v1/notifications',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Basic TU_REST_API_KEY_AQUI' -- <--- PEGA TU REST API KEY AQUÍ
+      'Authorization', 'Basic os_v2_app_po76jzwc5banvfxlz7csrpfw4ym765qku7be4zm4xoegs7mlyyd5nrbf5w2lsedjl5tvwnri4hmulzvb3qi5guivug52xydq2jr2hza' -- <--- TU REST API KEY AQUÍ
     ),
     body := jsonb_build_object(
       'app_id', '7bbfe4e6-c2e8-40da-96eb-cfc528bcb6e6', -- <--- TU APP ID YA ESTÁ AQUÍ
