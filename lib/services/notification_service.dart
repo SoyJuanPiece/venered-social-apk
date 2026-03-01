@@ -74,7 +74,9 @@ class NotificationService {
       return;
     }
 
-    // Asegurar Login en OneSignal al arrancar la escucha
+    // VINCULAR USUARIO CON ONESIGNAL
+    // Esto es CRÍTICO para que OneSignal sepa a quién enviar la notificación
+    dPrint('DEBUG NOTIF: Vinculando OneSignal con ID: ${user.id}');
     OneSignal.login(user.id);
 
     dPrint('DEBUG NOTIF: Iniciando Stream de Supabase para: ${user.id}');

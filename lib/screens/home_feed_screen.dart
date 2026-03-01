@@ -39,12 +39,18 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         .from('notifications')
         .stream(primaryKey: ['id'])
         .map((event) {
-          final count = event.where((n) => 
+          // Filtramos las notificaciones de mensajes no leídas
+          final unreadNotifications = event.where((n) => 
             n['receiver_id'] == user.id && 
             n['type'] == 'message' && 
             n['is_read'] == false
-          ).length;
-          dPrint('DEBUG FEED: Nuevo conteo de mensajes: $count');
+          );
+
+          // Contamos cuántos REMITENTES únicos hay (contar chats, no mensajes)
+          final uniqueSenders = unreadNotifications.map((n) => n['sender_id']).toSet();
+          
+          final count = uniqueSenders.length;
+          dPrint('DEBUG FEED: Nuevo conteo de chats con mensajes: $count');
           return count;
         })
         .handleError((e) {
