@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:venered_social/screens/main_navigation_screen.dart';
 import 'package:venered_social/screens/register_page.dart';
+import 'package:venered_social/screens/mfa_verify_screen.dart';
 import 'package:venered_social/services/notification_service.dart';
 
 class LoginPage extends StatefulWidget {
@@ -30,12 +31,27 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _isLoading = true);
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      final response = await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      // Activar notificaciones al entrar
+      // Verificación de 2FA:
+      // Si el login fue exitoso, revisamos si el usuario tiene factores de autenticación activos.
+      if (response.session != null) {
+        final factors = await Supabase.instance.client.auth.mfa.listFactors();
+        if (factors.totp.isNotEmpty) {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const MfaVerifyScreen()),
+            );
+          }
+          return;
+        }
+      }
+
+      // Activar notificaciones al entrar si no hay 2FA
       NotificationService.startListening();
 
       if (mounted) {

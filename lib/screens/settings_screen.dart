@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/screens/terms_and_conditions_screen.dart';
+import 'package:venered_social/screens/mfa_setup_screen.dart';
 import 'package:venered_social/main.dart'; // Import for ThemeManager
 
 class SettingsScreen extends StatelessWidget {
@@ -12,7 +13,7 @@ class SettingsScreen extends StatelessWidget {
     if (context.mounted) {
       Navigator.pushReplacement(
         context,
-        new MaterialPageRoute(builder: (context) => const LoginPage()),
+        MaterialPageRoute(builder: (context) => const LoginPage()),
       );
     }
   }
@@ -25,6 +26,20 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: ListView(
         children: [
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text('Seguridad', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.security_rounded, color: Color(0xFF6366F1)),
+            title: const Text('Autenticación de Dos Factores (2FA)'),
+            subtitle: const Text('Añade una capa extra de protección'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const MfaSetupScreen()));
+            },
+          ),
+          const Divider(),
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text('Apariencia', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -72,7 +87,7 @@ class SettingsScreen extends StatelessWidget {
             title: const Text('Términos y Condiciones'),
             onTap: () {
               Navigator.of(context).push(
-                new MaterialPageRoute(builder: (context) => const TermsAndConditionsScreen()),
+                MaterialPageRoute(builder: (context) => const TermsAndConditionsScreen()),
               );
             },
           ),
