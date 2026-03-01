@@ -61,9 +61,24 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   Future<List<Map<String, dynamic>>> _fetchPosts() async {
     try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return [];
+
+      // 1. Obtener el estado del usuario actual
+      final userProfile = await Supabase.instance.client
+          .from('profiles')
+          .select('estado')
+          .eq('id', user.id)
+          .single();
+      
+      final userEstado = userProfile['estado'] as String?;
+
+      // 2. Traer posts filtrando por el estado del autor
+      // Asumimos que posts_with_likes_count permite filtrar por el estado del perfil
       final response = await Supabase.instance.client
           .from('posts_with_likes_count')
-          .select('*')
+          .select('*, profiles!inner(estado)')
+          .eq('profiles.estado', userEstado ?? '')
           .order('created_at', ascending: false);
 
       return response as List<Map<String, dynamic>>;
