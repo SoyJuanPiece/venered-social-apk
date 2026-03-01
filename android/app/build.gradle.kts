@@ -12,6 +12,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+        // Esto es lo que faltaba para corregir el error:
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -45,7 +47,8 @@ flutter {
 
 dependencies {
     implementation("com.google.android.material:material:1.10.0")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.2.2")
+    // Librería necesaria para el desugaring
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
 }
 
 apply(plugin = "com.google.gms.google-services")
