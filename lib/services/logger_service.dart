@@ -40,7 +40,12 @@ class LoggerService {
 
     try {
       await _logFile!.writeAsString(logEntry, mode: FileMode.append);
-      debugPrint('Error guardado en log local.');
+      if (kDebugMode) {
+        debugPrint('--- ERROR DETECTADO ---');
+        debugPrint(logEntry);
+      } else {
+        debugPrint('Error guardado en log local.');
+      }
     } catch (e) {
       debugPrint('Fallo al escribir en el log file: $e');
     }
