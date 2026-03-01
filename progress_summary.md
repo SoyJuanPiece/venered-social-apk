@@ -1,23 +1,28 @@
 # Progreso del Proyecto - Venered Social
 
-## Estado Actual: v1.2 (Fase de Seguridad y Regionalización)
+## Estado Actual: v1.3 (Fase de Moderación, Regionalización y Seguridad)
 
 ### Últimas Mejoras Implementadas
-- **Seguridad Avanzada (2FA):**
-    - Implementada **Autenticación de Dos Factores (2FA)** opcional mediante el estándar TOTP.
-    - Compatibilidad con aplicaciones de autenticación (Google Authenticator, Authy, etc.).
-    - Flujo completo: Configuración en ajustes y verificación obligatoria al iniciar sesión para usuarios protegidos.
-- **Regionalización (Venezuela):**
-    - Sistema de **Estados de Venezuela** integrado en el registro.
-    - **Geolocalización Automática:** Detección de estado por IP y bloqueo de registros fuera de Venezuela.
-    - **Filtro de Contenido:** El feed principal ahora es exclusivo por estado (solo ves gente de tu región).
-- **Identidad Visual:**
-    - Iconos de la aplicación actualizados con el diseño oficial en azul.
-    - Configuración de red (Cleartext/ATS) lista para el funcionamiento de APIs externas.
+- **Sistema de Moderación Integral:**
+    - **Panel de Moderación:** Nueva interfaz para moderadores y administradores para gestionar la comunidad.
+    - **Reportes de Contenido:** Los usuarios pueden reportar publicaciones por spam, acoso o contenido inapropiado.
+    - **Sistema de Baneo:** Lógica en el servidor que impide a usuarios suspendidos publicar contenido nuevo.
+    - **Verificación de Cuentas (Check Azul):** Flujo completo de solicitud desde ajustes y aprobación manual por moderadores.
+- **Regionalización Avanzada (Venezuela):**
+    - **Selector de Estados en Perfil:** Ahora los usuarios pueden actualizar su estado desde la edición de perfil.
+    - **Regla de 7 Días:** Restricción automatizada en base de datos para cambios de ubicación regional.
+    - **Detección por IP:** Bloqueo de registros fuera de Venezuela y pre-selección automática de estado.
+- **Seguridad y Notificaciones:**
+    - **Autenticación 2FA:** Soporte opcional para Google Authenticator y Authy (Fix de nulabilidad aplicado).
+    - **Notificaciones Pro:** Control de spam (1 push cada 15 min por post) y privacidad en el contenido del mensaje.
+- **Mantenimiento Técnico:**
+    - Consolidación del script maestro `MASTER_SETUP_VENERED.sql` (v1.3).
+    - Limpieza y organización de scripts en la carpeta `/supabase`.
 
 ### Pendientes / Próximos Pasos
-1. **Editar Perfil:** Permitir la edición del estado con la restricción de cambio cada 7 días.
-2. **Mejora UI:** Pulir la visualización de los códigos de seguridad en la pantalla de MFA.
+1. **Notas de Voz:** Integración de grabación y reproducción de audios en el chat.
+2. **Explorar por Hashtags:** Implementar la búsqueda y filtrado por etiquetas.
+3. **Mejoras de UI en Moderación:** Añadir más detalles sobre los usuarios reportados en el panel.
 
 ---
 *Actualizado el 01 de Marzo, 2026*

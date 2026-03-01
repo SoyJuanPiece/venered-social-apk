@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:venered_social/screens/profile_screen.dart';
 import 'package:venered_social/widgets/comments_sheet.dart';
 import 'package:http/http.dart' as http;
-import 'package:venered_social/formatters.dart'; // Import the formatters utility
+import 'package:venered_social/formatters.dart';
 
 import '../utils.dart';
 
@@ -134,8 +134,14 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
               if (isOwner)
                 ListTile(
                   leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                  title: Text('Eliminar post', style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+                  title: Text('Eliminar publicación', style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.w600)),
                   onTap: () { Navigator.pop(context); _deletePost(); },
+                )
+              else
+                ListTile(
+                  leading: const Icon(Icons.report_problem_outlined, color: Colors.orangeAccent),
+                  title: Text('Reportar contenido', style: GoogleFonts.poppins(color: Colors.orangeAccent, fontWeight: FontWeight.w600)),
+                  onTap: () { Navigator.pop(context); _showReportDialog(); },
                 ),
               ListTile(
                 leading: const Icon(Icons.link_outlined),
@@ -143,11 +149,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                 onTap: () { 
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Enlace copiado al portapapeles'),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    )
+                    const SnackBar(content: Text('Enlace copiado al portapapeles'), behavior: SnackBarBehavior.floating),
                   );
                 },
               ),
@@ -159,28 +161,60 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     );
   }
 
+  void _showReportDialog() {
+    final reasons = ['Contenido inapropiado', 'Spam', 'Acoso', 'Información falsa', 'Otro'];
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Reportar publicación', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: reasons.map((reason) => ListTile(
+            title: Text(reason, style: GoogleFonts.poppins(fontSize: 14)),
+            onTap: () {
+              Navigator.pop(context);
+              _submitReport(reason);
+            },
+          )).toList(),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+    );
+  }
+
+  Future<void> _submitReport(String reason) async {
+    try {
+      await Supabase.instance.client.from('reports').insert({
+        'reporter_id': _userId,
+        'reported_post_id': widget.post['id'],
+        'reported_user_id': widget.post['user_id'],
+        'reason': reason,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gracias por tu reporte. Lo revisaremos pronto.'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      dPrint('Error al reportar: $e');
+    }
+  }
+
   Future<void> _deletePost() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('¿Eliminar publicación?', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Text('Esta acción no se puede deshacer.', style: GoogleFonts.poppins()),
+        content: const Text('Esta acción no se puede deshacer.'),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancelar', style: GoogleFonts.poppins(color: Colors.grey))),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true), 
-            child: Text('Eliminar', style: GoogleFonts.poppins(color: Colors.redAccent, fontWeight: FontWeight.bold))
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent))),
         ],
       ),
     );
     if (confirmed == true) {
       try {
-        final deleteUrl = widget.post['image_deletehash'] as String?;
-        if (deleteUrl != null && deleteUrl.isNotEmpty) {
-          await http.get(Uri.parse(deleteUrl)).timeout(const Duration(seconds: 5));
-        }
         await Supabase.instance.client.from('posts').delete().eq('id', widget.post['id']);
         if (widget.onDelete != null) widget.onDelete!();
       } catch (e) {
@@ -196,6 +230,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     final profile = widget.post['profiles'] as Map<String, dynamic>?;
     final username = profile?['username'] ?? 'Usuario';
     final profilePic = profile?['profile_pic_url'];
+    final isVerified = profile?['is_verified'] ?? false;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -234,13 +269,22 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          username,
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: theme.colorScheme.onSurface,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              username,
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            if (isVerified)
+                              const Padding(
+                                padding: EdgeInsets.only(left: 4),
+                                child: Icon(Icons.verified, color: Colors.blue, size: 14),
+                              ),
+                          ],
                         ),
                         if (widget.post['created_at'] != null)
                           Text(
@@ -307,12 +351,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
               ),
               child: Text(
                 widget.post['description'],
-                style: GoogleFonts.poppins(
-                  fontSize: 18, 
-                  fontWeight: FontWeight.w600, 
-                  color: theme.colorScheme.onSurface,
-                  height: 1.4,
-                ),
+                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface, height: 1.4),
                 textAlign: TextAlign.center,
               ),
             ),

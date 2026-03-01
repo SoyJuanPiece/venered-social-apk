@@ -35,7 +35,16 @@ jobs:
       - name: Compress APKs to ZIP
         run: zip -j venered_social_v1.0.zip build/app/outputs/flutter-apk/*.apk
 
+      - name: Read Progress Summary
+        id: progress
+        run: |
+          SUMMARY=$(cat progress_summary.md)
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$SUMMARY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
+        id: create_release
         uses: softprops/action-gh-release@v1
         with:
           files: |
@@ -45,20 +54,23 @@ jobs:
             build/app/outputs/flutter-apk/app-x86_64-release.apk
             build/app/outputs/bundle/release/app-release.aab
           name: "Venered Social v1.0 (Oficial)"
-          body: "🚀 Lanzamiento oficial de Venered Social con soporte para todas las arquitecturas."
+          body: ${{ steps.progress.outputs.summary }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Send ZIP to Telegram
+      - name: Send Notification to Telegram
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           document: venered_social_v1.0.zip
           message: |
-            🎉 **¡Venered Social v1.0 Lista!** 🎉
+            🎉 **¡Venered Social v1.0 Actualizada!** 🎉
             
-            Se han generado los APKs para todas las arquitecturas.
+            Se han implementado las siguientes funciones:
+            ${{ steps.progress.outputs.summary }}
+            
+            🔗 **Enlace del Release en GitHub:**
+            https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
             
             📥 **Archivo ZIP adjunto.**
-            🚀 Disfruta la experiencia Premium.

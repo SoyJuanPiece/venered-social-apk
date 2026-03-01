@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:venered_social/utils.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> initialProfile;
@@ -18,11 +19,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _usernameController;
   late TextEditingController _bioController;
+  String? _selectedEstado;
   File? _newProfilePicFile;
   bool _isLoading = false;
 
   // WARNING: HARDCODING API KEYS IS A SECURITY RISK.
-  static const String _imgbbApiKey = 'c4fd2ded598485660696ba819347f0bb'; // PROVIDED IMGBB API KEY
+  static const String _imgbbApiKey = 'c4fd2ded598485660696ba819347f0bb'; 
 
 
   @override
@@ -31,6 +33,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _usernameController =
         TextEditingController(text: widget.initialProfile['username']);
     _bioController = TextEditingController(text: widget.initialProfile['bio']);
+    _selectedEstado = widget.initialProfile['estado'];
   }
 
   @override
@@ -49,15 +52,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() {
         _newProfilePicFile = File(pickedFile.path);
       });
-    } else {
     }
   }
 
   Future<void> _deleteImgbbImage(String deleteUrl) async {
     try {
-      // ImgBB delete_url is usually a web page, but we try to trigger it
       await http.get(Uri.parse(deleteUrl));
     } catch (e) {
+      dPrint('Error deleting image: $e');
     }
   }
 
@@ -77,7 +79,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // 1. Upload new profile picture if selected
       if (_newProfilePicFile != null) {
-        // Attempt to delete old image if URL exists
         if (widget.initialProfile['profile_pic_deletehash'] != null &&
             widget.initialProfile['profile_pic_deletehash'].isNotEmpty) {
           await _deleteImgbbImage(widget.initialProfile['profile_pic_deletehash']);
@@ -89,28 +90,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         )..files.add(await http.MultipartFile.fromPath('image', _newProfilePicFile!.path));
 
         final response = await request.send();
-        final responseBody = await response.stream.bytesToString(); // Read response body once
+        final responseBody = await response.stream.bytesToString();
 
 
         if (response.statusCode != 200) {
-          throw Exception('Error al subir la nueva imagen de perfil a ImgBB: ${response.statusCode} - $responseBody');
+          throw Exception('Error al subir la nueva imagen de perfil: ${response.statusCode}');
         }
 
         final decodedResponse = json.decode(responseBody);
         newProfilePicUrl = decodedResponse['data']['url'];
-        newProfilePicDeletehash = decodedResponse['data']['delete_url']; // Use delete_url consistently
+        newProfilePicDeletehash = decodedResponse['data']['delete_url'];
 
 
         if (newProfilePicUrl == null) {
-          throw Exception('No se pudo obtener la URL de la nueva imagen de ImgBB. Respuesta: $responseBody');
+          throw Exception('No se pudo obtener la URL de la imagen.');
         }
-      } else {
-        }
+      }
 
       // 2. Update profile data in Supabase
+      // NOTA: El trigger de la base de datos lanzará un error si se cambia el estado antes de 7 días.
       await Supabase.instance.client.from('profiles').update({
         'username': _usernameController.text.trim(),
         'bio': _bioController.text.trim(),
+        'estado': _selectedEstado,
         'profile_pic_url': newProfilePicUrl,
         'profile_pic_deletehash': newProfilePicDeletehash,
         'updated_at': DateTime.now().toIso8601String(),
@@ -119,17 +121,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Perfil actualizado exitosamente!'),
+              content: Text('¡Perfil actualizado exitosamente!'),
               backgroundColor: Colors.green),
         );
-        Navigator.of(context).pop(); // Go back to ProfileScreen
+        Navigator.of(context).pop();
       }
     } catch (e) {
+      String errorMessage = e.toString();
+      // Capturar el mensaje de error personalizado del trigger de Supabase
+      if (errorMessage.contains('Solo puedes cambiar tu estado una vez cada 7 días')) {
+        errorMessage = 'Restricción: Solo puedes cambiar tu estado una vez cada 7 días.';
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Error al actualizar perfil: ${e.toString()}'),
-              backgroundColor: Theme.of(context).colorScheme.error),
+              content: Text(errorMessage),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating),
         );
       }
     } finally {
@@ -144,12 +153,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Editar Perfil'),
         backgroundColor: theme.scaffoldBackgroundColor,
-        foregroundColor: theme.colorScheme.onBackground,
+        foregroundColor: theme.colorScheme.onSurface,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -178,49 +189,77 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: _pickImage,
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundColor: theme.colorScheme.surface,
-                  backgroundImage: _newProfilePicFile != null
-                      ? FileImage(_newProfilePicFile!)
-                      : (widget.initialProfile['profile_pic_url'] != null && widget.initialProfile['profile_pic_url'].isNotEmpty
-                          ? NetworkImage(widget.initialProfile['profile_pic_url']) as ImageProvider
-                          : null),
-                  child: _newProfilePicFile == null && (widget.initialProfile['profile_pic_url'] == null || widget.initialProfile['profile_pic_url'].isEmpty)
-                      ? Icon(Icons.person, size: 60, color: theme.colorScheme.onSurface.withOpacity(0.6))
-                      : null,
+              Center(
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: CircleAvatar(
+                        radius: 60,
+                        backgroundColor: theme.colorScheme.surface,
+                        backgroundImage: _newProfilePicFile != null
+                            ? FileImage(_newProfilePicFile!)
+                            : (widget.initialProfile['profile_pic_url'] != null && widget.initialProfile['profile_pic_url'].isNotEmpty
+                                ? NetworkImage(widget.initialProfile['profile_pic_url']) as ImageProvider
+                                : null),
+                        child: _newProfilePicFile == null && (widget.initialProfile['profile_pic_url'] == null || widget.initialProfile['profile_pic_url'].isEmpty)
+                            ? Icon(Icons.person, size: 60, color: theme.colorScheme.onSurface.withOpacity(0.6))
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: _pickImage,
+                      child: const Text('Cambiar foto de perfil'),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: _pickImage,
-                child: const Text('Cambiar foto de perfil'),
               ),
               const SizedBox(height: 24),
+              const Text('Información básica', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _usernameController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Nombre de Usuario',
-                  fillColor: theme.colorScheme.surface,
+                  prefixIcon: Icon(Icons.person_outline),
                 ),
-                style: TextStyle(color: theme.colorScheme.onSurface),
                 validator: (value) =>
                     (value == null || value.isEmpty) ? 'El nombre de usuario es requerido' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _bioController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Biografía',
-                  fillColor: theme.colorScheme.surface,
+                  prefixIcon: Icon(Icons.info_outline),
                 ),
-                style: TextStyle(color: theme.colorScheme.onSurface),
                 maxLines: 3,
                 minLines: 1,
               ),
+              const SizedBox(height: 24),
+              const Text('Ubicación Regional', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedEstado,
+                decoration: const InputDecoration(
+                  labelText: 'Estado de Venezuela',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                  helperText: 'Solo puedes cambiar tu estado una vez cada 7 días.',
+                ),
+                dropdownColor: isDark ? Colors.grey[900] : Colors.white,
+                items: estadosVenezuela.map((estado) {
+                  return DropdownMenuItem(
+                    value: estado,
+                    child: Text(estado),
+                  );
+                }).toList(),
+                onChanged: (value) => setState(() => _selectedEstado = value),
+                validator: (value) => value == null ? 'Selecciona un estado' : null,
+              ),
+              const SizedBox(height: 40),
             ],
           ),
         ),
