@@ -8,6 +8,7 @@ import 'package:venered_social/widgets/post_skeleton.dart';
 import 'package:venered_social/screens/create_post_screen.dart';
 import 'package:venered_social/screens/notifications_screen.dart';
 import 'package:venered_social/screens/messages_screen.dart';
+import 'package:venered_social/widgets/stories_bar.dart';
 
 class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
@@ -75,7 +76,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -130,6 +130,9 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
+            const SliverToBoxAdapter(
+              child: StoriesBar(),
+            ),
             // Feed Section
             FutureBuilder<List<Map<String, dynamic>>>(
               future: _postsFuture,

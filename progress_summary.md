@@ -1,25 +1,24 @@
 # Progreso del Proyecto - Venered Social
 
-## Estado Actual: v1.7 (Remodelación de Mensajería y Persistencia)
+## Estado Actual: v1.8 (Historias y Almacenamiento Telegram)
 
 ### Últimas Mejoras Implementadas
-- **Remodelación Total del Chat:**
-    - **Interfaz Unificada:** Se añadió el botón `+` para agrupar opciones de Cámara y Galería, limpiando la barra de escritura.
-    - **Botón de Enviar Inteligente:** Corregida la lógica del botón derecho; ahora conmuta correctamente entre Micrófono (vacío) y Enviar (con texto).
-- **Persistencia y Caché Local (WhatsApp Style):**
-    - **SQLite Integrado:** Implementada base de datos local para rastrear archivos descargados.
-    - **Almacenamiento Permanente:** Las fotos y audios se guardan en la memoria interna del teléfono para acceso offline.
-    - **Independencia del Servidor:** Aunque los archivos se borren de la nube, el usuario mantiene su copia local.
-- **Optimización de Recursos:**
-    - **Compresión Global:** Aplicada compresión automática a fotos de chat, posts y perfil (máx 500KB).
-    - **Almacenamiento en Nube:** Extendida la vida de los archivos en Supabase Storage a **7 días** antes del auto-borrado.
-- **Chat Blindado:**
-    - Reforzada la lógica de grabación de audio con gestos de cancelación (deslizar para borrar) y reseteo automático de estados en caso de error.
+- **Sistema de Historias (Stories):**
+    - **Interfaz Estilo Instagram:** Implementado carrusel horizontal en el feed principal con círculos de perfil y gradientes dinámicos.
+    - **Visor de Historias Pro:** Creado visor a pantalla completa con barras de progreso segmentadas, soporte para gestos (tocar lados para navegar, deslizar abajo para cerrar).
+    - **Interacción:** Añadida capacidad de dar "Like" y enviar respuestas directas desde la historia.
+- **Almacenamiento Ilimitado vía Telegram:**
+    - **Integración de Video:** La app ahora permite publicar videos pesados usando Telegram como CDN gratuito.
+    - **Servidor Node.js:** Implementado microservicio para gestionar subidas, file_ids y generación de URLs frescas (bypass de expiración de 1h de Telegram).
+    - **Persistencia Híbrida:** Los metadatos se guardan en Supabase, mientras que el binario vive en la nube de Telegram.
+- **Infraestructura de Red:**
+    - **Hosting Externo:** Configurada la app para conectar con el servidor en `toby.hidencloud.com:24652`.
+    - **Seguridad Android:** Habilitado `usesCleartextTraffic` para compatibilidad con el hosting HTTP.
 
 ### Pendientes / Próximos Pasos
 1. **Venered Market:** Iniciar el desarrollo de la sección de compra/venta.
-2. **Historias (Stories):** Implementar el carrusel de estados temporales en el feed.
-3. **Notificaciones In-App:** Añadir avisos visuales elegantes mientras el usuario navega dentro de la app.
+2. **Notificaciones In-App:** Añadir avisos visuales elegantes mientras el usuario navega dentro de la app.
+3. **Optimización de Visor:** Añadir pre-carga (pre-fetching) de la siguiente historia para transiciones instantáneas.
 
 ---
-*Actualizado el 01 de Marzo, 2026*
+*Actualizado el 02 de Marzo, 2026*

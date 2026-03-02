@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -6,6 +7,8 @@ import 'package:http/http.dart' as http;
 
 class MediaManager {
   static Database? _database;
+  // URL de tu servidor en HidenCloud
+  static const String telegramServerUrl = 'http://toby.hidencloud.com:24652/upload';
 
   static Future<Database> get database async {
     if (_database != null) return _database!;
@@ -33,7 +36,38 @@ class MediaManager {
     );
   }
 
+  /// Sube un archivo al servidor de Telegram para Historias
+  static Future<Map<String, dynamic>?> uploadToTelegram(File file, {bool isStory = true}) async {
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse(telegramServerUrl));
+      
+      // Adjuntar el archivo
+      request.files.add(await http.MultipartFile.fromPath(
+        'media', 
+        file.path,
+        filename: basename(file.path),
+      ));
+
+      // Añadir campos extra
+      request.fields['isStory'] = isStory.toString();
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        print('Error en la subida: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error conectando con el servidor de Telegram: $e');
+      return null;
+    }
+  }
+
   /// Obtiene la ruta local de un archivo si ya existe en el teléfono.
+... (resto de métodos intactos) ...
   static Future<String?> getLocalPath(String messageId) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
