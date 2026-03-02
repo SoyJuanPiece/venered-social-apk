@@ -25,7 +25,11 @@ class _MfaSetupScreenState extends State<MfaSetupScreen> {
   Future<void> _enrollMfa() async {
     setState(() => _isLoading = true);
     try {
-      final response = await Supabase.instance.client.auth.mfa.enroll(factorType: FactorType.totp);
+      final response = await Supabase.instance.client.auth.mfa.enroll(
+        factorType: FactorType.totp,
+        issuer: 'Venered Social', // Nombre que aparecerá en Google Authenticator
+        friendlyName: Supabase.instance.client.auth.currentUser?.email ?? 'Venered User',
+      );
       final totpData = response.totp;
       setState(() {
         _factorId = response.id;
