@@ -47,7 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .maybeSingle();
 
       if (response == null) {
-        throw Exception("El perfil no existe en la tabla 'profiles'. ¿Ejecutaste el script SQL?");
+        throw Exception("El perfil no existe en la tabla 'profiles'.");
       }
 
       if (!_isCurrentUser) {
@@ -102,22 +102,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _refreshData();
     } catch (e) {
       debugPrint('Error toggling follow: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
     }
   }
 
   Future<String> _getOrCreateConversation(
       String otherUserId, Map<String, dynamic> otherUser) async {
     final myId = Supabase.instance.client.auth.currentUser!.id;
-
     try {
-      // Intentar encontrar conversación existente
       final response = await Supabase.instance.client
           .from('conversations')
           .select('id')
@@ -127,7 +118,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return response.first['id'] as String;
       }
 
-      // Crear nueva si no existe
       final newConversation = await Supabase.instance.client
           .from('conversations')
           .insert({
@@ -138,11 +128,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .select('id')
           .maybeSingle();
 
-      if (newConversation == null) {
-        throw Exception("No se pudo crear la conversación. Verifica los permisos RLS.");
-      }
-
-      return newConversation['id'] as String;
+      return newConversation!['id'] as String;
     } catch (e) {
       debugPrint('Error in _getOrCreateConversation: $e');
       rethrow;
@@ -162,21 +148,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
         title: FutureBuilder<Map<String, dynamic>>(
           future: _profileFuture,
-          builder: (context, snapshot) => Text(
-            snapshot.data?['username'] ?? '',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w700,
-              fontSize: 18,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
+          builder: (context, snapshot) {
+            final profile = snapshot.data;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  profile?['username'] ?? '',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18, color: theme.colorScheme.onSurface),
+                ),
+                if (profile?['is_verified'] == true)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4),
+                    child: Icon(Icons.verified, color: Colors.blue, size: 18),
+                  ),
+              ],
+            );
+          },
         ),
         actions: [
           if (_isCurrentUser)
             IconButton(
               icon: Icon(Icons.settings_outlined, color: theme.colorScheme.onSurface),
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => const SettingsScreen())),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsScreen())),
             ),
         ],
       ),
@@ -193,41 +187,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   future: _profileFuture,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: Padding(
-                        padding: EdgeInsets.all(40.0),
-                        child: CircularProgressIndicator(),
-                      ));
-                    }
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Column(
-                            children: [
-                              const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Error al cargar perfil',
-                                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                snapshot.error.toString(),
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
-                              ),
-                              TextButton(onPressed: _refreshData, child: const Text('Reintentar')),
-                            ],
-                          ),
-                        ),
-                      );
+                      return const Center(child: Padding(padding: EdgeInsets.all(40.0), child: CircularProgressIndicator()));
                     }
                     if (!snapshot.hasData) return const SizedBox.shrink();
                     
                     final profile = snapshot.data!;
-                    // Extraer conteos de la estructura [{count: X}]
                     final followersCount = (profile['followers'] as List?)?.firstOrNull?['count'] ?? 0;
                     final followingCount = (profile['following'] as List?)?.firstOrNull?['count'] ?? 0;
+                    final String role = profile['role'] ?? 'user';
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,23 +203,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             Container(
                               padding: const EdgeInsets.all(3),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
-                                ),
-                              ),
+                              decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [Color(0xFF6366F1), Color(0xFFEC4899)])),
                               child: CircleAvatar(
                                 radius: 42,
                                 backgroundColor: theme.scaffoldBackgroundColor,
                                 child: CircleAvatar(
                                   radius: 38,
-                                  backgroundImage: profile['profile_pic_url'] != null 
-                                      ? NetworkImage(profile['profile_pic_url']) 
-                                      : null,
-                                  child: profile['profile_pic_url'] == null 
-                                      ? Icon(Icons.person, size: 40, color: theme.colorScheme.primary) 
-                                      : null,
+                                  backgroundImage: profile['profile_pic_url'] != null ? NetworkImage(profile['profile_pic_url']) : null,
+                                  child: profile['profile_pic_url'] == null ? Icon(Icons.person, size: 40, color: theme.colorScheme.primary) : null,
                                 ),
                               ),
                             ),
@@ -262,9 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 children: [
                                   FutureBuilder<List<Map<String, dynamic>>>(
                                     future: _postsFuture,
-                                    builder: (context, postSnapshot) {
-                                      return _buildStat(postSnapshot.data?.length ?? 0, 'Posts');
-                                    }
+                                    builder: (context, postSnapshot) => _buildStat(postSnapshot.data?.length ?? 0, 'Posts')
                                   ),
                                   _buildStat(followersCount, 'Seguidores'),
                                   _buildStat(followingCount, 'Seguidos'),
@@ -274,34 +230,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          profile['username'] ?? '',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
+                        Row(
+                          children: [
+                            Text(profile['username'] ?? '', style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 16)),
+                            if (profile['is_verified'] == true)
+                              const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.verified, color: Colors.blue, size: 16)),
+                          ],
                         ),
-                        if (profile['bio'] != null && profile['bio'].isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
+                        
+                        // ETIQUETA DE ROL (DUEÑO/MOD)
+                        if (role != 'user')
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: role == 'admin' ? Colors.orange.withOpacity(0.2) : Colors.blue.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
                             child: Text(
-                              profile['bio'],
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: theme.colorScheme.onSurface.withOpacity(0.8),
+                              role == 'admin' ? 'DUEÑO' : 'MODERADOR',
+                              style: TextStyle(
+                                color: role == 'admin' ? Colors.orange : Colors.blue,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
                               ),
                             ),
                           ),
+
+                        if (profile['bio'] != null && profile['bio'].isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(profile['bio'], style: GoogleFonts.poppins(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.8))),
+                          ),
+                        
+                        // MOSTRAR ESTADO
+                        if (profile['estado'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(profile['estado'], style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+
                         const SizedBox(height: 24),
                         if (_isCurrentUser)
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () async {
-                                await Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                        builder: (context) =>
-                                            EditProfileScreen(initialProfile: profile)));
+                                await Navigator.of(context).push(MaterialPageRoute(builder: (context) => EditProfileScreen(initialProfile: profile)));
                                 _refreshData();
                               },
                               style: ElevatedButton.styleFrom(
@@ -320,9 +302,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    gradient: profile['is_followed'] 
-                                      ? null 
-                                      : const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
+                                    gradient: profile['is_followed'] ? null : const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
                                     color: profile['is_followed'] ? (isDark ? Colors.grey[900] : Colors.grey[200]) : null,
                                   ),
                                   child: ElevatedButton(
@@ -333,10 +313,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       foregroundColor: profile['is_followed'] ? theme.colorScheme.onSurface : Colors.white,
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     ),
-                                    child: Text(
-                                      profile['is_followed'] ? 'Siguiendo' : 'Seguir',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    ),
+                                    child: Text(profile['is_followed'] ? 'Siguiendo' : 'Seguir', style: const TextStyle(fontWeight: FontWeight.bold)),
                                   ),
                                 ),
                               ),
@@ -345,18 +322,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: OutlinedButton(
                                   onPressed: () async {
                                     final profile = await _profileFuture;
-                                    final conversationId =
-                                        await _getOrCreateConversation(
-                                            _userId, profile);
+                                    final conversationId = await _getOrCreateConversation(_userId, profile);
                                     if (mounted) {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) => ChatScreen(
-                                            conversationId: conversationId,
-                                            otherUser: profile,
-                                          ),
-                                        ),
-                                      );
+                                      Navigator.of(context).push(MaterialPageRoute(builder: (context) => ChatScreen(conversationId: conversationId, otherUser: profile)));
                                     }
                                   },
                                   style: OutlinedButton.styleFrom(
@@ -377,9 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               FutureBuilder<List<Map<String, dynamic>>>(
                 future: _postsFuture,
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const SizedBox.shrink();
-                  }
+                  if (!snapshot.hasData) return const SizedBox.shrink();
                   final posts = snapshot.data!;
                   if (posts.isEmpty) {
                     return Center(
@@ -389,10 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             Icon(Icons.camera_alt_outlined, size: 48, color: Colors.grey[400]),
                             const SizedBox(height: 12),
-                            Text(
-                              'Aún no hay publicaciones',
-                              style: GoogleFonts.poppins(color: Colors.grey, fontWeight: FontWeight.w500),
-                            ),
+                            Text('Aún no hay publicaciones', style: GoogleFonts.poppins(color: Colors.grey, fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -401,19 +364,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 2,
-                      mainAxisSpacing: 2,
-                    ),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
                     itemCount: posts.length,
-                    itemBuilder: (context, index) {
-                      final post = posts[index];
-                      return Image.network(
-                        post['image_url'],
-                        fit: BoxFit.cover,
-                      );
-                    },
+                    itemBuilder: (context, index) => Image.network(posts[index]['image_url'], fit: BoxFit.cover),
                   );
                 },
               ),
@@ -428,14 +381,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          count.toString(),
-          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        Text(
-          label,
-          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500),
-        ),
+        Text(count.toString(), style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700)),
+        Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
       ],
     );
   }

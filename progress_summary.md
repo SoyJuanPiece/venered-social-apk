@@ -1,22 +1,25 @@
 # Progreso del Proyecto - Venered Social
 
-## Estado Actual: v1.5 (Optimización Extrema y Resiliencia)
+## Estado Actual: v1.5 (Identidad Regional y Moderación Pro)
 
 ### Últimas Mejoras Implementadas
-- **Notas de Voz de Ahorro Extremo:**
-    - **Compresión Máxima:** Audios configurados a 16kbps y 11kHz (Mono). Un minuto de audio pesa ahora ~120KB (98% menos que antes).
-    - **Límite de Tiempo:** Grabaciones restringidas a 60 segundos con contador visual en tiempo real.
-- **Arquitectura de Almacenamiento Efímero:**
-    - **Borrado en 24h:** Los audios se eliminan de Supabase Storage diariamente para mantener el servidor ligero.
-    - **Caché Permanente:** La app guarda localmente todos los audios en la memoria del teléfono al enviarlos o recibirlos.
-    - **Sistema de Rescate:** Si un audio ya no está en el servidor, la app solicita automáticamente al emisor que lo resuba desde su copia local de forma transparente.
-- **Seguridad y Roles:**
-    - Panel de administración con gestión de roles (Admin, Mod, User) operativo desde la app.
-    - Solicitudes de verificación (Check Azul) con flujo de aprobación integrado.
+- **Identidad y Rangos (DUEÑO/MODERADOR):**
+    - Actualizada la pantalla de perfil para mostrar insignias de rango personalizadas.
+    - Se cambió el término "ADMIN" por **"DUEÑO"** para una mejor localización al español venezolano.
+    - Implementado el **Check Azul** (Verified) automático en la cabecera y el cuerpo del perfil.
+- **Sistema de Moderación y Roles:**
+    - Panel de administración funcional con pestañas para Verificaciones, Reportes y Gestión de Usuarios.
+    - Los dueños ahora pueden buscar usuarios por nombre y asignarles roles (DUEÑO, MODERADOR, USUARIO) directamente desde la app.
+    - Permisos SQL (RLS) actualizados para permitir la gestión de perfiles por parte de administradores.
+- **Notas de Voz Inteligentes:**
+    - Compresión extrema (16kbps) para ahorro de datos en Venezuela.
+    - Sistema de caché local y auto-resubida en caso de expiración en el servidor.
+- **Estabilidad de Build:**
+    - Solucionados conflictos de versiones en las librerías de audio y configuraciones de Gradle.
 
 ### Pendientes / Próximos Pasos
-1. **Venered Market:** Iniciar el desarrollo de la sección de compra/venta regionalizada.
-2. **Historias (Stories):** Implementar el carrusel de estados temporales en el feed.
+1. **Venered Market:** Desarrollar el sistema de compra/venta regionalizado.
+2. **Historias (Stories):** Implementar el carrusel de estados temporales.
 
 ---
 *Actualizado el 01 de Marzo, 2026*
