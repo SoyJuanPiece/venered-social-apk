@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class MediaManager {
   static Database? _database;
@@ -42,17 +43,26 @@ class MediaManager {
       print('Iniciando subida a Telegram: ${file.path}');
       var request = http.MultipartRequest('POST', Uri.parse(telegramServerUrl));
       
+      final ext = extension(file.path).toLowerCase();
+      MediaType? contentType;
+      
+      if (ext == '.mp4') contentType = MediaType('video', 'mp4');
+      else if (ext == '.jpg' || ext == '.jpeg') contentType = MediaType('image', 'jpeg');
+      else if (ext == '.png') contentType = MediaType('image', 'png');
+      else if (ext == '.m4a') contentType = MediaType('audio', 'mp4');
+
       // Adjuntar el archivo
       request.files.add(await http.MultipartFile.fromPath(
         'media', 
         file.path,
         filename: basename(file.path),
+        contentType: contentType,
       ));
 
       // Añadir campos extra
       request.fields['isStory'] = isStory.toString();
 
-      print('Enviando petición a $telegramServerUrl...');
+      print('Enviando petición a $telegramServerUrl con contentType: ${contentType?.toString() ?? 'unknown'}');
       var streamedResponse = await request.send().timeout(const Duration(seconds: 30));
       var response = await http.Response.fromStream(streamedResponse);
 
