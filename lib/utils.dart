@@ -37,8 +37,7 @@ Future<File?> compressImage(File file) async {
 }
 
 const List<String> estadosVenezuela = [
-...
-
+  'Amazonas',
   'Anzoátegui',
   'Apure',
   'Aragua',

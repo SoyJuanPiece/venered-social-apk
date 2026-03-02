@@ -137,8 +137,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         radius: 60,
                         backgroundColor: theme.colorScheme.surface,
                         backgroundImage: _newProfilePicFile != null
-                            ? FileImage(_newProfilePicFile!)
-                            : (widget.initialProfile['profile_pic_url'] != null ? NetworkImage(widget.initialProfile['profile_pic_url']) : null),
+                            ? FileImage(_newProfilePicFile!) as ImageProvider
+                            : (widget.initialProfile['profile_pic_url'] != null ? NetworkImage(widget.initialProfile['profile_pic_url']) as ImageProvider : null),
                         child: _newProfilePicFile == null && (widget.initialProfile['profile_pic_url'] == null)
                             ? const Icon(Icons.person, size: 60) : null,
                       ),
