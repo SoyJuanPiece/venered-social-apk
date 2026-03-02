@@ -22,8 +22,8 @@ dependencies:
   firebase_core: ^4.4.0
   flutter_local_notifications: ^18.0.1
   onesignal_flutter: ^5.2.4
-  record: ^5.1.0
-  audioplayers: ^5.2.1
+  record: 5.1.0
+  audioplayers: 5.2.1
   path: ^1.9.0
 
 dev_dependencies:
@@ -32,9 +32,9 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.13.1
 
-# PARCHE DE COMPATIBILIDAD DEFINITIVO
+# PARCHE DE COMPATIBILIDAD V3: Alineación manual de interfaces
 dependency_overrides:
-  record_platform_interface: 1.5.0
+  record_platform_interface: 1.4.0
   record_linux: 1.2.0
 
 flutter_launcher_icons:
