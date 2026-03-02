@@ -67,7 +67,6 @@ class MediaManager {
   }
 
   /// Obtiene la ruta local de un archivo si ya existe en el teléfono.
-... (resto de métodos intactos) ...
   static Future<String?> getLocalPath(String messageId) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
