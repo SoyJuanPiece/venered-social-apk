@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.juanpiece.venered"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -21,9 +21,8 @@ android {
 
     defaultConfig {
         applicationId = "com.juanpiece.venered"
-        // Subimos de 21 a 23 como requiere firebase_messaging
         minSdk = 23
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
