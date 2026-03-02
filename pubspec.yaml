@@ -28,7 +28,7 @@ dependencies:
   flutter_image_compress: ^2.3.0
   shimmer: ^3.0.0
 
-  dev_dependencies:
+dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
