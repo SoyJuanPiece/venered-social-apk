@@ -13,11 +13,6 @@ allprojects {
         google()
         mavenCentral()
     }
-    
-    // Forzar versiones globales
-    project.extra.set("flutter.compileSdkVersion", 35)
-    project.extra.set("flutter.targetSdkVersion", 35)
-    project.extra.set("flutter.minSdkVersion", 23)
 }
 
 val newBuildDir: Directory =
@@ -30,20 +25,22 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
     
-    // PARCHE DE COMPATIBILIDAD KOTLIN DSL
-    afterEvaluate {
-        val android = project.extensions.findByName("android")
-        if (android != null && android is com.android.build.gradle.BaseExtension) {
-            android.compileSdkVersion(35)
-            
-            // Inyectar la extensión 'flutter' que esperan algunos plugins antiguos
-            val extensionAware = android as org.gradle.api.plugins.ExtensionAware
-            if (extensionAware.extensions.findByName("flutter") == null) {
-                extensionAware.extensions.add("flutter", mapOf(
-                    "compileSdkVersion" to 35,
-                    "targetSdkVersion" to 35,
-                    "minSdkVersion" to 23
-                ))
+    // INYECCIÓN TEMPRANA DE PROPIEDADES (Para record_android y otros)
+    project.plugins.configureEach {
+        if (this is com.android.build.gradle.LibraryPlugin || this is com.android.build.gradle.AppPlugin) {
+            val android = project.extensions.getByName("android")
+            if (android is com.android.build.gradle.BaseExtension) {
+                android.compileSdkVersion(35)
+                
+                // Creamos el objeto 'flutter' que el plugin busca en Groovy
+                val extensionAware = android as org.gradle.api.plugins.ExtensionAware
+                if (extensionAware.extensions.findByName("flutter") == null) {
+                    extensionAware.extensions.add("flutter", mapOf(
+                        "compileSdkVersion" to 35,
+                        "targetSdkVersion" to 35,
+                        "minSdkVersion" to 23
+                    ))
+                }
             }
         }
     }
