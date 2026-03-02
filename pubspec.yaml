@@ -27,6 +27,7 @@ dependencies:
   path: ^1.9.0
   flutter_image_compress: ^2.3.0
   shimmer: ^3.0.0
+  sqflite: ^2.3.0
 
 dev_dependencies:
   flutter_test:

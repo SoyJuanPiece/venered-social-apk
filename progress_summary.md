@@ -1,23 +1,25 @@
 # Progreso del Proyecto - Venered Social
 
-## Estado Actual: v1.6 (Optimización de Experiencia y Resiliencia)
+## Estado Actual: v1.7 (Remodelación de Mensajería y Persistencia)
 
 ### Últimas Mejoras Implementadas
-- **Optimización de Interfaz (UX):**
-    - **Skeletons de Carga:** Implementado el widget `PostSkeleton` con animaciones de brillo (`shimmer`) para una carga de feed más fluida y moderna.
-    - **Reescritura del Chat:** Reintegrada la función de envío de fotos vía Cámara y Galería alojadas en ImgBB.
-- **Robustez y Blindaje de Errores:**
-    - **Audio a prueba de bugs:** Se rediseñó el grabador para evitar temporizadores infinitos. Ahora incluye vibración háptica y detección de gestos para cancelar (deslizar para borrar).
-    - **Gestión de Memoria:** Implementado chequeo de `mounted` en todos los procesos asíncronos para evitar crashes por fugas de memoria.
-- **Compresión Global Inteligente:**
-    - **Imágenes:** Integrado `flutter_image_compress` para reducir automáticamente todas las fotos (Posts y Perfil) a un máximo de 500KB.
-    - **Audio:** Mantenimiento de la compresión extrema a 16kbps para máximo ahorro de datos.
-- **Privacidad Regional:**
-    - Script `SISTEMA_BLOQUEO.sql` listo para impedir la interacción entre usuarios que se bloqueen entre sí.
+- **Remodelación Total del Chat:**
+    - **Interfaz Unificada:** Se añadió el botón `+` para agrupar opciones de Cámara y Galería, limpiando la barra de escritura.
+    - **Botón de Enviar Inteligente:** Corregida la lógica del botón derecho; ahora conmuta correctamente entre Micrófono (vacío) y Enviar (con texto).
+- **Persistencia y Caché Local (WhatsApp Style):**
+    - **SQLite Integrado:** Implementada base de datos local para rastrear archivos descargados.
+    - **Almacenamiento Permanente:** Las fotos y audios se guardan en la memoria interna del teléfono para acceso offline.
+    - **Independencia del Servidor:** Aunque los archivos se borren de la nube, el usuario mantiene su copia local.
+- **Optimización de Recursos:**
+    - **Compresión Global:** Aplicada compresión automática a fotos de chat, posts y perfil (máx 500KB).
+    - **Almacenamiento en Nube:** Extendida la vida de los archivos en Supabase Storage a **7 días** antes del auto-borrado.
+- **Chat Blindado:**
+    - Reforzada la lógica de grabación de audio con gestos de cancelación (deslizar para borrar) y reseteo automático de estados en caso de error.
 
 ### Pendientes / Próximos Pasos
-1. **Venered Market:** Iniciar la interfaz de compra/venta regionalizada.
-2. **Notificaciones In-App:** Añadir avisos visuales elegantes mientras el usuario navega dentro de la app.
+1. **Venered Market:** Iniciar el desarrollo de la sección de compra/venta.
+2. **Historias (Stories):** Implementar el carrusel de estados temporales en el feed.
+3. **Notificaciones In-App:** Añadir avisos visuales elegantes mientras el usuario navega dentro de la app.
 
 ---
 *Actualizado el 01 de Marzo, 2026*

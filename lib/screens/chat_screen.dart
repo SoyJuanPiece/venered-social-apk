@@ -13,6 +13,7 @@ import 'dart:convert';
 
 import '../formatters.dart';
 import '../utils.dart';
+import '../services/media_manager.dart';
 
 class ChatScreen extends StatefulWidget {
   final String conversationId;
@@ -34,7 +35,6 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   late Stream<List<Map<String, dynamic>>> _messagesStream;
 
-  // WARNING: HARDCODING API KEYS IS A SECURITY RISK.
   static const String _imgbbApiKey = 'c4fd2ded598485660696ba819347f0bb'; 
 
   // States
@@ -43,7 +43,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _recordingTimer;
   int _recordingDuration = 0;
   bool _isCancelling = false;
-  bool _isUploadingImage = false;
+  bool _isUploading = false;
 
   bool _otherOnline = false;
   DateTime? _otherLastSeen;
@@ -73,63 +73,86 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  // --- LÓGICA DE IMÁGENES (ImgBB) ---
+  // --- LÓGICA DE MEDIOS ---
+
+  void _showMediaOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.camera_alt, color: Colors.white)),
+                title: const Text('Cámara'),
+                onTap: () { Navigator.pop(context); _pickAndSendImage(ImageSource.camera); },
+              ),
+              ListTile(
+                leading: const CircleAvatar(backgroundColor: Colors.purple, child: Icon(Icons.image, color: Colors.white)),
+                title: const Text('Galería'),
+                onTap: () { Navigator.pop(context); _pickAndSendImage(ImageSource.gallery); },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _pickAndSendImage(ImageSource source) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: source, imageQuality: 70);
 
     if (pickedFile != null) {
-      setState(() => _isUploadingImage = true);
+      setState(() => _isUploading = true);
       try {
-        // COMPRESIÓN ANTES DE SUBIR EN CHAT
         final compressedFile = await compressImage(File(pickedFile.path));
         final uploadFile = compressedFile ?? File(pickedFile.path);
 
-        final request = http.MultipartRequest(
-          'POST',
-          Uri.parse('https://api.imgbb.com/1/upload?key=$_imgbbApiKey'),
-        )..files.add(await http.MultipartFile.fromPath('image', uploadFile.path));
+        final request = http.MultipartRequest('POST', Uri.parse('https://api.imgbb.com/1/upload?key=$_imgbbApiKey'))
+          ..files.add(await http.MultipartFile.fromPath('image', uploadFile.path));
 
         final response = await request.send();
         final responseData = await response.stream.bytesToString();
 
         if (response.statusCode == 200) {
           final imageUrl = json.decode(responseData)['data']['url'];
-          await _sendImageMessage(imageUrl);
+          final myId = supabase.auth.currentUser!.id;
+          
+          final res = await supabase.from('messages').insert({
+            'conversation_id': widget.conversationId,
+            'sender_id': myId,
+            'type': 'image',
+            'audio_url': imageUrl,
+            'content': '📷 Foto',
+          }).select().single();
+
+          // Registrar en cache local
+          await MediaManager.registerLocalMedia(res['id'].toString(), uploadFile.path, 'image');
+          _updateConversation();
         }
       } catch (e) {
-        dPrint('Error uploading image: $e');
+        dPrint('Error image: $e');
       } finally {
-        if (mounted) setState(() => _isUploadingImage = false);
+        if (mounted) setState(() => _isUploading = false);
       }
     }
   }
 
-  Future<void> _sendImageMessage(String url) async {
-    final myId = supabase.auth.currentUser!.id;
-    await supabase.from('messages').insert({
-      'conversation_id': widget.conversationId,
-      'sender_id': myId,
-      'type': 'image',
-      'audio_url': url, // Usamos la misma columna para URLs de medios
-      'content': '📷 Foto',
-    });
-    _updateConversation();
-  }
-
-  // --- LÓGICA DE AUDIO REFORZADA ---
+  // --- LÓGICA DE AUDIO ---
 
   void _resetRecordingState() {
     _recordingTimer?.cancel();
     _recordingTimer = null;
-    if (mounted) {
-      setState(() {
-        _isRecording = false;
-        _recordingDuration = 0;
-        _isCancelling = false;
-      });
-    }
+    if (mounted) setState(() { _isRecording = false; _recordingDuration = 0; _isCancelling = false; });
   }
 
   Future<void> _startRecording() async {
@@ -137,13 +160,12 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       if (await _audioRecorder.hasPermission()) {
         final directory = await getApplicationDocumentsDirectory();
-        final voiceNotesDir = Directory(p.join(directory.path, 'voice_notes'));
-        if (!await voiceNotesDir.exists()) await voiceNotesDir.create(recursive: true);
+        final folder = Directory(p.join(directory.path, 'Venered', 'VoiceNotes'));
+        if (!await folder.exists()) await folder.create(recursive: true);
 
-        final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        final path = p.join(voiceNotesDir.path, fileName);
-        
+        final path = p.join(folder.path, 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a');
         const config = RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 16000, sampleRate: 11025, numChannels: 1);
+
         await _audioRecorder.start(config, path: path);
         HapticFeedback.mediumImpact();
 
@@ -156,7 +178,7 @@ class _ChatScreenState extends State<ChatScreen> {
         });
         setState(() { _isRecording = true; _isCancelling = false; });
       }
-    } catch (e) { _resetRecordingState(); }
+    } catch (_) { _resetRecordingState(); }
   }
 
   Future<void> _stopAndSendAudio() async {
@@ -166,29 +188,34 @@ class _ChatScreenState extends State<ChatScreen> {
       final wasCancelling = _isCancelling;
       _resetRecordingState();
       if (path != null && !wasCancelling) _uploadVoiceNote(path);
-      if (path != null && wasCancelling) File(path).delete().ignore();
-    } catch (e) { _resetRecordingState(); }
+    } catch (_) { _resetRecordingState(); }
   }
 
   Future<void> _uploadVoiceNote(String localPath) async {
+    setState(() => _isUploading = true);
     try {
       final myId = supabase.auth.currentUser!.id;
       final fileName = p.basename(localPath);
       final file = File(localPath);
+
       await supabase.storage.from('voice-notes').upload(fileName, file);
       final audioUrl = supabase.storage.from('voice-notes').getPublicUrl(fileName);
-      await supabase.from('messages').insert({
+
+      final res = await supabase.from('messages').insert({
         'conversation_id': widget.conversationId,
         'sender_id': myId,
         'type': 'voice',
         'audio_url': audioUrl,
         'content': '🎵 Nota de voz',
-      });
+      }).select().single();
+
+      // Registrar en cache permanente
+      await MediaManager.registerLocalMedia(res['id'].toString(), localPath, 'voice');
       _updateConversation();
-    } catch (_) {}
+    } catch (_) {} finally { if (mounted) setState(() => _isUploading = false); }
   }
 
-  // --- ESCUCHA DE RESUBIDA ---
+  // --- RESCATE ---
   void _setupReuploadListener() {
     final myId = supabase.auth.currentUser!.id;
     _reuploadListener = supabase.from('messages').stream(primaryKey: ['id']).listen((List<Map<String, dynamic>> event) {
@@ -199,18 +226,17 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _handleResubmitRequest(Map<String, dynamic> msg) async {
     try {
-      final fileName = p.basename(msg['audio_url']);
-      final directory = await getApplicationDocumentsDirectory();
-      final localPath = p.join(directory.path, 'voice_notes', fileName);
-      final file = File(localPath);
-      if (await file.exists()) {
+      final localPath = await MediaManager.getLocalPath(msg['id'].toString());
+      if (localPath != null) {
+        final file = File(localPath);
+        final fileName = p.basename(msg['audio_url']);
         await supabase.storage.from('voice-notes').upload(fileName, file, fileOptions: const FileOptions(upsert: true));
         await supabase.from('messages').update({'needs_reupload': false}).eq('id', msg['id']);
       }
     } catch (_) {}
   }
 
-  // --- LÓGICA GENERAL ---
+  // --- GENERAL ---
 
   void _setupStream() {
     _messagesStream = supabase.from('messages').stream(primaryKey: ['id']).eq('conversation_id', widget.conversationId).order('created_at', ascending: true);
@@ -238,10 +264,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
     _messageController.clear();
+    setState(() {}); // Actualizar icono de enviar/mic
     try {
       await supabase.from('messages').insert({'conversation_id': widget.conversationId, 'sender_id': supabase.auth.currentUser!.id, 'content': content, 'type': 'text'});
       _updateConversation();
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'))); }
+    } catch (_) {}
   }
 
   Future<void> _updateConversation() async {
@@ -304,7 +331,7 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-          if (_isUploadingImage) const LinearProgressIndicator(),
+          if (_isUploading) const LinearProgressIndicator(),
           _buildMessageInput(theme),
         ],
       ),
@@ -360,12 +387,8 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Row(
           children: [
             IconButton(
-              icon: Icon(Icons.camera_alt_outlined, color: theme.colorScheme.primary),
-              onPressed: () => _pickAndSendImage(ImageSource.camera),
-            ),
-            IconButton(
-              icon: Icon(Icons.photo_outlined, color: theme.colorScheme.primary),
-              onPressed: () => _pickAndSendImage(ImageSource.gallery),
+              icon: Icon(Icons.add_circle_outline, color: theme.colorScheme.primary, size: 28),
+              onPressed: _showMediaOptions,
             ),
             Expanded(
               child: Container(
@@ -379,27 +402,39 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            GestureDetector(
-              onLongPress: _startRecording,
-              onLongPressUp: _stopAndSendAudio,
-              onLongPressMoveUpdate: (details) {
-                if (details.localOffsetFromOrigin.dy < -50 || details.localOffsetFromOrigin.dx < -50) {
-                  if (!_isCancelling) { setState(() => _isCancelling = true); HapticFeedback.lightImpact(); }
-                } else { if (_isCancelling) setState(() => _isCancelling = false); }
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: EdgeInsets.all(_isRecording ? 16 : 12),
-                decoration: BoxDecoration(color: _isCancelling ? Colors.grey : (_isRecording ? Colors.red : theme.colorScheme.primary), shape: BoxShape.circle),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_messageController.text.isNotEmpty ? Icons.send : (_isCancelling ? Icons.delete_outline : (_isRecording ? Icons.mic : Icons.mic_none)), color: Colors.white),
-                    if (_isRecording) Text('${60 - _recordingDuration}s', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-            ),
+            _messageController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.send, color: theme.colorScheme.primary, size: 28),
+                    onPressed: _sendMessage,
+                  )
+                : GestureDetector(
+                    onLongPress: _startRecording,
+                    onLongPressUp: _stopAndSendAudio,
+                    onLongPressMoveUpdate: (details) {
+                      if (details.localOffsetFromOrigin.dy < -50 || details.localOffsetFromOrigin.dx < -50) {
+                        if (!_isCancelling) { setState(() => _isCancelling = true); HapticFeedback.lightImpact(); }
+                      } else { if (_isCancelling) setState(() => _isCancelling = false); }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: EdgeInsets.all(_isRecording ? 16 : 12),
+                      decoration: BoxDecoration(
+                        color: _isCancelling ? Colors.grey : (_isRecording ? Colors.red : theme.colorScheme.primary),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_isCancelling ? Icons.delete_outline : (_isRecording ? Icons.mic : Icons.mic_none), color: Colors.white),
+                          if (_isRecording)
+                            Text(
+                              '${60 - _recordingDuration}s',
+                              style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
           ],
         ),
       ),
@@ -439,33 +474,52 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
   void dispose() { _player.dispose(); super.dispose(); }
 
   Future<void> _checkLocalFile() async {
-    final fileName = p.basename(widget.msg['audio_url']);
-    final directory = await getApplicationDocumentsDirectory();
-    final path = p.join(directory.path, 'voice_notes', fileName);
-    if (await File(path).exists()) { if (mounted) setState(() => _localPath = path); } else { _downloadFile(path); }
-  }
-
-  Future<void> _downloadFile(String targetPath) async {
-    if (_isDownloading) return;
-    if (mounted) setState(() => _isDownloading = true);
-    try {
-      final response = await http.get(Uri.parse(widget.msg['audio_url']));
-      if (response.statusCode == 200) {
-        final file = File(targetPath);
-        if (!await file.parent.exists()) await file.parent.create(recursive: true);
-        await file.writeAsBytes(response.bodyBytes);
-        if (mounted) setState(() { _localPath = targetPath; _isDownloading = false; _isMissing = false; });
-      } else { throw 'File not on server'; }
-    } catch (e) {
-      if (mounted) setState(() { _isDownloading = false; _isMissing = true; });
-      if (!widget.isMe) _requestResubmit();
+    final messageId = widget.msg['id'].toString();
+    final path = await MediaManager.getLocalPath(messageId);
+    
+    if (path != null) {
+      if (mounted) setState(() => _localPath = path);
+    } else {
+      _downloadFile();
     }
   }
 
-  Future<void> _requestResubmit() async { await Supabase.instance.client.from('messages').update({'needs_reupload': true}).eq('id', widget.msg['id']); }
+  Future<void> _downloadFile() async {
+    if (_isDownloading) return;
+    if (mounted) setState(() => _isDownloading = true);
+    
+    final messageId = widget.msg['id'].toString();
+    final url = widget.msg['audio_url'];
+    
+    final path = await MediaManager.downloadAndCache(messageId, url, 'voice');
+    
+    if (mounted) {
+      setState(() {
+        _isDownloading = false;
+        if (path != null) {
+          _localPath = path;
+          _isMissing = false;
+        } else {
+          _isMissing = true;
+          if (!widget.isMe) _requestResubmit();
+        }
+      });
+    }
+  }
+
+  Future<void> _requestResubmit() async {
+    await Supabase.instance.client.from('messages').update({'needs_reupload': true}).eq('id', widget.msg['id']);
+  }
 
   void _togglePlay() async {
-    if (_isPlaying) { await _player.pause(); } else if (_localPath != null) { await _player.play(DeviceFileSource(_localPath!)); } else if (_isMissing) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El audio expiró. Pidiendo al emisor que lo resuba...'))); _requestResubmit(); return; }
+    if (_isPlaying) {
+      await _player.pause();
+    } else if (_localPath != null) {
+      await _player.play(DeviceFileSource(_localPath!));
+    } else if (_isMissing) {
+      _downloadFile(); // Reintentar descarga
+      return;
+    }
     if (mounted) setState(() => _isPlaying = !_isPlaying);
   }
 
