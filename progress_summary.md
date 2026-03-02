@@ -1,25 +1,23 @@
 # Progreso del Proyecto - Venered Social
 
-## Estado Actual: v1.5 (Identidad Regional y Moderación Pro)
+## Estado Actual: v1.6 (Optimización de Experiencia y Resiliencia)
 
 ### Últimas Mejoras Implementadas
-- **Identidad y Rangos (DUEÑO/MODERADOR):**
-    - Actualizada la pantalla de perfil para mostrar insignias de rango personalizadas.
-    - Se cambió el término "ADMIN" por **"DUEÑO"** para una mejor localización al español venezolano.
-    - Implementado el **Check Azul** (Verified) automático en la cabecera y el cuerpo del perfil.
-- **Sistema de Moderación y Roles:**
-    - Panel de administración funcional con pestañas para Verificaciones, Reportes y Gestión de Usuarios.
-    - Los dueños ahora pueden buscar usuarios por nombre y asignarles roles (DUEÑO, MODERADOR, USUARIO) directamente desde la app.
-    - Permisos SQL (RLS) actualizados para permitir la gestión de perfiles por parte de administradores.
-- **Notas de Voz Inteligentes:**
-    - Compresión extrema (16kbps) para ahorro de datos en Venezuela.
-    - Sistema de caché local y auto-resubida en caso de expiración en el servidor.
-- **Estabilidad de Build:**
-    - Solucionados conflictos de versiones en las librerías de audio y configuraciones de Gradle.
+- **Optimización de Interfaz (UX):**
+    - **Skeletons de Carga:** Implementado el widget `PostSkeleton` con animaciones de brillo (`shimmer`) para una carga de feed más fluida y moderna.
+    - **Reescritura del Chat:** Reintegrada la función de envío de fotos vía Cámara y Galería alojadas en ImgBB.
+- **Robustez y Blindaje de Errores:**
+    - **Audio a prueba de bugs:** Se rediseñó el grabador para evitar temporizadores infinitos. Ahora incluye vibración háptica y detección de gestos para cancelar (deslizar para borrar).
+    - **Gestión de Memoria:** Implementado chequeo de `mounted` en todos los procesos asíncronos para evitar crashes por fugas de memoria.
+- **Compresión Global Inteligente:**
+    - **Imágenes:** Integrado `flutter_image_compress` para reducir automáticamente todas las fotos (Posts y Perfil) a un máximo de 500KB.
+    - **Audio:** Mantenimiento de la compresión extrema a 16kbps para máximo ahorro de datos.
+- **Privacidad Regional:**
+    - Script `SISTEMA_BLOQUEO.sql` listo para impedir la interacción entre usuarios que se bloqueen entre sí.
 
 ### Pendientes / Próximos Pasos
-1. **Venered Market:** Desarrollar el sistema de compra/venta regionalizado.
-2. **Historias (Stories):** Implementar el carrusel de estados temporales.
+1. **Venered Market:** Iniciar la interfaz de compra/venta regionalizada.
+2. **Notificaciones In-App:** Añadir avisos visuales elegantes mientras el usuario navega dentro de la app.
 
 ---
 *Actualizado el 01 de Marzo, 2026*

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../utils.dart';
 import 'package:venered_social/widgets/post_card.dart';
+import 'package:venered_social/widgets/post_skeleton.dart';
 import 'package:venered_social/screens/create_post_screen.dart';
 import 'package:venered_social/screens/notifications_screen.dart';
 import 'package:venered_social/screens/messages_screen.dart';
@@ -28,35 +29,21 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   Stream<int> _setupUnreadCounter() {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
-      dPrint('DEBUG FEED: No hay usuario para el contador');
-      return Stream.value(0);
-    }
-
-    dPrint('DEBUG FEED: Iniciando stream de contador para ${user.id}');
+    if (user == null) return Stream.value(0);
 
     return Supabase.instance.client
         .from('notifications')
         .stream(primaryKey: ['id'])
         .map((event) {
-          // Filtramos las notificaciones de mensajes no leídas
           final unreadNotifications = event.where((n) => 
             n['receiver_id'] == user.id && 
             n['type'] == 'message' && 
             n['is_read'] == false
           );
-
-          // Contamos cuántos REMITENTES únicos hay (contar chats, no mensajes)
           final uniqueSenders = unreadNotifications.map((n) => n['sender_id']).toSet();
-          
-          final count = uniqueSenders.length;
-          dPrint('DEBUG FEED: Nuevo conteo de chats con mensajes: $count');
-          return count;
+          return uniqueSenders.length;
         })
-        .handleError((e) {
-          dPrint('DEBUG FEED ERROR en stream de contador: $e');
-          return 0;
-        });
+        .handleError((e) => 0);
   }
 
   Future<List<Map<String, dynamic>>> _fetchPosts() async {
@@ -64,7 +51,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return [];
 
-      // 1. Obtener el estado del usuario actual
       final userProfile = await Supabase.instance.client
           .from('profiles')
           .select('estado')
@@ -73,15 +59,13 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       
       final userEstado = userProfile['estado'] as String?;
 
-      // 2. Traer posts filtrando por el estado del autor
-      // Asumimos que posts_with_likes_count permite filtrar por el estado del perfil
       final response = await Supabase.instance.client
           .from('posts_with_likes_count')
-          .select('*, profiles!inner(estado)')
+          .select('*, profiles!inner(username, profile_pic_url, is_verified, estado)')
           .eq('profiles.estado', userEstado ?? '')
           .order('created_at', ascending: false);
 
-      return response as List<Map<String, dynamic>>;
+      return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       dPrint('Error fetching posts: $e');
       return [];
@@ -146,30 +130,17 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            // Stories Section
-            SliverToBoxAdapter(
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: isDark ? Colors.grey[900]! : Colors.grey[200]!, width: 0.5)),
-                ),
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: 8,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  itemBuilder: (context, index) {
-                    return _buildStoryItem(index == 0, theme);
-                  },
-                ),
-              ),
-            ),
             // Feed Section
             FutureBuilder<List<Map<String, dynamic>>>(
               future: _postsFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
+                  return SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => const PostSkeleton(),
+                      childCount: 3,
+                    ),
+                  );
                 }
                 final posts = snapshot.data ?? [];
                 if (posts.isEmpty) {
@@ -202,48 +173,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildStoryItem(bool isMe, ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: isMe ? null : const LinearGradient(
-                colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              color: isMe ? Colors.grey[300] : null,
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(color: theme.scaffoldBackgroundColor, shape: BoxShape.circle),
-              child: CircleAvatar(
-                radius: 30,
-                backgroundColor: theme.colorScheme.surface,
-                child: isMe 
-                    ? Icon(Icons.add_rounded, color: theme.colorScheme.primary, size: 30) 
-                    : Icon(Icons.person_rounded, color: Colors.grey[400], size: 35),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            isMe ? 'Tu historia' : 'Usuario',
-            style: GoogleFonts.poppins(
-              fontSize: 11, 
-              color: theme.colorScheme.onSurface,
-              fontWeight: isMe ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ],
       ),
     );
   }

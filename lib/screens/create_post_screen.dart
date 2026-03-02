@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../utils.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -82,8 +83,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       String? imageDeletehash;
 
       if (_imageFile != null) {
+        // COMPRESIÓN ANTES DE SUBIR
+        final compressedFile = await compressImage(_imageFile!);
+        final uploadFile = compressedFile ?? _imageFile!;
+
         final request = http.MultipartRequest('POST', Uri.parse('https://api.imgbb.com/1/upload?key=$_imgbbApiKey'))
-          ..files.add(await http.MultipartFile.fromPath('image', _imageFile!.path));
+          ..files.add(await http.MultipartFile.fromPath('image', uploadFile.path));
+        
         final response = await request.send();
         final responseBody = await response.stream.bytesToString();
         if (response.statusCode == 200) {
