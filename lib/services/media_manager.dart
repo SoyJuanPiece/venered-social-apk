@@ -73,7 +73,7 @@ class MediaManager {
             'local_path': localPath,
             'media_type': type,
           },
-          conflictAlgorithm: ConflictBehavior.replace,
+          conflictAlgorithm: ConflictAlgorithm.replace,
         );
         return localPath;
       }
@@ -93,7 +93,7 @@ class MediaManager {
         'local_path': localPath,
         'media_type': type,
       },
-      conflictAlgorithm: ConflictBehavior.replace,
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 }
