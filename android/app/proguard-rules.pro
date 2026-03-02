@@ -14,5 +14,8 @@
 -keep class io.flutter.embedding.** { *; }
 -keep class io.flutter.embedding.android.** { *; }
 
+# Fix for R8 Missing class errors related to Play Core
+-dontwarn com.google.android.play.core.**
+
 # Example:
 # -keep class com.example.MyClass { *; }

@@ -1,8 +1,10 @@
 # Progreso del Proyecto - Venered Social
 
-## Estado Actual: v1.9 (Correcciones de Estabilidad y Depuración)
+## Estado Actual: v1.9.1 (Corrección de Compilación R8)
 
 ### Últimas Mejoras Implementadas
+- **Corrección de Build Release:**
+    - **ProGuard/R8 Fix:** Añadidas reglas `-dontwarn` para las clases de `google.android.play.core`. Esto resuelve el error de compilación en GitHub Actions causado por referencias internas de Flutter a librerías de la Play Store que no están presentes en el proyecto.
 - **Estabilidad Android:**
     - **Migración a Kotlin:** Convertido `MainActivity` a Kotlin y reubicado en la estructura estándar para evitar errores de clase no encontrada (`ClassNotFoundException`).
     - **Refuerzo de ProGuard:** Añadidas reglas específicas para proteger las clases críticas de Flutter y la actividad principal durante la minificación de release.
