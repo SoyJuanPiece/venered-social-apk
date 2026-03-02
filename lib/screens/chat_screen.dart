@@ -112,7 +112,12 @@ class _ChatScreenState extends State<ChatScreen> {
         final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
         final path = p.join(voiceNotesDir.path, fileName);
         
-        const config = RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 32000, sampleRate: 44100);
+        const config = RecordConfig(
+          encoder: AudioEncoder.aacLc, 
+          bitRate: 16000,    // 16 kbps (Extremadamente bajo peso)
+          sampleRate: 11025, // 11kHz
+          numChannels: 1,    // Mono
+        );
         await _audioRecorder.start(config, path: path);
 
         _recordingDuration = 0;
