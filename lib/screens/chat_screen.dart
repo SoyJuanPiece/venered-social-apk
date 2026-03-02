@@ -67,15 +67,17 @@ class _ChatScreenState extends State<ChatScreen> {
   // --- ESCUCHA DE RESUBIDA (RESCATE) ---
   void _setupReuploadListener() {
     final myId = supabase.auth.currentUser!.id;
-    // Escuchar si alguien nos pide resubir un audio que enviamos nosotros
+    // Escuchar el stream y filtrar manualmente para evitar errores de SupabaseStreamBuilder
     _reuploadListener = supabase
         .from('messages')
         .stream(primaryKey: ['id'])
-        .eq('sender_id', myId)
-        .eq('type', 'voice')
-        .eq('needs_reupload', true)
         .listen((List<Map<String, dynamic>> event) {
-          for (var msg in event) {
+          final myRequests = event.where((msg) => 
+            msg['sender_id'] == myId && 
+            msg['type'] == 'voice' && 
+            msg['needs_reupload'] == true
+          );
+          for (var msg in myRequests) {
             _handleResubmitRequest(msg);
           }
         });
@@ -90,9 +92,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (await file.exists()) {
         dPrint('RESCATE: Resubiendo audio borrado: $fileName');
-        // Resubir al Storage
         await supabase.storage.from('voice-notes').upload(fileName, file, fileOptions: const FileOptions(upsert: true));
-        // Marcar como resubido
         await supabase.from('messages').update({'needs_reupload': false}).eq('id', msg['id']);
       }
     } catch (e) {
@@ -114,9 +114,9 @@ class _ChatScreenState extends State<ChatScreen> {
         
         const config = RecordConfig(
           encoder: AudioEncoder.aacLc, 
-          bitRate: 16000,    // 16 kbps (Extremadamente bajo peso)
-          sampleRate: 11025, // 11kHz
-          numChannels: 1,    // Mono
+          bitRate: 16000, 
+          sampleRate: 11025,
+          numChannels: 1,
         );
         await _audioRecorder.start(config, path: path);
 
@@ -335,8 +335,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-// --- REPRODUCTOR CON CACHÉ LOCAL Y RESCATE ---
-
 class VoiceNotePlayer extends StatefulWidget {
   final Map<String, dynamic> msg;
   final bool isMe;
@@ -396,7 +394,6 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
       }
     } catch (e) {
       if (mounted) setState(() { _isDownloading = false; _isMissing = true; });
-      // Si el audio no está, le pedimos al emisor que lo resuba
       if (!widget.isMe) _requestResubmit();
     }
   }
