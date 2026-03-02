@@ -24,7 +24,18 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
+    
+    // Fix para plugins que no definen compileSdk (como record_android)
+    afterEvaluate {
+        if (project.hasProperty("android")) {
+            val android = project.extensions.getByName("android")
+            if (android is com.android.build.gradle.BaseExtension) {
+                android.compileSdkVersion(35)
+            }
+        }
+    }
 }
+
 subprojects {
     project.evaluationDependsOn(":app")
 }
