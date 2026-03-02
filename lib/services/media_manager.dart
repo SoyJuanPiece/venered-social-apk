@@ -39,6 +39,7 @@ class MediaManager {
   /// Sube un archivo al servidor de Telegram para Historias
   static Future<Map<String, dynamic>?> uploadToTelegram(File file, {bool isStory = true}) async {
     try {
+      print('Iniciando subida a Telegram: ${file.path}');
       var request = http.MultipartRequest('POST', Uri.parse(telegramServerUrl));
       
       // Adjuntar el archivo
@@ -51,10 +52,13 @@ class MediaManager {
       // Añadir campos extra
       request.fields['isStory'] = isStory.toString();
 
-      var streamedResponse = await request.send();
+      print('Enviando petición a $telegramServerUrl...');
+      var streamedResponse = await request.send().timeout(const Duration(seconds: 30));
       var response = await http.Response.fromStream(streamedResponse);
 
+      print('Respuesta recibida: ${response.statusCode}');
       if (response.statusCode == 200) {
+        print('Subida exitosa: ${response.body}');
         return json.decode(response.body);
       } else {
         print('Error en la subida: ${response.statusCode} - ${response.body}');

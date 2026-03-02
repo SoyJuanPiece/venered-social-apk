@@ -164,7 +164,12 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!await folder.exists()) await folder.create(recursive: true);
 
         final path = p.join(folder.path, 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a');
-        const config = RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 16000, sampleRate: 11025, numChannels: 1);
+        const config = RecordConfig(
+          encoder: AudioEncoder.aacLc, 
+          bitRate: 64000, 
+          sampleRate: 44100, 
+          numChannels: 1
+        );
 
         await _audioRecorder.start(config, path: path);
         HapticFeedback.mediumImpact();
