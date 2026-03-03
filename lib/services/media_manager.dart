@@ -44,9 +44,6 @@ class MediaManager {
         if (oldV < 2) {
           await db.execute('CREATE TABLE IF NOT EXISTS feed_cache (id TEXT PRIMARY KEY, data TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
         }
-        if (oldV < 3) {
-          // Ya crearemos la tabla si no existe al intentar insertar
-        }
       }
     );
   }
@@ -73,7 +70,6 @@ class MediaManager {
   }
 
   // --- GESTIÓN DE MEDIA ---
-...
   static Future<Map<String, dynamic>?> uploadToTelegram(File file, {bool isStory = true}) async {
     try {
       var request = http.MultipartRequest('POST', Uri.parse(telegramServerUrl));
