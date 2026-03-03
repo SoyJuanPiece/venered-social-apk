@@ -1,9 +1,11 @@
 -- ========================================================
--- SISTEMA AUTOMÁTICO DE NOTIFICACIONES CON ONESIGNAL
--- VENERED SOCIAL v1.0 (OFICIAL)
+-- REPARACIÓN DEFINITIVA DE ONESIGNAL PUSH (API KEY NUEVA)
 -- ========================================================
 
--- 1. FUNCIÓN: ENVIAR PUSH A ONESIGNAL
+-- 1. Habilitar extensión necesaria
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- 2. Función de envío optimizada con la clave correcta
 CREATE OR REPLACE FUNCTION public.send_onesignal_notification()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -70,16 +72,12 @@ BEGIN
 
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
-  -- Evitar que un error en OneSignal bloquee la inserción en la DB
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2. TRIGGER PARA ENVIAR LA NOTIFICACIÓN
+-- 3. Re-crear el Trigger
 DROP TRIGGER IF EXISTS on_notification_send_onesignal ON public.notifications;
 CREATE TRIGGER on_notification_send_onesignal
   AFTER INSERT ON public.notifications
   FOR EACH ROW EXECUTE FUNCTION public.send_onesignal_notification();
-
--- 3. HABILITAR EXTENSIÓN DE RED
-CREATE EXTENSION IF NOT EXISTS pg_net;

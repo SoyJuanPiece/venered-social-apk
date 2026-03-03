@@ -12,15 +12,29 @@ DECLARE
   sender_name TEXT;
   notif_title TEXT;
   notif_body TEXT;
+  recent_count INTEGER;
   onesignal_app_id TEXT := '7bbfe4e6-c2e8-40da-96eb-cfc528bcb6e6';
-  onesignal_api_key TEXT := 'os_v2_app_po76jzwc5banvfxlz7csrpfw4ym765qku7be4zm4xoegs7mlyyd5nrbf5w2lsedjl5tvwnri4hmulzvb3qi5guivug52xydq2jr2hza';
+  onesignal_api_key TEXT := 'os_v2_app_po76jzwc5banvfxlz7csrpfw43wn2wa4rkpuavmpszmghn7hx7tueznsp4q7i2pwyopfhr7e3pnzmsldv3skrhu4esly4rga3klwcji';
 BEGIN
-  -- Obtener nombre del remitente
+  -- A. Obtener nombre del remitente
   SELECT COALESCE(username, 'Alguien') INTO sender_name 
   FROM public.profiles 
   WHERE id = NEW.sender_id;
 
-  -- Configurar Título y Cuerpo
+  -- B. Control de Spam (Solo para likes y comentarios: 1 cada 15 min por post)
+  IF NEW.type IN ('like', 'comment') THEN
+    SELECT count(*) INTO recent_count 
+    FROM public.notifications 
+    WHERE receiver_id = NEW.receiver_id 
+      AND type = NEW.type 
+      AND (related_id = NEW.related_id)
+      AND id != NEW.id 
+      AND created_at > (NOW() - INTERVAL '15 minutes');
+
+    IF recent_count > 0 THEN RETURN NEW; END IF;
+  END IF;
+
+  -- C. Configurar Título y Cuerpo (Traducción y Privacidad)
   IF NEW.type = 'message' THEN
     notif_title := 'Mensaje de ' || sender_name;
     notif_body := 'Toca para ver el mensaje'; -- Privacidad: no mostrar contenido en push
@@ -30,13 +44,15 @@ BEGIN
   ELSIF NEW.type = 'like' THEN
     notif_title := 'Venered Social';
     notif_body := sender_name || ' le ha gustado tu publicación';
+  ELSIF NEW.type = 'comment' THEN
+    notif_title := 'Nuevo Comentario';
+    notif_body := sender_name || ' ha comentado tu publicación';
   ELSE
     notif_title := 'Venered Social';
     notif_body := NEW.content;
   END IF;
 
-  -- Enviar petición HTTP a OneSignal
-  -- Usamos 'include_aliases' que es el estándar moderno de OneSignal v5
+  -- D. Enviar a OneSignal (v5: include_aliases)
   PERFORM net.http_post(
     url := 'https://onesignal.com/api/v1/notifications',
     headers := jsonb_build_object(

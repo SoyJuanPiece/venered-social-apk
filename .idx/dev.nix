@@ -5,6 +5,7 @@
     pkgs.dart
     pkgs.jdk17
     pkgs.unzip
+    pkgs.supabase-cli
   ];
   idx.extensions = [
     
