@@ -73,6 +73,13 @@ class MediaManager {
     return null;
   }
 
+  static Future<void> cacheFeed(List<Map<String, dynamic>> posts) async => saveToCache('main_feed', posts);
+  static Future<List<Map<String, dynamic>>> getCachedFeed() async {
+    final data = await getFromCache('main_feed');
+    if (data != null) return List<Map<String, dynamic>>.from(data);
+    return [];
+  }
+
   // --- GESTIÓN DE MEDIA ---
   static Future<Map<String, dynamic>?> uploadToTelegram(File file, {bool isStory = true}) async {
     try {
