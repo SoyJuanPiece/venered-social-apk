@@ -1,23 +1,26 @@
 # Progreso del Proyecto - Venered Social
 
-## Estado Actual: v1.9.1 (Corrección de Compilación R8)
+## Estado Actual: v2.0 (Sincronización Total y Cache Agresivo)
 
 ### Últimas Mejoras Implementadas
-- **Corrección de Build Release:**
-    - **ProGuard/R8 Fix:** Añadidas reglas `-dontwarn` para las clases de `google.android.play.core`. Esto resuelve el error de compilación en GitHub Actions causado por referencias internas de Flutter a librerías de la Play Store que no están presentes en el proyecto.
-- **Estabilidad Android:**
-    - **Migración a Kotlin:** Convertido `MainActivity` a Kotlin y reubicado en la estructura estándar para evitar errores de clase no encontrada (`ClassNotFoundException`).
-    - **Refuerzo de ProGuard:** Añadidas reglas específicas para proteger las clases críticas de Flutter y la actividad principal durante la minificación de release.
-- **Optimización de Audio:**
-    - **Fix Notas de Voz:** Ajustada la configuración de grabación a `44100Hz` y `64kbps` para resolver errores de reproducción y longitud de archivo inválida en Android.
-- **Sistema de Diagnóstico:**
-    - **Logs de Subida:** Implementado logging detallado en el servidor Node.js y en la app para rastrear fallos en el sistema de historias.
-    - **Timeouts de Red:** Añadido tiempo de espera de 30s en peticiones de subida para evitar bloqueos silenciosos en la UI.
+- **Sistema de Historias (Stories) Pro:**
+    - **Interfaz Refinada:** El icono "+" ahora es dinámico (desaparece si ya tienes una historia).
+    - **Menú de Gestión:** Añadido menú de 3 puntos dentro del visor para borrar o añadir más historias.
+    - **Soporte Multi-historia:** Las historias se agrupan por usuario y se reproducen en secuencia.
+- **Rendimiento y Cache (SQLite):**
+    - **Carga Instantánea:** Feed y lista de mensajes ahora se guardan localmente para mostrarse de inmediato al abrir la app.
+    - **Cache de Video:** Las historias se descargan una sola vez y se guardan en el cel, ahorrando 100% de datos en la segunda reproducción.
+- **Sincronización Inteligente:**
+    - **Filtro Offline:** La app oculta automáticamente historias de más de 24h basándose en el reloj local si no hay internet.
+    - **Limpieza de Disco:** Al iniciar la app, se borran físicamente los archivos de video y fotos caducados para liberar espacio.
+- **Corrección de Notificaciones:**
+    - **Push Fix:** Reparada la lógica de envío desde Supabase usando el estándar moderno de OneSignal.
+    - **Limpieza de Conflictos:** Eliminado el choque entre Firebase Messaging y OneSignal que bloqueaba el registro.
 
 ### Pendientes / Próximos Pasos
 1. **Venered Market:** Iniciar el desarrollo de la sección de compra/venta.
-2. **Notificaciones In-App:** Añadir avisos visuales elegantes mientras el usuario navega dentro de la app.
-3. **Depuración de Historias:** Validar la conexión con el servidor externo tras los nuevos logs implementados.
+2. **Notificaciones In-App:** Añadir avisos visuales elegantes mientras el usuario navega.
+3. **Optimización de Perfil:** Cachear también los posts del perfil propio.
 
 ---
 *Actualizado el 02 de Marzo, 2026*
