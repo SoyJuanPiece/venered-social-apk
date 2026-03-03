@@ -2,9 +2,11 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        gradlePluginPortal()
     }
     dependencies {
         classpath("com.google.gms:google-services:4.4.1")
+        classpath("com.onesignal:onesignal-gradle-plugin:[0.12.10, 0.99.99]")
     }
 }
 
