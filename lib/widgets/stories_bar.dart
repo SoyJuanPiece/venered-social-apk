@@ -151,6 +151,7 @@ class _StoriesBarState extends State<StoriesBar> {
                   username: 'Tu historia',
                   imageUrl: null,
                   isMe: true,
+                  hasActiveStory: false,
                   isUploading: _isUploading,
                   onTap: _pickAndUploadStory,
                 );
@@ -166,6 +167,7 @@ class _StoriesBarState extends State<StoriesBar> {
                 username: isMe ? 'Tu historia' : story['username'],
                 imageUrl: story['profile_pic_url'],
                 isMe: isMe,
+                hasActiveStory: true,
                 isUploading: isMe ? _isUploading : false,
                 onLongPress: isMe ? _pickAndUploadStory : null,
                 onTap: () {
@@ -196,6 +198,7 @@ class _StoriesBarState extends State<StoriesBar> {
     required String username,
     String? imageUrl,
     bool isMe = false,
+    bool hasActiveStory = false,
     bool isUploading = false,
     required VoidCallback onTap,
     VoidCallback? onLongPress,
@@ -213,14 +216,14 @@ class _StoriesBarState extends State<StoriesBar> {
                   padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: (isMe && imageUrl == null && !isUploading) 
+                    gradient: (!hasActiveStory && isMe && !isUploading) 
                       ? null 
                       : const LinearGradient(
                           colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                    border: (isMe && imageUrl == null && !isUploading) ? Border.all(color: Colors.grey[300]!, width: 2) : null,
+                    border: (!hasActiveStory && isMe && !isUploading) ? Border.all(color: Colors.grey[300]!, width: 2) : null,
                   ),
                   child: CircleAvatar(
                     radius: 32,
@@ -231,7 +234,7 @@ class _StoriesBarState extends State<StoriesBar> {
                         : (imageUrl == null ? Icon(Icons.person, size: 32, color: Colors.grey[400]) : null),
                   ),
                 ),
-                if (isMe && imageUrl == null && !isUploading)
+                if (isMe && !hasActiveStory && !isUploading)
                   Positioned(
                     bottom: 2,
                     right: 2,

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -25,6 +26,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   int _currentIndex = 0;
   bool _isLoading = true;
   String? _currentUrl;
+  int _viewCount = 0;
   
   // Para la barra de progreso
   late AnimationController _progressController;
@@ -50,13 +52,35 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       _isLoading = true;
       _videoController?.dispose();
       _videoController = null;
+      _viewCount = 0;
     });
 
     final story = widget.stories[index];
     final fileId = story['file_id'];
+    final storyId = story['id'];
+    final myId = Supabase.instance.client.auth.currentUser?.id;
 
     try {
-      // 1. Obtener URL fresca de nuestro servidor de Telegram
+      // 1. Registrar vista si no es mi propia historia
+      if (myId != null && story['user_id'] != myId) {
+        await Supabase.instance.client.from('story_views').upsert({
+          'story_id': storyId,
+          'viewer_id': myId,
+        });
+      }
+
+      // 2. Obtener conteo de vistas si es mi historia
+      if (myId != null && story['user_id'] == myId) {
+        final viewsRes = await Supabase.instance.client
+            .from('story_views')
+            .select('id', const FetchOptions(count: CountOption.exact))
+            .eq('story_id', storyId);
+        setState(() {
+          _viewCount = viewsRes.length;
+        });
+      }
+
+      // 3. Obtener URL fresca de nuestro servidor de Telegram
       final serverUrl = MediaManager.telegramServerUrl.replaceAll('/upload', '/api/url/$fileId');
       final response = await http.get(Uri.parse(serverUrl));
       
@@ -67,22 +91,52 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
         if (story['media_type'] == 'video') {
           _videoController = VideoPlayerController.networkUrl(Uri.parse(_currentUrl!))
             ..initialize().then((_) {
-              setState(() {
-                _isLoading = false;
-                _videoController!.play();
-                _startProgress(duration: _videoController!.value.duration);
-              });
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                  _videoController!.play();
+                  _startProgress(duration: _videoController!.value.duration);
+                });
+              }
             });
         } else {
-          setState(() {
-            _isLoading = false;
-            _startProgress(duration: const Duration(seconds: 5));
-          });
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _startProgress(duration: const Duration(seconds: 5));
+            });
+          }
         }
       }
     } catch (e) {
       print('Error cargando historia: $e');
       _nextStory();
+    }
+  }
+
+  Future<void> _deleteStory(String storyId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Borrar historia?'),
+        content: const Text('Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            child: const Text('Borrar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await Supabase.instance.client.from('stories').delete().eq('id', storyId);
+        if (mounted) Navigator.pop(context);
+      } catch (e) {
+        print('Error borrando historia: $e');
+      }
     }
   }
 
@@ -122,6 +176,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   @override
   Widget build(BuildContext context) {
     final story = widget.stories[_currentIndex];
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    final isMe = story['user_id'] == myId;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -171,13 +227,18 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                       return Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: LinearProgressIndicator(
-                            value: entry.key == _currentIndex 
-                                ? _progressController.value 
-                                : (entry.key < _currentIndex ? 1.0 : 0.0),
-                            backgroundColor: Colors.white24,
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                            minHeight: 2,
+                          child: AnimatedBuilder(
+                            animation: _progressController,
+                            builder: (context, child) {
+                              return LinearProgressIndicator(
+                                value: entry.key == _currentIndex 
+                                    ? _progressController.value 
+                                    : (entry.key < _currentIndex ? 1.0 : 0.0),
+                                backgroundColor: Colors.white24,
+                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                minHeight: 2,
+                              );
+                            },
                           ),
                         ),
                       );
@@ -196,10 +257,15 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        story['username'] ?? 'Usuario',
+                        isMe ? 'Tu historia' : (story['username'] ?? 'Usuario'),
                         style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                       const Spacer(),
+                      if (isMe)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.white),
+                          onPressed: () => _deleteStory(story['id'].toString()),
+                        ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.white),
                         onPressed: () => Navigator.pop(context),
@@ -210,7 +276,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
               ),
             ),
 
-            // INTERACCIÓN INFERIOR (Like y Respuesta)
+            // INTERACCIÓN INFERIOR (Like y Respuesta o Vistas)
             Align(
               alignment: Alignment.bottomCenter,
               child: Container(
@@ -222,51 +288,76 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                     end: Alignment.bottomCenter,
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: Colors.white38),
-                        ),
-                        child: TextField(
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: 'Enviar mensaje...',
-                            hintStyle: const TextStyle(color: Colors.white70),
-                            border: InputBorder.none,
-                          ),
-                          onTap: () {
-                            _progressController.stop();
-                            _videoController?.pause();
-                          },
-                          onSubmitted: (val) {
-                            _progressController.forward();
-                            _videoController?.play();
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    IconButton(
-                      icon: const Icon(Icons.favorite_border, color: Colors.white, size: 28),
-                      onPressed: () {
-                        // Lógica de Like
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.send_rounded, color: Colors.white, size: 28),
-                      onPressed: () {},
-                    ),
-                  ],
-                ),
+                child: isMe 
+                  ? _buildMyStoryFooter()
+                  : _buildViewerFooter(),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildViewerFooter() {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.white38),
+            ),
+            child: TextField(
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: 'Enviar mensaje...',
+                hintStyle: TextStyle(color: Colors.white70),
+                border: InputBorder.none,
+              ),
+              onTap: () {
+                _progressController.stop();
+                _videoController?.pause();
+              },
+              onSubmitted: (val) {
+                _progressController.forward();
+                _videoController?.play();
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        IconButton(
+          icon: const Icon(Icons.favorite_border, color: Colors.white, size: 28),
+          onPressed: () {
+            // Lógica de Like
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.send_rounded, color: Colors.white, size: 28),
+          onPressed: () {},
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMyStoryFooter() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.visibility_outlined, color: Colors.white),
+            const SizedBox(height: 4),
+            Text(
+              '$_viewCount vistas',
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

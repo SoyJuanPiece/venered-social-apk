@@ -44,3 +44,22 @@ FROM public.stories s
 JOIN public.profiles p ON s.user_id = p.id
 WHERE s.expires_at > now() -- Solo traer las que NO han expirado
 ORDER BY s.created_at DESC;
+
+-- 5. Seguimiento de vistas de historias
+CREATE TABLE IF NOT EXISTS public.story_views (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    story_id UUID REFERENCES public.stories(id) ON DELETE CASCADE NOT NULL,
+    viewer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(story_id, viewer_id)
+);
+
+ALTER TABLE public.story_views ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Usuarios pueden ver quién vio sus historias" 
+ON public.story_views FOR SELECT 
+USING (auth.uid() IN (SELECT user_id FROM public.stories WHERE id = story_id));
+
+CREATE POLICY "Usuarios pueden registrar sus propias vistas" 
+ON public.story_views FOR INSERT 
+WITH CHECK (auth.uid() = viewer_id);
