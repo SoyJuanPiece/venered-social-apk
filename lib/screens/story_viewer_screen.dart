@@ -73,7 +73,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       if (myId != null && story['user_id'] == myId) {
         final viewsRes = await Supabase.instance.client
             .from('story_views')
-            .select('id', const FetchOptions(count: CountOption.exact))
+            .select('id')
             .eq('story_id', storyId);
         setState(() {
           _viewCount = viewsRes.length;
