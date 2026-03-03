@@ -8,7 +8,6 @@ import 'package:http_parser/http_parser.dart';
 
 class MediaManager {
   static Database? _database;
-  // URL de tu servidor en HidenCloud
   static const String telegramServerUrl = 'http://toby.hidencloud.com:24652/upload';
 
   static Future<Database> get database async {
@@ -19,11 +18,11 @@ class MediaManager {
 
   static Future<Database> _initDB() async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'venered_media.db');
+    final path = join(dbPath, 'venered_cache_v3.db');
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE media_cache (
@@ -33,62 +32,72 @@ class MediaManager {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           )
         ''');
+        await db.execute('''
+          CREATE TABLE feed_cache (
+            id TEXT PRIMARY KEY,
+            data TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        ''');
       },
+      onUpgrade: (db, oldV, newV) async {
+        if (oldV < 2) {
+          await db.execute('CREATE TABLE IF NOT EXISTS feed_cache (id TEXT PRIMARY KEY, data TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
+        }
+        if (oldV < 3) {
+          // Ya crearemos la tabla si no existe al intentar insertar
+        }
+      }
     );
   }
 
-  /// Sube un archivo al servidor de Telegram para Historias
+  // --- GESTIÓN DE CACHE GENÉRICO (Feed, Mensajes, etc) ---
+  static Future<void> saveToCache(String key, dynamic data) async {
+    final db = await database;
+    await db.execute('CREATE TABLE IF NOT EXISTS general_cache (id TEXT PRIMARY KEY, data TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
+    await db.insert('general_cache', {'id': key, 'data': json.encode(data)}, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  static Future<dynamic> getFromCache(String key) async {
+    final db = await database;
+    await db.execute('CREATE TABLE IF NOT EXISTS general_cache (id TEXT PRIMARY KEY, data TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
+    final res = await db.query('general_cache', where: 'id = ?', whereArgs: [key]);
+    if (res.isNotEmpty) return json.decode(res.first['data'] as String);
+    return null;
+  }
+
+  static Future<void> cacheFeed(List<Map<String, dynamic>> posts) async => saveToCache('main_feed', posts);
+  static Future<List<Map<String, dynamic>>> getCachedFeed() async {
+    final data = await getFromCache('main_feed');
+    return data != null ? List<Map<String, dynamic>>.from(data) : [];
+  }
+
+  // --- GESTIÓN DE MEDIA ---
+...
   static Future<Map<String, dynamic>?> uploadToTelegram(File file, {bool isStory = true}) async {
     try {
-      print('Iniciando subida a Telegram: ${file.path}');
       var request = http.MultipartRequest('POST', Uri.parse(telegramServerUrl));
-      
       final ext = extension(file.path).toLowerCase();
       MediaType? contentType;
-      
       if (ext == '.mp4') contentType = MediaType('video', 'mp4');
       else if (ext == '.jpg' || ext == '.jpeg') contentType = MediaType('image', 'jpeg');
       else if (ext == '.png') contentType = MediaType('image', 'png');
       else if (ext == '.m4a') contentType = MediaType('audio', 'mp4');
 
-      // Adjuntar el archivo
-      request.files.add(await http.MultipartFile.fromPath(
-        'media', 
-        file.path,
-        filename: basename(file.path),
-        contentType: contentType,
-      ));
-
-      // Añadir campos extra
+      request.files.add(await http.MultipartFile.fromPath('media', file.path, filename: basename(file.path), contentType: contentType));
       request.fields['isStory'] = isStory.toString();
 
-      print('Enviando petición a $telegramServerUrl con contentType: ${contentType?.toString() ?? 'unknown'}');
       var streamedResponse = await request.send().timeout(const Duration(seconds: 30));
       var response = await http.Response.fromStream(streamedResponse);
 
-      print('Respuesta recibida: ${response.statusCode}');
-      if (response.statusCode == 200) {
-        print('Subida exitosa: ${response.body}');
-        return json.decode(response.body);
-      } else {
-        print('Error en la subida: ${response.statusCode} - ${response.body}');
-        return null;
-      }
-    } catch (e) {
-      print('Error conectando con el servidor de Telegram: $e');
-      return null;
-    }
+      if (response.statusCode == 200) return json.decode(response.body);
+    } catch (_) {}
+    return null;
   }
 
-  /// Obtiene la ruta local de un archivo si ya existe en el teléfono.
   static Future<String?> getLocalPath(String messageId) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'media_cache',
-      where: 'message_id = ?',
-      whereArgs: [messageId],
-    );
-
+    final maps = await db.query('media_cache', where: 'message_id = ?', whereArgs: [messageId]);
     if (maps.isNotEmpty) {
       final path = maps.first['local_path'] as String;
       if (await File(path).exists()) return path;
@@ -96,7 +105,6 @@ class MediaManager {
     return null;
   }
 
-  /// Descarga un archivo y lo guarda permanentemente en la carpeta de la app.
   static Future<String?> downloadAndCache(String messageId, String url, String type) async {
     try {
       final directory = await getApplicationDocumentsDirectory();
@@ -108,39 +116,17 @@ class MediaManager {
 
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        final file = File(localPath);
-        await file.writeAsBytes(response.bodyBytes);
-
-        // Guardar en SQLite
+        await File(localPath).writeAsBytes(response.bodyBytes);
         final db = await database;
-        await db.insert(
-          'media_cache',
-          {
-            'message_id': messageId,
-            'local_path': localPath,
-            'media_type': type,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await db.insert('media_cache', {'message_id': messageId, 'local_path': localPath, 'media_type': type}, conflictAlgorithm: ConflictAlgorithm.replace);
         return localPath;
       }
-    } catch (e) {
-      print('Error caching media: $e');
-    }
+    } catch (_) {}
     return null;
   }
 
-  /// Registra un archivo que el mismo usuario acaba de enviar (ya es local).
   static Future<void> registerLocalMedia(String messageId, String localPath, String type) async {
     final db = await database;
-    await db.insert(
-      'media_cache',
-      {
-        'message_id': messageId,
-        'local_path': localPath,
-        'media_type': type,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('media_cache', {'message_id': messageId, 'local_path': localPath, 'media_type': type}, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 }

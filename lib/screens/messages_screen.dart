@@ -6,6 +6,7 @@ import 'package:venered_social/widgets/user_search_dialog.dart';
 
 import '../utils.dart';
 import '../formatters.dart';
+import '../services/media_manager.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -23,9 +24,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   void initState() {
     super.initState();
-    _loadConversations();
+    _loadInitialData();
     _setupRealtime();
     _markNotificationsAsRead();
+  }
+
+  Future<void> _loadInitialData() async {
+    // 1. Cargar cache inmediatamente
+    final cached = await MediaManager.getFromCache('conversations_list');
+    if (cached != null) {
+      setState(() {
+        _conversations = List<Map<String, dynamic>>.from(cached);
+        _loading = false;
+      });
+    }
+    // 2. Refrescar desde el servidor
+    _loadConversations();
   }
 
   Future<void> _markNotificationsAsRead() async {
@@ -61,6 +75,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
         return dateB.compareTo(dateA);
       });
 
+      // Guardar en cache
+      await MediaManager.saveToCache('conversations_list', list);
+
       if (mounted) {
         setState(() {
           _conversations = list;
@@ -76,9 +93,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   void _setupRealtime() {
-    final userId = supabase.auth.currentUser!.id;
-
-    // Listen to changes in conversations and messages to refresh the list
     _channel = supabase.channel('messages_list_updates').onPostgresChanges(
       event: PostgresChangeEvent.all,
       schema: 'public',
@@ -110,7 +124,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
         ],
       ),
-      body: _loading 
+      body: _loading && _conversations.isEmpty
         ? const Center(child: CircularProgressIndicator())
         : _conversations.isEmpty
             ? _buildEmptyState(theme)
@@ -200,7 +214,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
 
     try {
-      // Verificar si ya existe
       final existing = await supabase
           .from('conversations')
           .select('id')

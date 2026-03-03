@@ -203,20 +203,21 @@ class _ChatScreenState extends State<ChatScreen> {
       final fileName = p.basename(localPath);
       final file = File(localPath);
 
-      await supabase.storage.from('voice-notes').upload(fileName, file);
-      final audioUrl = supabase.storage.from('voice-notes').getPublicUrl(fileName);
+      // Subir al servidor de Telegram (igual que las historias para mayor velocidad y cache)
+      final result = await MediaManager.uploadToTelegram(file, isStory: false);
+      
+      if (result != null && result['file_id'] != null) {
+        final res = await supabase.from('messages').insert({
+          'conversation_id': widget.conversationId,
+          'sender_id': myId,
+          'type': 'voice',
+          'audio_url': result['url'], // URL temporal inicial
+          'content': result['file_id'], // Guardamos el file_id en content para recuperarlo siempre
+        }).select().single();
 
-      final res = await supabase.from('messages').insert({
-        'conversation_id': widget.conversationId,
-        'sender_id': myId,
-        'type': 'voice',
-        'audio_url': audioUrl,
-        'content': '🎵 Nota de voz',
-      }).select().single();
-
-      // Registrar en cache permanente
-      await MediaManager.registerLocalMedia(res['id'].toString(), localPath, 'voice');
-      _updateConversation();
+        await MediaManager.registerLocalMedia(res['id'].toString(), localPath, 'voice');
+        _updateConversation();
+      }
     } catch (_) {} finally { if (mounted) setState(() => _isUploading = false); }
   }
 
@@ -234,9 +235,14 @@ class _ChatScreenState extends State<ChatScreen> {
       final localPath = await MediaManager.getLocalPath(msg['id'].toString());
       if (localPath != null) {
         final file = File(localPath);
-        final fileName = p.basename(msg['audio_url']);
-        await supabase.storage.from('voice-notes').upload(fileName, file, fileOptions: const FileOptions(upsert: true));
-        await supabase.from('messages').update({'needs_reupload': false}).eq('id', msg['id']);
+        final result = await MediaManager.uploadToTelegram(file, isStory: false);
+        if (result != null) {
+          await supabase.from('messages').update({
+            'needs_reupload': false,
+            'audio_url': result['url'],
+            'content': result['file_id'],
+          }).eq('id', msg['id']);
+        }
       }
     } catch (_) {}
   }
@@ -494,7 +500,19 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
     if (mounted) setState(() => _isDownloading = true);
     
     final messageId = widget.msg['id'].toString();
-    final url = widget.msg['audio_url'];
+    String url = widget.msg['audio_url'];
+    final fileId = widget.msg['content']; // Aquí guardamos el file_id de Telegram
+
+    // 1. Si el audio viene de Telegram, pedir URL fresca siempre para el cache inicial
+    if (fileId != null && fileId.length > 20) { // Un fileId de Telegram es largo
+      try {
+        final serverUrl = MediaManager.telegramServerUrl.replaceAll('/upload', '/api/url/$fileId');
+        final response = await http.get(Uri.parse(serverUrl));
+        if (response.statusCode == 200) {
+          url = json.decode(response.body)['url'];
+        }
+      } catch (_) {}
+    }
     
     final path = await MediaManager.downloadAndCache(messageId, url, 'voice');
     

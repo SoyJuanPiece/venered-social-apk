@@ -3,9 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../utils.dart';
+import '../services/media_manager.dart';
 import 'package:venered_social/widgets/post_card.dart';
 import 'package:venered_social/widgets/post_skeleton.dart';
-import 'package:venered_social/screens/create_post_screen.dart';
 import 'package:venered_social/screens/notifications_screen.dart';
 import 'package:venered_social/screens/messages_screen.dart';
 import 'package:venered_social/widgets/stories_bar.dart';
@@ -18,14 +18,28 @@ class HomeFeedScreen extends StatefulWidget {
 }
 
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
-  late Future<List<Map<String, dynamic>>> _postsFuture;
+  List<Map<String, dynamic>> _posts = [];
+  bool _isLoading = true;
   late Stream<int> _unreadMessagesStream;
 
   @override
   void initState() {
     super.initState();
-    _postsFuture = _fetchPosts();
+    _loadInitialData();
     _unreadMessagesStream = _setupUnreadCounter();
+  }
+
+  Future<void> _loadInitialData() async {
+    // 1. Cargar cache inmediatamente
+    final cached = await MediaManager.getCachedFeed();
+    if (cached.isNotEmpty) {
+      setState(() {
+        _posts = cached;
+        _isLoading = false;
+      });
+    }
+    // 2. Refrescar desde el servidor en segundo plano
+    _refreshFeed();
   }
 
   Stream<int> _setupUnreadCounter() {
@@ -47,10 +61,10 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         .handleError((e) => 0);
   }
 
-  Future<List<Map<String, dynamic>>> _fetchPosts() async {
+  Future<void> _refreshFeed() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return [];
+      if (user == null) return;
 
       final userProfile = await Supabase.instance.client
           .from('profiles')
@@ -66,10 +80,20 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           .eq('profiles.estado', userEstado ?? '')
           .order('created_at', ascending: false);
 
-      return List<Map<String, dynamic>>.from(response);
+      final newPosts = List<Map<String, dynamic>>.from(response);
+      
+      // Guardar en cache para la próxima vez
+      await MediaManager.cacheFeed(newPosts);
+
+      if (mounted) {
+        setState(() {
+          _posts = newPosts;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       dPrint('Error fetching posts: $e');
-      return [];
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -123,57 +147,46 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async {
-          setState(() { _postsFuture = _fetchPosts(); });
-          await _postsFuture;
-        },
+        onRefresh: _refreshFeed,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
             const SliverToBoxAdapter(
               child: StoriesBar(),
             ),
-            // Feed Section
-            FutureBuilder<List<Map<String, dynamic>>>(
-              future: _postsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => const PostSkeleton(),
-                      childCount: 3,
-                    ),
-                  );
-                }
-                final posts = snapshot.data ?? [];
-                if (posts.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.feed_outlined, size: 64, color: Colors.grey[300]),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Aún no hay publicaciones.',
-                            style: GoogleFonts.poppins(color: Colors.grey, fontSize: 16),
-                          ),
-                        ],
+            if (_isLoading && _posts.isEmpty)
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => const PostSkeleton(),
+                  childCount: 3,
+                ),
+              )
+            else if (_posts.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.feed_outlined, size: 64, color: Colors.grey[300]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Aún no hay publicaciones.',
+                        style: GoogleFonts.poppins(color: Colors.grey, fontSize: 16),
                       ),
-                    ),
-                  );
-                }
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => PostCard(
-                      post: posts[index],
-                      onDelete: () { setState(() { _postsFuture = _fetchPosts(); }); },
-                    ),
-                    childCount: posts.length,
+                    ],
                   ),
-                );
-              },
-            ),
+                ),
+              )
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => PostCard(
+                    post: _posts[index],
+                    onDelete: _refreshFeed,
+                  ),
+                  childCount: _posts.length,
+                ),
+              ),
           ],
         ),
       ),
