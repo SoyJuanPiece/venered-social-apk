@@ -16,40 +16,71 @@ class StoriesBar extends StatefulWidget {
 
 class _StoriesBarState extends State<StoriesBar> {
   bool _isUploading = false;
-  late Future<List<List<Map<String, dynamic>>>> _groupedStoriesFuture;
+  List<List<Map<String, dynamic>>> _groupedStories = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _groupedStoriesFuture = _fetchGroupedStories();
+    _loadInitialData();
   }
 
-  Future<List<List<Map<String, dynamic>>>> _fetchGroupedStories() async {
-    try {
-      final response = await Supabase.instance.client
-          .from('stories_with_profiles')
-          .select();
-      
-      final List<Map<String, dynamic>> allStories = List<Map<String, dynamic>>.from(response);
-      final Map<String, List<Map<String, dynamic>>> groups = {};
+  Future<void> _loadInitialData() async {
+    // 1. Cargar cache local inmediatamente
+    final cached = await MediaManager.getFromCache('stories_list');
+    if (cached != null) {
+      final List<Map<String, dynamic>> allStories = List<Map<String, dynamic>>.from(cached);
+      // FILTRO: No mostrar historias que ya expiraron en el cel
+      final now = DateTime.now();
+      final activeStories = allStories.where((s) {
+        final expiresAt = DateTime.parse(s['expires_at']);
+        return expiresAt.isAfter(now);
+      }).toList();
 
-      for (var story in allStories) {
-        final userId = story['user_id'];
-        if (!groups.containsKey(userId)) groups[userId] = [];
-        groups[userId]!.add(story);
+      if (mounted) {
+        setState(() {
+          _groupedStories = _groupStories(activeStories);
+          _isLoading = false;
+        });
       }
+    }
+    // 2. Sincronizar con el servidor
+    _refreshStories();
+  }
 
-      final myId = Supabase.instance.client.auth.currentUser?.id;
-      final sortedGroups = groups.values.toList()..sort((a, b) {
-        if (a.first['user_id'] == myId) return -1;
-        if (b.first['user_id'] == myId) return 1;
-        return DateTime.parse(b.first['created_at']).compareTo(DateTime.parse(a.first['created_at']));
-      });
+  List<List<Map<String, dynamic>>> _groupStories(List<Map<String, dynamic>> allStories) {
+    final Map<String, List<Map<String, dynamic>>> groups = {};
+    for (var story in allStories) {
+      final userId = story['user_id'];
+      if (!groups.containsKey(userId)) groups[userId] = [];
+      groups[userId]!.add(story);
+    }
 
-      return sortedGroups;
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    final sortedGroups = groups.values.toList()..sort((a, b) {
+      if (a.first['user_id'] == myId) return -1;
+      if (b.first['user_id'] == myId) return 1;
+      return DateTime.parse(b.first['created_at']).compareTo(DateTime.parse(a.first['created_at']));
+    });
+    return sortedGroups;
+  }
+
+  Future<void> _refreshStories() async {
+    try {
+      final response = await Supabase.instance.client.from('stories_with_profiles').select();
+      final List<Map<String, dynamic>> freshStories = List<Map<String, dynamic>>.from(response);
+      
+      // Guardar en cache
+      await MediaManager.saveToCache('stories_list', freshStories);
+
+      if (mounted) {
+        setState(() {
+          _groupedStories = _groupStories(freshStories);
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      dPrint('Error fetching stories: $e');
-      return [];
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -63,27 +94,15 @@ class _StoriesBarState extends State<StoriesBar> {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
+        decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
         child: SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Publicar Historia', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18)),
               const SizedBox(height: 20),
-              ListTile(
-                leading: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.videocam, color: Colors.white)),
-                title: const Text('Grabar o subir Video'),
-                onTap: () => Navigator.pop(context, 'video'),
-              ),
-              ListTile(
-                leading: const CircleAvatar(backgroundColor: Colors.purple, child: Icon(Icons.photo, color: Colors.white)),
-                title: const Text('Tomar o subir Foto'),
-                onTap: () => Navigator.pop(context, 'photo'),
-              ),
-              const SizedBox(height: 10),
+              ListTile(leading: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.videocam, color: Colors.white)), title: const Text('Video'), onTap: () => Navigator.pop(context, 'video')),
+              ListTile(leading: const CircleAvatar(backgroundColor: Colors.purple, child: Icon(Icons.photo, color: Colors.white)), title: const Text('Foto'), onTap: () => Navigator.pop(context, 'photo')),
             ],
           ),
         ),
@@ -104,14 +123,11 @@ class _StoriesBarState extends State<StoriesBar> {
             'media_type': (source == 'video') ? 'video' : 'photo',
           }).select().single();
 
-          // Guardar en cache local inmediatamente para que el dueño no tenga que descargarla
           await MediaManager.registerLocalMedia(res['id'].toString(), file.path, (source == 'video') ? 'video' : 'photo');
-
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Historia publicada!'), backgroundColor: Colors.green));
-          setState(() { _groupedStoriesFuture = _fetchGroupedStories(); });
+          _refreshStories();
         }
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       } finally { if (mounted) setState(() => _isUploading = false); }
     }
   }
@@ -120,63 +136,42 @@ class _StoriesBarState extends State<StoriesBar> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currentUser = Supabase.instance.client.auth.currentUser;
+    final bool hasMyStory = _groupedStories.any((g) => g.first['user_id'] == currentUser?.id);
 
     return Container(
       height: 110,
       margin: const EdgeInsets.symmetric(vertical: 8),
-      child: FutureBuilder<List<List<Map<String, dynamic>>>>(
-        future: _groupedStoriesFuture,
-        builder: (context, snapshot) {
-          final groups = snapshot.data ?? [];
-          final bool hasMyStory = groups.any((g) => g.first['user_id'] == currentUser?.id);
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _groupedStories.length + (hasMyStory ? 0 : 1),
+        itemBuilder: (context, index) {
+          if (!hasMyStory && index == 0) {
+            return _buildStoryCircle(theme: theme, username: 'Tu historia', isMe: true, onTap: _pickAndUploadStory, isUploading: _isUploading);
+          }
+          final groupIndex = hasMyStory ? index : index - 1;
+          final userStories = _groupedStories[groupIndex];
+          final isMe = userStories.first['user_id'] == currentUser?.id;
 
-          return ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: groups.length + (hasMyStory ? 0 : 1),
-            itemBuilder: (context, index) {
-              if (!hasMyStory && index == 0) {
-                return _buildStoryCircle(
-                  theme: theme,
-                  username: 'Tu historia',
-                  imageUrl: null,
-                  isMe: true,
-                  hasActiveStory: false,
-                  isUploading: _isUploading,
-                  onTap: _pickAndUploadStory,
-                );
-              }
-
-              final groupIndex = hasMyStory ? index : index - 1;
-              final userStories = groups[groupIndex];
-              final isMe = userStories.first['user_id'] == currentUser?.id;
-
-              return _buildStoryCircle(
-                theme: theme,
-                username: isMe ? 'Tu historia' : userStories.first['username'],
-                imageUrl: userStories.first['profile_pic_url'],
-                isMe: isMe,
-                hasActiveStory: true,
-                isUploading: isMe ? _isUploading : false,
-                onLongPress: isMe ? _pickAndUploadStory : null,
-                onTap: () {
-                  if (isMe && _isUploading) return;
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => StoryViewerScreen(stories: userStories, initialIndex: 0)));
-                },
-              );
-            },
+          return _buildStoryCircle(
+            theme: theme,
+            username: isMe ? 'Tu historia' : userStories.first['username'],
+            imageUrl: userStories.first['profile_pic_url'],
+            isMe: isMe,
+            hasActiveStory: true,
+            isUploading: isMe ? _isUploading : false,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => StoryViewerScreen(stories: userStories, initialIndex: 0))),
           );
         },
       ),
     );
   }
 
-  Widget _buildStoryCircle({required ThemeData theme, required String username, String? imageUrl, bool isMe = false, bool hasActiveStory = false, bool isUploading = false, required VoidCallback onTap, VoidCallback? onLongPress}) {
+  Widget _buildStoryCircle({required ThemeData theme, required String username, String? imageUrl, bool isMe = false, bool hasActiveStory = false, bool isUploading = false, required VoidCallback onTap}) {
     return Padding(
       padding: const EdgeInsets.only(right: 16),
       child: GestureDetector(
         onTap: onTap,
-        onLongPress: onLongPress,
         child: Column(
           children: [
             Stack(
@@ -197,14 +192,13 @@ class _StoriesBarState extends State<StoriesBar> {
                 ),
                 if (isMe && !isUploading)
                   Positioned(
-                    bottom: 2, 
-                    right: 2, 
+                    bottom: 2, right: 2,
                     child: GestureDetector(
-                      onTap: _pickAndUploadStory, // Botón explícito para añadir más
+                      onTap: _pickAndUploadStory,
                       child: Container(
-                        padding: const EdgeInsets.all(2), 
-                        decoration: BoxDecoration(color: const Color(0xFF6366F1), shape: BoxShape.circle, border: Border.all(color: theme.scaffoldBackgroundColor, width: 2)), 
-                        child: Icon(hasActiveStory ? Icons.add : Icons.add, size: 16, color: Colors.white),
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(color: const Color(0xFF6366F1), shape: BoxShape.circle, border: Border.all(color: theme.scaffoldBackgroundColor, width: 2)),
+                        child: const Icon(Icons.add, size: 16, color: Colors.white),
                       ),
                     ),
                   ),

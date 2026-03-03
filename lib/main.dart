@@ -9,6 +9,7 @@ import 'package:venered_social/screens/register_page.dart';
 import 'package:venered_social/widgets/post_card.dart';
 import 'package:venered_social/services/logger_service.dart';
 import 'package:venered_social/services/notification_service.dart';
+import 'package:venered_social/services/media_manager.dart';
 import 'dart:ui';
 
 // --- GESTOR DE TEMA ---
