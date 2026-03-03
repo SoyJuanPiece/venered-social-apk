@@ -84,9 +84,11 @@ class _StoriesBarState extends State<StoriesBar> {
       
       try {
         // 1. Subir a Telegram
+        print('Subiendo media a Telegram...');
         final result = await MediaManager.uploadToTelegram(File(file.path), isStory: true);
         
         if (result != null && result['file_id'] != null) {
+          print('Registro en Supabase iniciando para file_id: ${result['file_id']}');
           // 2. Registrar en Supabase
           await Supabase.instance.client.from('stories').insert({
             'user_id': user.id,
@@ -94,21 +96,29 @@ class _StoriesBarState extends State<StoriesBar> {
             'media_type': (source == 'video') ? 'video' : 'photo',
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('¡Historia publicada!'), backgroundColor: Colors.green),
-          );
+          print('Registro en Supabase completado con éxito.');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('¡Historia publicada!'), backgroundColor: Colors.green),
+            );
+          }
           
           // 3. Refrescar la lista
           setState(() {
             _storiesFuture = _fetchStories();
           });
+        } else {
+          print('Error: El servidor no devolvió un file_id válido.');
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
+        print('Error en el proceso de historia: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
       } finally {
-        setState(() => _isUploading = false);
+        if (mounted) setState(() => _isUploading = false);
       }
     }
   }
@@ -157,21 +167,21 @@ class _StoriesBarState extends State<StoriesBar> {
                 imageUrl: story['profile_pic_url'],
                 isMe: isMe,
                 isUploading: isMe ? _isUploading : false,
+                onLongPress: isMe ? _pickAndUploadStory : null,
                 onTap: () {
-                  if (isMe && !_isUploading) {
-                    _pickAndUploadStory();
-                  } else {
-                    // Abrir el visor de historias
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => StoryViewerScreen(
-                          stories: stories,
-                          initialIndex: storyIndex,
-                        ),
+                  // Si está subiendo, no hacer nada
+                  if (isMe && _isUploading) return;
+
+                  // SIEMPRE abrir el visor si la historia existe
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StoryViewerScreen(
+                        stories: stories,
+                        initialIndex: storyIndex,
                       ),
-                    );
-                  }
+                    ),
+                  );
                 },
               );
             },
@@ -188,11 +198,13 @@ class _StoriesBarState extends State<StoriesBar> {
     bool isMe = false,
     bool isUploading = false,
     required VoidCallback onTap,
+    VoidCallback? onLongPress,
   }) {
     return Padding(
       padding: const EdgeInsets.only(right: 16),
       child: GestureDetector(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Column(
           children: [
             Stack(
@@ -201,14 +213,14 @@ class _StoriesBarState extends State<StoriesBar> {
                   padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: (isMe && !isUploading) 
+                    gradient: (isMe && imageUrl == null && !isUploading) 
                       ? null 
                       : const LinearGradient(
                           colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                    border: (isMe && !isUploading) ? Border.all(color: Colors.grey[300]!, width: 2) : null,
+                    border: (isMe && imageUrl == null && !isUploading) ? Border.all(color: Colors.grey[300]!, width: 2) : null,
                   ),
                   child: CircleAvatar(
                     radius: 32,
@@ -219,7 +231,7 @@ class _StoriesBarState extends State<StoriesBar> {
                         : (imageUrl == null ? Icon(Icons.person, size: 32, color: Colors.grey[400]) : null),
                   ),
                 ),
-                if (isMe && !isUploading)
+                if (isMe && imageUrl == null && !isUploading)
                   Positioned(
                     bottom: 2,
                     right: 2,
