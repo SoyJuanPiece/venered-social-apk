@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
@@ -25,10 +26,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   VideoPlayerController? _videoController;
   int _currentIndex = 0;
   bool _isLoading = true;
-  String? _currentUrl;
+  String? _displayPath; // Puede ser URL o Path Local
+  bool _isLocal = false;
   int _viewCount = 0;
   
-  // Para la barra de progreso
   late AnimationController _progressController;
 
   @override
@@ -48,68 +49,79 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   }
 
   Future<void> _loadStory(int index) async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _videoController?.dispose();
       _videoController = null;
       _viewCount = 0;
+      _isLocal = false;
     });
 
     final story = widget.stories[index];
+    final storyId = story['id'].toString();
     final fileId = story['file_id'];
-    final storyId = story['id'];
     final myId = Supabase.instance.client.auth.currentUser?.id;
 
     try {
-      // 1. Registrar vista si no es mi propia historia
+      // 1. Registrar vista (en segundo plano, no bloquea la carga)
       if (myId != null && story['user_id'] != myId) {
-        await Supabase.instance.client.from('story_views').upsert({
+        Supabase.instance.client.from('story_views').upsert({
           'story_id': storyId,
           'viewer_id': myId,
-        });
+        }).then((_) {}).catchError((_) {});
       }
 
-      // 2. Obtener conteo de vistas si es mi historia
+      // 2. Conteo de vistas
       if (myId != null && story['user_id'] == myId) {
-        final viewsRes = await Supabase.instance.client
-            .from('story_views')
-            .select('id')
-            .eq('story_id', storyId);
-        setState(() {
-          _viewCount = viewsRes.length;
-        });
+        final viewsRes = await Supabase.instance.client.from('story_views').select('id').eq('story_id', storyId);
+        if (mounted) setState(() => _viewCount = viewsRes.length);
       }
 
-      // 3. Obtener URL fresca de nuestro servidor de Telegram
-      final serverUrl = MediaManager.telegramServerUrl.replaceAll('/upload', '/api/url/$fileId');
-      final response = await http.get(Uri.parse(serverUrl));
+      // 3. CACHE LOCAL: Revisar si ya lo tenemos descargado
+      String? localPath = await MediaManager.getLocalPath(storyId);
       
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        _currentUrl = data['url'];
+      if (localPath != null && await File(localPath).exists()) {
+        _displayPath = localPath;
+        _isLocal = true;
+      } else {
+        // No está en cache, obtener URL fresca y descargar
+        final serverUrl = MediaManager.telegramServerUrl.replaceAll('/upload', '/api/url/$fileId');
+        final response = await http.get(Uri.parse(serverUrl));
+        
+        if (response.statusCode == 200) {
+          final url = json.decode(response.body)['url'];
+          // Descargar en segundo plano para la próxima vez
+          localPath = await MediaManager.downloadAndCache(storyId, url, story['media_type']);
+          _displayPath = localPath ?? url;
+          _isLocal = localPath != null;
+        }
+      }
 
-        if (story['media_type'] == 'video') {
-          _videoController = VideoPlayerController.networkUrl(Uri.parse(_currentUrl!))
-            ..initialize().then((_) {
-              if (mounted) {
-                setState(() {
-                  _isLoading = false;
-                  _videoController!.play();
-                  _startProgress(duration: _videoController!.value.duration);
-                });
-              }
-            });
-        } else {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-              _startProgress(duration: const Duration(seconds: 5));
-            });
-          }
+      // 4. Inicializar Reproductor
+      if (story['media_type'] == 'video') {
+        _videoController = _isLocal 
+            ? VideoPlayerController.file(File(_displayPath!))
+            : VideoPlayerController.networkUrl(Uri.parse(_displayPath!));
+            
+        await _videoController!.initialize();
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _videoController!.play();
+            _startProgress(duration: _videoController!.value.duration);
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _startProgress(duration: const Duration(seconds: 5));
+          });
         }
       }
     } catch (e) {
-      print('Error cargando historia: $e');
+      print('Error historia: $e');
       _nextStory();
     }
   }
@@ -119,13 +131,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('¿Borrar historia?'),
-        content: const Text('Esta acción no se puede deshacer.'),
+        content: const Text('Se eliminará de los servidores y de Telegram.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true), 
-            child: const Text('Borrar', style: TextStyle(color: Colors.red)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Borrar', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -134,9 +143,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       try {
         await Supabase.instance.client.from('stories').delete().eq('id', storyId);
         if (mounted) Navigator.pop(context);
-      } catch (e) {
-        print('Error borrando historia: $e');
-      }
+      } catch (_) {}
     }
   }
 
@@ -182,46 +189,30 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
-        onVerticalDragEnd: (details) {
-          if (details.primaryVelocity! > 500) Navigator.pop(context);
-        },
+        onVerticalDragEnd: (details) { if (details.primaryVelocity! > 500) Navigator.pop(context); },
         onTapDown: (details) {
           final width = MediaQuery.of(context).size.width;
-          if (details.globalPosition.dx < width / 3) {
-            _previousStory();
-          } else if (details.globalPosition.dx > width * 2 / 3) {
-            _nextStory();
-          }
+          if (details.globalPosition.dx < width / 3) _previousStory();
+          else if (details.globalPosition.dx > width * 2 / 3) _nextStory();
         },
         child: Stack(
           children: [
-            // CONTENIDO (Imagen o Video)
             Center(
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
                   : (story['media_type'] == 'video'
-                      ? AspectRatio(
-                          aspectRatio: _videoController!.value.aspectRatio,
-                          child: VideoPlayer(_videoController!),
-                        )
-                      : Image.network(_currentUrl!, fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.error, color: Colors.white))),
+                      ? AspectRatio(aspectRatio: _videoController!.value.aspectRatio, child: VideoPlayer(_videoController!))
+                      : (_isLocal 
+                          ? Image.file(File(_displayPath!), fit: BoxFit.contain)
+                          : Image.network(_displayPath!, fit: BoxFit.contain))),
             ),
 
-            // OVERLAY SUPERIOR (Barras de progreso y perfil)
+            // Barras y Perfil
             Container(
               padding: const EdgeInsets.only(top: 50, left: 10, right: 10),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.black54, Colors.transparent],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Barras de progreso
                   Row(
                     children: widget.stories.asMap().entries.map((entry) {
                       return Expanded(
@@ -229,68 +220,38 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                           padding: const EdgeInsets.symmetric(horizontal: 2),
                           child: AnimatedBuilder(
                             animation: _progressController,
-                            builder: (context, child) {
-                              return LinearProgressIndicator(
-                                value: entry.key == _currentIndex 
-                                    ? _progressController.value 
-                                    : (entry.key < _currentIndex ? 1.0 : 0.0),
-                                backgroundColor: Colors.white24,
-                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                                minHeight: 2,
-                              );
-                            },
+                            builder: (context, child) => LinearProgressIndicator(
+                              value: entry.key == _currentIndex ? _progressController.value : (entry.key < _currentIndex ? 1.0 : 0.0),
+                              backgroundColor: Colors.white24,
+                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                              minHeight: 2,
+                            ),
                           ),
                         ),
                       );
                     }).toList(),
                   ),
                   const SizedBox(height: 12),
-                  // Info del Perfil
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundImage: story['profile_pic_url'] != null 
-                            ? NetworkImage(story['profile_pic_url']) 
-                            : null,
-                        child: story['profile_pic_url'] == null ? const Icon(Icons.person) : null,
-                      ),
+                      CircleAvatar(radius: 18, backgroundImage: story['profile_pic_url'] != null ? NetworkImage(story['profile_pic_url']) : null, child: story['profile_pic_url'] == null ? const Icon(Icons.person) : null),
                       const SizedBox(width: 10),
-                      Text(
-                        isMe ? 'Tu historia' : (story['username'] ?? 'Usuario'),
-                        style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
+                      Text(isMe ? 'Tu historia' : (story['username'] ?? 'Usuario'), style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
                       const Spacer(),
-                      if (isMe)
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.white),
-                          onPressed: () => _deleteStory(story['id'].toString()),
-                        ),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
+                      if (isMe) IconButton(icon: const Icon(Icons.delete_outline, color: Colors.white), onPressed: () => _deleteStory(story['id'].toString())),
+                      IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
                     ],
                   ),
                 ],
               ),
             ),
 
-            // INTERACCIÓN INFERIOR (Like y Respuesta o Vistas)
+            // Footer
             Align(
               alignment: Alignment.bottomCenter,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.transparent, Colors.black87],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                ),
-                child: isMe 
-                  ? _buildMyStoryFooter()
-                  : _buildViewerFooter(),
+                child: isMe ? _buildMyStoryFooter() : _buildViewerFooter(),
               ),
             ),
           ],
@@ -305,58 +266,29 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
         Expanded(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.white38),
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.white38)),
             child: TextField(
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                hintText: 'Enviar mensaje...',
-                hintStyle: TextStyle(color: Colors.white70),
-                border: InputBorder.none,
-              ),
-              onTap: () {
-                _progressController.stop();
-                _videoController?.pause();
-              },
-              onSubmitted: (val) {
-                _progressController.forward();
-                _videoController?.play();
-              },
+              decoration: const InputDecoration(hintText: 'Enviar mensaje...', hintStyle: TextStyle(color: Colors.white70), border: InputBorder.none),
+              onTap: () { _progressController.stop(); _videoController?.pause(); },
+              onSubmitted: (val) { _progressController.forward(); _videoController?.play(); },
             ),
           ),
         ),
         const SizedBox(width: 12),
-        IconButton(
-          icon: const Icon(Icons.favorite_border, color: Colors.white, size: 28),
-          onPressed: () {
-            // Lógica de Like
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.send_rounded, color: Colors.white, size: 28),
-          onPressed: () {},
-        ),
+        IconButton(icon: const Icon(Icons.favorite_border, color: Colors.white, size: 28), onPressed: () {}),
+        IconButton(icon: const Icon(Icons.send_rounded, color: Colors.white, size: 28), onPressed: () {}),
       ],
     );
   }
 
   Widget _buildMyStoryFooter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.visibility_outlined, color: Colors.white),
-            const SizedBox(height: 4),
-            Text(
-              '$_viewCount vistas',
-              style: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
-            ),
-          ],
-        ),
+        const Icon(Icons.visibility_outlined, color: Colors.white),
+        const SizedBox(height: 4),
+        Text('$_viewCount vistas', style: GoogleFonts.poppins(color: Colors.white, fontSize: 12)),
       ],
     );
   }

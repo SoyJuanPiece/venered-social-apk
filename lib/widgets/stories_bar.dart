@@ -39,7 +39,6 @@ class _StoriesBarState extends State<StoriesBar> {
         groups[userId]!.add(story);
       }
 
-      // Ordenar: Mi historia primero, luego por fecha de la más reciente
       final myId = Supabase.instance.client.auth.currentUser?.id;
       final sortedGroups = groups.values.toList()..sort((a, b) {
         if (a.first['user_id'] == myId) return -1;
@@ -61,12 +60,32 @@ class _StoriesBarState extends State<StoriesBar> {
     final picker = ImagePicker();
     final source = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(leading: const Icon(Icons.videocam), title: const Text('Subir Video'), onTap: () => Navigator.pop(context, 'video')),
-            ListTile(leading: const Icon(Icons.photo), title: const Text('Subir Foto'), onTap: () => Navigator.pop(context, 'photo')),
-          ],
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Publicar Historia', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.videocam, color: Colors.white)),
+                title: const Text('Grabar o subir Video'),
+                onTap: () => Navigator.pop(context, 'video'),
+              ),
+              ListTile(
+                leading: const CircleAvatar(backgroundColor: Colors.purple, child: Icon(Icons.photo, color: Colors.white)),
+                title: const Text('Tomar o subir Foto'),
+                onTap: () => Navigator.pop(context, 'photo'),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
       ),
     );
@@ -79,11 +98,15 @@ class _StoriesBarState extends State<StoriesBar> {
       try {
         final result = await MediaManager.uploadToTelegram(File(file.path), isStory: true);
         if (result != null && result['file_id'] != null) {
-          await Supabase.instance.client.from('stories').insert({
+          final res = await Supabase.instance.client.from('stories').insert({
             'user_id': user.id,
             'file_id': result['file_id'],
             'media_type': (source == 'video') ? 'video' : 'photo',
-          });
+          }).select().single();
+
+          // Guardar en cache local inmediatamente para que el dueño no tenga que descargarla
+          await MediaManager.registerLocalMedia(res['id'].toString(), file.path, (source == 'video') ? 'video' : 'photo');
+
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Historia publicada!'), backgroundColor: Colors.green));
           setState(() { _groupedStoriesFuture = _fetchGroupedStories(); });
         }
@@ -172,8 +195,19 @@ class _StoriesBarState extends State<StoriesBar> {
                     child: isUploading ? const CircularProgressIndicator(strokeWidth: 2, color: Colors.white) : (imageUrl == null ? Icon(Icons.person, size: 32, color: Colors.grey[400]) : null),
                   ),
                 ),
-                if (isMe && !hasActiveStory && !isUploading)
-                  Positioned(bottom: 2, right: 2, child: Container(padding: const EdgeInsets.all(2), decoration: BoxDecoration(color: const Color(0xFF6366F1), shape: BoxShape.circle, border: Border.all(color: theme.scaffoldBackgroundColor, width: 2)), child: const Icon(Icons.add, size: 16, color: Colors.white))),
+                if (isMe && !isUploading)
+                  Positioned(
+                    bottom: 2, 
+                    right: 2, 
+                    child: GestureDetector(
+                      onTap: _pickAndUploadStory, // Botón explícito para añadir más
+                      child: Container(
+                        padding: const EdgeInsets.all(2), 
+                        decoration: BoxDecoration(color: const Color(0xFF6366F1), shape: BoxShape.circle, border: Border.all(color: theme.scaffoldBackgroundColor, width: 2)), 
+                        child: Icon(hasActiveStory ? Icons.add : Icons.add, size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 6),
