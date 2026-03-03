@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import '../services/media_manager.dart';
 
 class StoryViewerScreen extends StatefulWidget {
@@ -26,9 +27,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   VideoPlayerController? _videoController;
   int _currentIndex = 0;
   bool _isLoading = true;
-  String? _displayPath; // Puede ser URL o Path Local
+  String? _displayPath;
   bool _isLocal = false;
   int _viewCount = 0;
+  bool _isUploadingNew = false;
   
   late AnimationController _progressController;
 
@@ -64,7 +66,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     final myId = Supabase.instance.client.auth.currentUser?.id;
 
     try {
-      // 1. Registrar vista (en segundo plano, no bloquea la carga)
       if (myId != null && story['user_id'] != myId) {
         Supabase.instance.client.from('story_views').upsert({
           'story_id': storyId,
@@ -72,33 +73,28 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
         }).then((_) {}).catchError((_) {});
       }
 
-      // 2. Conteo de vistas
       if (myId != null && story['user_id'] == myId) {
         final viewsRes = await Supabase.instance.client.from('story_views').select('id').eq('story_id', storyId);
         if (mounted) setState(() => _viewCount = viewsRes.length);
       }
 
-      // 3. CACHE LOCAL: Revisar si ya lo tenemos descargado
       String? localPath = await MediaManager.getLocalPath(storyId);
       
       if (localPath != null && await File(localPath).exists()) {
         _displayPath = localPath;
         _isLocal = true;
       } else {
-        // No está en cache, obtener URL fresca y descargar
         final serverUrl = MediaManager.telegramServerUrl.replaceAll('/upload', '/api/url/$fileId');
         final response = await http.get(Uri.parse(serverUrl));
         
         if (response.statusCode == 200) {
           final url = json.decode(response.body)['url'];
-          // Descargar en segundo plano para la próxima vez
           localPath = await MediaManager.downloadAndCache(storyId, url, story['media_type']);
           _displayPath = localPath ?? url;
           _isLocal = localPath != null;
         }
       }
 
-      // 4. Inicializar Reproductor
       if (story['media_type'] == 'video') {
         _videoController = _isLocal 
             ? VideoPlayerController.file(File(_displayPath!))
@@ -126,12 +122,115 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     }
   }
 
+  void _showStoryOptions(String storyId) {
+    _progressController.stop();
+    _videoController?.pause();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: const BoxDecoration(
+          color: Color(0xFF171717),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline, color: Colors.white),
+              title: const Text('Añadir más a tu historia', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                _addNewStory();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('Eliminar esta historia', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _deleteStory(storyId);
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    ).then((_) {
+      if (!_isLoading && !_isUploadingNew) {
+        _progressController.forward();
+        _videoController?.play();
+      }
+    });
+  }
+
+  Future<void> _addNewStory() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final picker = ImagePicker();
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(color: Color(0xFF171717), borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Nueva Historia', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.videocam, color: Colors.white)),
+                title: const Text('Video', style: TextStyle(color: Colors.white)),
+                onTap: () => Navigator.pop(context, 'video'),
+              ),
+              ListTile(
+                leading: const CircleAvatar(backgroundColor: Colors.purple, child: Icon(Icons.photo, color: Colors.white)),
+                title: const Text('Foto', style: TextStyle(color: Colors.white)),
+                onTap: () => Navigator.pop(context, 'photo'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null) return;
+    final file = (source == 'video') ? await picker.pickVideo(source: ImageSource.gallery) : await picker.pickImage(source: ImageSource.gallery);
+
+    if (file != null) {
+      setState(() => _isUploadingNew = true);
+      try {
+        final result = await MediaManager.uploadToTelegram(File(file.path), isStory: true);
+        if (result != null && result['file_id'] != null) {
+          final res = await Supabase.instance.client.from('stories').insert({
+            'user_id': user.id,
+            'file_id': result['file_id'],
+            'media_type': (source == 'video') ? 'video' : 'photo',
+          }).select().single();
+
+          await MediaManager.registerLocalMedia(res['id'].toString(), file.path, (source == 'video') ? 'video' : 'photo');
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Historia añadida!')));
+            Navigator.pop(context); // Cerrar visor para refrescar
+          }
+        }
+      } catch (_) {} finally { if (mounted) setState(() => _isUploadingNew = false); }
+    }
+  }
+
   Future<void> _deleteStory(String storyId) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('¿Borrar historia?'),
-        content: const Text('Se eliminará de los servidores y de Telegram.'),
+        backgroundColor: const Color(0xFF171717),
+        title: const Text('¿Borrar historia?', style: TextStyle(color: Colors.white)),
+        content: const Text('Esta acción no se puede deshacer.', style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Borrar', style: TextStyle(color: Colors.red))),
@@ -198,7 +297,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
         child: Stack(
           children: [
             Center(
-              child: _isLoading
+              child: _isLoading || _isUploadingNew
                   ? const CircularProgressIndicator(color: Colors.white)
                   : (story['media_type'] == 'video'
                       ? AspectRatio(aspectRatio: _videoController!.value.aspectRatio, child: VideoPlayer(_videoController!))
@@ -238,7 +337,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                       const SizedBox(width: 10),
                       Text(isMe ? 'Tu historia' : (story['username'] ?? 'Usuario'), style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
                       const Spacer(),
-                      if (isMe) IconButton(icon: const Icon(Icons.delete_outline, color: Colors.white), onPressed: () => _deleteStory(story['id'].toString())),
+                      if (isMe) 
+                        IconButton(
+                          icon: const Icon(Icons.more_vert, color: Colors.white), 
+                          onPressed: () => _showStoryOptions(story['id'].toString())
+                        ),
                       IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
                     ],
                   ),
@@ -246,7 +349,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
               ),
             ),
 
-            // Footer
             Align(
               alignment: Alignment.bottomCenter,
               child: Container(

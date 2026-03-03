@@ -190,7 +190,7 @@ class _StoriesBarState extends State<StoriesBar> {
                     child: isUploading ? const CircularProgressIndicator(strokeWidth: 2, color: Colors.white) : (imageUrl == null ? Icon(Icons.person, size: 32, color: Colors.grey[400]) : null),
                   ),
                 ),
-                if (isMe && !isUploading)
+                if (isMe && !hasActiveStory && !isUploading)
                   Positioned(
                     bottom: 2, right: 2,
                     child: GestureDetector(
