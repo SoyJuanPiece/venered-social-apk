@@ -39,6 +39,9 @@ class _LoginPageState extends State<LoginPage> {
       // Verificación de 2FA:
       // Si el login fue exitoso, revisamos si el usuario tiene factores de autenticación activos.
       if (response.session != null) {
+        // Vincular con OneSignal inmediatamente
+        NotificationService.login(response.user!.id);
+
         final factors = await Supabase.instance.client.auth.mfa.listFactors();
         if (factors.totp.isNotEmpty) {
           if (mounted) {

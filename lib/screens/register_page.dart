@@ -5,6 +5,7 @@ import 'package:venered_social/screens/login_page.dart';
 import 'package:venered_social/utils.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:venered_social/services/notification_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -106,6 +107,9 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       if (response.user != null) {
+        // Vincular con OneSignal
+        NotificationService.login(response.user!.id);
+
         if (mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

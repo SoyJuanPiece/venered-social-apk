@@ -18,18 +18,19 @@ class NotificationService {
     // 2. Vincular usuario si ya está logueado
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser != null) {
-      OneSignal.login(currentUser.id);
-      startListening(); // Escucha local opcional
+      login(currentUser.id);
     }
+  }
+
+  static void login(String userId) {
+    OneSignal.login(userId);
+    startListening();
   }
 
   // Escucha cambios en la tabla de notificaciones para mostrar avisos IN-APP
   static void startListening() {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-
-    // Asegurar que OneSignal sabe quién es este usuario
-    OneSignal.login(user.id);
 
     _supabaseSub?.cancel();
     _supabaseSub = Supabase.instance.client
