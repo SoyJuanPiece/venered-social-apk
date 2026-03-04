@@ -32,7 +32,8 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
         _loading = false;
         _results = List<Map<String, dynamic>>.from(results as List);
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error buscando usuario: $e'); // AHORA VEREMOS EL ERROR REAL
       setState(() {
         _loading = false;
         _results = [];
