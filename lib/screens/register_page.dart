@@ -107,7 +107,7 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       if (response.user != null) {
-        // Vincular con OneSignal
+        // Vincular con el servicio de notificaciones de Supabase
         NotificationService.login(response.user!.id);
 
         if (mounted) {
