@@ -1,5 +1,5 @@
 -- ========================================================
--- MASTER SETUP VENERED SOCIAL - VERSION FINAL 5.0 (ULTRA-COMPLETA)
+-- MASTER SETUP VENERED SOCIAL - VERSION FINAL 6.0
 -- ========================================================
 
 -- 1. EXTENSIONES
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
     sender_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     receiver_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     content TEXT,
-    audio_url TEXT, -- Se usa para URLs de ImgBB o Telegram
+    media_url TEXT, -- Unificado: media_url
     type TEXT DEFAULT 'text',
     is_read BOOLEAN DEFAULT FALSE,
     needs_reupload BOOLEAN DEFAULT FALSE,
@@ -102,49 +102,19 @@ CREATE TABLE IF NOT EXISTS public.user_fcm_tokens (
 -- 3. VISTAS SQL
 -- --------------------------------------------------------
 
--- Feed Principal con contadores
 CREATE OR REPLACE VIEW public.posts_with_likes_count AS
-SELECT 
-    p.*,
-    (SELECT count(*)::int FROM public.likes l WHERE l.post_id = p.id) as likes_count,
-    (SELECT count(*)::int FROM public.comments c WHERE c.post_id = p.id) as comments_count,
-    pr.username,
-    pr.avatar_url
-FROM public.posts p
-JOIN public.profiles pr ON p.user_id = pr.id;
+SELECT p.*, (SELECT count(*)::int FROM public.likes l WHERE l.post_id = p.id) as likes_count, (SELECT count(*)::int FROM public.comments c WHERE c.post_id = p.id) as comments_count, pr.username, pr.avatar_url
+FROM public.posts p JOIN public.profiles pr ON p.user_id = pr.id;
 
--- Historias Activas
 CREATE OR REPLACE VIEW public.stories_with_profiles AS
-SELECT s.*, p.username, p.avatar_url
-FROM public.stories s
-JOIN public.profiles p ON s.user_id = p.id
-WHERE s.expires_at > NOW();
+SELECT s.*, p.username, p.avatar_url FROM public.stories s JOIN public.profiles p ON s.user_id = p.id WHERE s.expires_at > NOW();
 
--- Chats Agrupados
 CREATE OR REPLACE VIEW public.view_conversations AS
-WITH last_msgs AS (
-    SELECT DISTINCT ON (conversation_id)
-        conversation_id,
-        content as last_message_content,
-        sender_id as last_message_sender_id,
-        created_at as last_message_at
-    FROM public.messages
-    ORDER BY conversation_id, created_at DESC
-)
-SELECT 
-    c.id as conversation_id,
-    c.last_message_at,
-    lm.last_message_content,
-    lm.last_message_sender_id,
-    p.id as other_user_id,
-    p.username as other_username,
-    p.avatar_url as other_avatar_url
-FROM public.conversations c
-LEFT JOIN last_msgs lm ON c.id = lm.conversation_id
-JOIN public.profiles p ON (CASE WHEN c.user1_id = auth.uid() THEN c.user2_id ELSE c.user1_id END) = p.id
+WITH last_msgs AS (SELECT DISTINCT ON (conversation_id) conversation_id, content, sender_id, created_at FROM public.messages ORDER BY conversation_id, created_at DESC)
+SELECT c.id as conversation_id, c.last_message_at, lm.content as last_message_content, lm.sender_id as last_message_sender_id, p.id as other_user_id, p.username as other_username, p.avatar_url as other_avatar_url
+FROM public.conversations c LEFT JOIN last_msgs lm ON c.id = lm.conversation_id JOIN public.profiles p ON (CASE WHEN c.user1_id = auth.uid() THEN c.user2_id ELSE c.user1_id END) = p.id
 WHERE c.user1_id = auth.uid() OR c.user2_id = auth.uid();
 
--- Permisos
 GRANT SELECT ON public.posts_with_likes_count TO authenticated;
 GRANT SELECT ON public.stories_with_profiles TO authenticated;
 GRANT SELECT ON public.view_conversations TO authenticated;
@@ -171,14 +141,20 @@ CREATE POLICY "Ver historias" ON public.stories FOR SELECT USING (true);
 CREATE POLICY "Subir historias" ON public.stories FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Ver mis notificaciones" ON public.notifications FOR SELECT USING (auth.uid() = receiver_id);
 
--- 5. FUNCIONES
+-- 5. FUNCIONES (CORREGIDAS)
 -- --------------------------------------------------------
 
+-- Crear perfil con ESTADO incluido
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, display_name)
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'username', 'user_' || substr(NEW.id::text, 1, 8)), NEW.raw_user_meta_data->>'username');
+  INSERT INTO public.profiles (id, username, display_name, estado)
+  VALUES (
+    NEW.id, 
+    COALESCE(NEW.raw_user_meta_data->>'username', 'user_' || substr(NEW.id::text, 1, 8)), 
+    NEW.raw_user_meta_data->>'username',
+    NEW.raw_user_meta_data->>'estado' -- GUARDAR ESTADO SELECCIONADO
+  );
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -186,7 +162,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- FCM Push
+-- Push Notif
 CREATE OR REPLACE FUNCTION public.send_fcm_push()
 RETURNS TRIGGER AS $$
 DECLARE
