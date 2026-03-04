@@ -3,8 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:venered_social/services/media_manager.dart';
 import '../utils.dart';
 
 class CreatePostScreen extends StatefulWidget {
@@ -17,18 +16,24 @@ class CreatePostScreen extends StatefulWidget {
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   bool _isLoading = false;
-  File? _imageFile;
-  static const String _imgbbApiKey = 'c4fd2ded598485660696ba819347f0bb';
+  File? _mediaFile;
+  bool _isVideo = false;
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickMedia(bool isVideo) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source);
+    final pickedFile = isVideo 
+        ? await picker.pickVideo(source: ImageSource.gallery)
+        : await picker.pickImage(source: ImageSource.gallery);
+        
     if (pickedFile != null) {
-      setState(() => _imageFile = File(pickedFile.path));
+      setState(() {
+        _mediaFile = File(pickedFile.path);
+        _isVideo = isVideo;
+      });
     }
   }
 
-  void _showImagePickerOptions() {
+  void _showPickerOptions() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -46,13 +51,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               const SizedBox(height: 12),
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text('Elegir de la galería', style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
-                onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
+                title: const Text('Foto de la galería'),
+                onTap: () { Navigator.pop(context); _pickMedia(false); },
               ),
               ListTile(
-                leading: const Icon(Icons.camera_alt_outlined),
-                title: Text('Tomar una foto', style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
-                onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
+                leading: const Icon(Icons.videocam_outlined),
+                title: const Text('Video de la galería'),
+                onTap: () { Navigator.pop(context); _pickMedia(true); },
               ),
               const SizedBox(height: 12),
             ],
@@ -64,70 +69,36 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _uploadPost() async {
     final description = _descriptionController.text.trim();
-    if (_imageFile == null && description.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Añade una foto o un texto.'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        )
-      );
-      return;
-    }
+    if (_mediaFile == null && description.isEmpty) return;
 
     setState(() => _isLoading = true);
 
     try {
       final userId = Supabase.instance.client.auth.currentUser!.id;
-      String? imageUrl;
-      String? imageDeletehash;
+      String? mediaUrl;
 
-      if (_imageFile != null) {
-        // COMPRESIÓN ANTES DE SUBIR
-        final compressedFile = await compressImage(_imageFile!);
-        final uploadFile = compressedFile ?? _imageFile!;
-
-        final request = http.MultipartRequest('POST', Uri.parse('https://api.imgbb.com/1/upload?key=$_imgbbApiKey'))
-          ..files.add(await http.MultipartFile.fromPath('image', uploadFile.path));
-        
-        final response = await request.send();
-        final responseBody = await response.stream.bytesToString();
-        if (response.statusCode == 200) {
-          final data = json.decode(responseBody)['data'];
-          imageUrl = data['url'];
-          imageDeletehash = data['delete_url'];
+      if (_mediaFile != null) {
+        if (_isVideo) {
+          mediaUrl = await MediaManager.uploadVideoToTelegram(_mediaFile!);
+        } else {
+          mediaUrl = await MediaManager.uploadToImgBB(_mediaFile!);
         }
+        if (mediaUrl == null) throw 'Error al subir el archivo';
       }
 
       await Supabase.instance.client.from('posts').insert({
         'user_id': userId,
-        'image_url': imageUrl,
-        'image_deletehash': imageDeletehash,
-        'description': description,
+        'content': description,
+        'media_url': mediaUrl,
+        'type': _isVideo ? 'video' : (_mediaFile != null ? 'image' : 'text'),
       });
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('¡Publicado con éxito!'), 
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          )
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Publicado con éxito!')));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'), 
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          )
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -136,109 +107,35 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Nueva publicación',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: const Text('Nueva publicación'),
         actions: [
-          if (_isLoading)
-            const Padding(padding: EdgeInsets.all(16), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
-          else
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: TextButton(
-                onPressed: _uploadPost,
-                child: Text(
-                  'Publicar',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w700, 
-                    fontSize: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ),
-            ),
+          if (_isLoading) const Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(strokeWidth: 2))
+          else TextButton(onPressed: _uploadPost, child: const Text('Publicar', style: TextStyle(fontWeight: FontWeight.bold))),
         ],
       ),
       body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             GestureDetector(
-              onTap: _showImagePickerOptions,
+              onTap: _showPickerOptions,
               child: Container(
                 width: double.infinity,
-                height: 300,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[900] : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!, width: 1),
-                ),
-                child: _imageFile != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(20), 
-                        child: Image.file(_imageFile!, fit: BoxFit.cover),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.add_a_photo_outlined, size: 32, color: theme.colorScheme.primary),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Toca para añadir una foto',
-                            style: GoogleFonts.poppins(
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Descripción',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _descriptionController,
-              maxLines: 5,
-              style: GoogleFonts.poppins(fontSize: 15),
-              decoration: InputDecoration(
-                hintText: 'Escribe algo sobre tu publicación...',
-                fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
-                filled: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.all(16),
+                height: 250,
+                decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(20)),
+                child: _mediaFile != null 
+                  ? (_isVideo ? const Icon(Icons.play_circle_fill, size: 64) : Image.file(_mediaFile!, fit: BoxFit.cover))
+                  : const Icon(Icons.add_a_photo_outlined, size: 48),
               ),
             ),
             const SizedBox(height: 20),
+            TextField(
+              controller: _descriptionController,
+              maxLines: 5,
+              decoration: const InputDecoration(hintText: '¿Qué quieres compartir?'),
+            ),
           ],
         ),
       ),

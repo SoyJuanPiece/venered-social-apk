@@ -1,13 +1,14 @@
 -- ========================================================
--- MASTER SETUP VENERED SOCIAL - VERSION FINAL 3.0 (FULL FEATURES)
+-- MASTER SETUP VENERED SOCIAL - VERSION DEFINITIVA FINAL
+-- ESTE ES EL ÚNICO SCRIPT QUE DEBES EJECUTAR
 -- ========================================================
 
--- 1. EXTENSIONES
+-- 1. EXTENSIONES Y LIMPIEZA INICIAL
 CREATE EXTENSION IF NOT EXISTS pg_net;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- 2. TABLAS BASE
+-- 2. TABLAS BASE (Solo se crean si no existen)
 -- --------------------------------------------------------
 
 -- Perfiles
@@ -60,7 +61,7 @@ CREATE TABLE IF NOT EXISTS public.followers (
     UNIQUE(follower_id, following_id)
 );
 
--- Mensajes
+-- Mensajería (Chats)
 CREATE TABLE IF NOT EXISTS public.messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sender_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -72,7 +73,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Historias
+-- Historias (Stories)
 CREATE TABLE IF NOT EXISTS public.stories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -110,7 +111,7 @@ CREATE TABLE IF NOT EXISTS public.reports (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Notificaciones
+-- Notificaciones Generales
 CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     receiver_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -122,7 +123,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tokens Push
+-- Tokens Push (Firebase)
 CREATE TABLE IF NOT EXISTS public.user_fcm_tokens (
     id SERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -131,7 +132,7 @@ CREATE TABLE IF NOT EXISTS public.user_fcm_tokens (
     UNIQUE(user_id)
 );
 
--- 3. VISTAS SQL (NECESARIAS PARA LA APP)
+-- 3. VISTAS SQL (REQUERIDAS POR LA APP)
 -- --------------------------------------------------------
 
 -- Vista de Posts con contador de Likes
@@ -155,7 +156,7 @@ FROM public.stories s
 JOIN public.profiles p ON s.user_id = p.id
 WHERE s.expires_at > NOW();
 
--- Vista de Conversaciones
+-- Vista de Conversaciones (Mensajes Agrupados)
 CREATE OR REPLACE VIEW public.view_conversations AS
 WITH last_messages AS (
     SELECT DISTINCT ON (
@@ -175,6 +176,11 @@ SELECT
 FROM last_messages m
 JOIN public.profiles p ON (CASE WHEN m.sender_id = auth.uid() THEN m.receiver_id ELSE m.sender_id END) = p.id;
 
+-- Dar permisos explícitos a las vistas
+GRANT SELECT ON public.posts_with_likes_count TO authenticated;
+GRANT SELECT ON public.stories_with_profiles TO authenticated;
+GRANT SELECT ON public.view_conversations TO authenticated;
+
 -- 4. SEGURIDAD (RLS)
 -- --------------------------------------------------------
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -182,26 +188,28 @@ ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_fcm_tokens ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Lectura pública" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Auto gestión perfil" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Lectura pública perfiles" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Auto gestión perfiles" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Posts públicos" ON public.posts FOR SELECT USING (true);
 CREATE POLICY "Crear posts" ON public.posts FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Ver mis mensajes" ON public.messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+CREATE POLICY "Lectura mensajes" ON public.messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 CREATE POLICY "Enviar mensajes" ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
-CREATE POLICY "Ver historias" ON public.stories FOR SELECT USING (true);
+CREATE POLICY "Historias públicas" ON public.stories FOR SELECT USING (true);
 CREATE POLICY "Subir historias" ON public.stories FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Ver mis notificaciones" ON public.notifications FOR SELECT USING (auth.uid() = receiver_id);
+CREATE POLICY "Ver notificaciones" ON public.notifications FOR SELECT USING (auth.uid() = receiver_id);
+CREATE POLICY "Mis tokens" ON public.user_fcm_tokens FOR ALL USING (auth.uid() = user_id);
 
--- 5. TRIGGERS AUTOMÁTICOS
+-- 5. FUNCIONES Y TRIGGERS
 -- --------------------------------------------------------
 
--- Crear perfil al registrarse
+-- Crear perfil automáticamente al registrar usuario
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, username, display_name)
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'username', NEW.id::text), NEW.raw_user_meta_data->>'username');
+  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'username', 'user_' || substr(NEW.id::text, 1, 8)), NEW.raw_user_meta_data->>'username');
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -222,10 +230,56 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS on_message_created ON public.messages;
 CREATE TRIGGER on_message_created AFTER INSERT ON public.messages FOR EACH ROW EXECUTE FUNCTION public.handle_new_message_notif();
 
--- 6. HABILITAR REALTIME (Modo Seguro)
--- --------------------------------------------------------
+-- Envío Push Firebase (FCM)
+CREATE OR REPLACE FUNCTION public.send_fcm_push()
+RETURNS TRIGGER AS $$
+DECLARE
+  receiver_token TEXT;
+  sender_name TEXT;
+  -- INSTRUCCIÓN: Reemplaza con tu Server Key de Firebase (Legacy API)
+  server_key TEXT := 'PONER_AQUÍ_TU_SERVER_KEY'; 
+BEGIN
+  SELECT fcm_token INTO receiver_token FROM public.user_fcm_tokens 
+  WHERE user_id = NEW.receiver_id ORDER BY updated_at DESC LIMIT 1;
+  
+  IF receiver_token IS NULL THEN RETURN NEW; END IF;
 
--- Asegurar que la publicación existe
+  SELECT COALESCE(username, 'Alguien') INTO sender_name FROM public.profiles WHERE id = NEW.sender_id;
+
+  PERFORM net.http_post(
+    url := 'https://fcm.googleapis.com/fcm/send',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'key=' || server_key),
+    body := jsonb_build_object(
+      'to', receiver_token,
+      'notification', jsonb_build_object(
+        'title', CASE 
+            WHEN NEW.type = 'message' THEN 'Mensaje de ' || sender_name 
+            WHEN NEW.type = 'follow' THEN '¡Nuevo Seguidor!'
+            WHEN NEW.type = 'like' THEN 'A alguien le gusta tu foto'
+            ELSE 'Venered Social' 
+        END,
+        'body', NEW.content,
+        'sound', 'default'
+      ),
+      'priority', 'high'
+    )
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_notification_send_fcm ON public.notifications;
+CREATE TRIGGER on_notification_send_fcm AFTER INSERT ON public.notifications FOR EACH ROW EXECUTE FUNCTION public.send_fcm_push();
+
+-- 6. ALMACENAMIENTO (STORAGE BUCKETS)
+-- --------------------------------------------------------
+INSERT INTO storage.buckets (id, name, public) VALUES ('media', 'media', true) ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Subida libre" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'media');
+CREATE POLICY "Lectura libre" ON storage.objects FOR SELECT USING (bucket_id = 'media');
+
+-- 7. HABILITAR REALTIME (Seguro)
+-- --------------------------------------------------------
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
@@ -233,7 +287,6 @@ BEGIN
     END IF;
 END $$;
 
--- Añadir cada tabla individualmente ignorando si ya son miembros
 DO $$
 DECLARE
     t_name TEXT;
@@ -242,11 +295,7 @@ BEGIN
     FOREACH t_name IN ARRAY tables_to_add LOOP
         BEGIN
             EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', t_name);
-        EXCEPTION 
-            WHEN duplicate_object THEN 
-                RAISE NOTICE 'La tabla % ya es miembro de la publicación.', t_name;
-            WHEN others THEN
-                RAISE NOTICE 'No se pudo añadir la tabla %: %', t_name, SQLERRM;
+        EXCEPTION WHEN duplicate_object THEN NULL;
         END;
     END LOOP;
 END $$;
