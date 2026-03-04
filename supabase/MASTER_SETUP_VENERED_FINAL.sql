@@ -1,5 +1,5 @@
 -- ========================================================
--- MASTER SETUP VENERED SOCIAL - VERSION FINAL 7.0 (COMPLETE)
+-- MASTER SETUP VENERED SOCIAL - VERSION FINAL 8.0 (FULL SYNC)
 -- ========================================================
 
 -- 1. EXTENSIONES
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
     receiver_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     content TEXT,
     media_url TEXT,
-    type TEXT DEFAULT 'text', -- 'text', 'image', 'voice'
+    type TEXT DEFAULT 'text',
     is_read BOOLEAN DEFAULT FALSE,
     needs_reupload BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -84,11 +84,19 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     receiver_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     sender_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    type TEXT NOT NULL, -- 'like', 'comment', 'follow', 'message'
+    type TEXT NOT NULL,
     related_id UUID,
     content TEXT,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.saved_posts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, post_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.verification_requests (
@@ -108,15 +116,23 @@ CREATE TABLE IF NOT EXISTS public.user_fcm_tokens (
     UNIQUE(user_id)
 );
 
--- 3. VISTAS SQL
+-- 3. VISTAS SQL (INCLUYENDO ESTADO E IS_VERIFIED)
 -- --------------------------------------------------------
 
 CREATE OR REPLACE VIEW public.posts_with_likes_count AS
-SELECT p.*, (SELECT count(*)::int FROM public.likes l WHERE l.post_id = p.id) as likes_count, (SELECT count(*)::int FROM public.comments c WHERE c.post_id = p.id) as comments_count, pr.username, pr.avatar_url
+SELECT 
+    p.*, 
+    (SELECT count(*)::int FROM public.likes l WHERE l.post_id = p.id) as likes_count, 
+    (SELECT count(*)::int FROM public.comments c WHERE c.post_id = p.id) as comments_count, 
+    pr.username, 
+    pr.avatar_url,
+    pr.estado, -- VITAL PARA FILTRAR EL FEED
+    pr.is_verified
 FROM public.posts p JOIN public.profiles pr ON p.user_id = pr.id;
 
 CREATE OR REPLACE VIEW public.stories_with_profiles AS
-SELECT s.*, p.username, p.avatar_url FROM public.stories s JOIN public.profiles p ON s.user_id = p.id WHERE s.expires_at > NOW();
+SELECT s.*, p.username, p.avatar_url, p.is_verified
+FROM public.stories s JOIN public.profiles p ON s.user_id = p.id WHERE s.expires_at > NOW();
 
 CREATE OR REPLACE VIEW public.view_conversations AS
 WITH last_msgs AS (SELECT DISTINCT ON (conversation_id) conversation_id, content, sender_id, created_at FROM public.messages ORDER BY conversation_id, created_at DESC)
@@ -136,6 +152,7 @@ ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.saved_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.verification_requests ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Lectura perfiles" ON public.profiles;
@@ -150,12 +167,13 @@ CREATE POLICY "Enviar mensajes" ON public.messages FOR INSERT WITH CHECK (auth.u
 CREATE POLICY "Ver historias" ON public.stories FOR SELECT USING (true);
 CREATE POLICY "Subir historias" ON public.stories FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Ver mis notificaciones" ON public.notifications FOR SELECT USING (auth.uid() = receiver_id);
+CREATE POLICY "Ver mis guardados" ON public.saved_posts FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Gestionar guardados" ON public.saved_posts FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Solicitar verificacion" ON public.verification_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- 5. FUNCIONES
 -- --------------------------------------------------------
 
--- Crear perfil con ESTADO incluido
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -173,13 +191,13 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Push Notif
+-- FCM Push
 CREATE OR REPLACE FUNCTION public.send_fcm_push()
 RETURNS TRIGGER AS $$
 DECLARE
   receiver_token TEXT;
   sender_name TEXT;
-  server_key TEXT := 'TU_SERVER_KEY_AQUÍ'; 
+  server_key TEXT := 'PONER_AQUÍ_TU_SERVER_KEY'; 
 BEGIN
   SELECT fcm_token INTO receiver_token FROM public.user_fcm_tokens WHERE user_id = NEW.receiver_id ORDER BY updated_at DESC LIMIT 1;
   IF receiver_token IS NULL THEN RETURN NEW; END IF;
