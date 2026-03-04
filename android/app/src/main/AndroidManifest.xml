@@ -17,7 +17,7 @@
         <!-- Configuración de Firebase Notificaciones -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="venered_high_importance_channel" />
+            android:value="venered_messages" />
         
         <activity
             android:name=".MainActivity"

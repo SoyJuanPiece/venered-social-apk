@@ -9,10 +9,11 @@ class NotificationService {
   static String? _lastNotifId;
 
   static Future<void> init() async {
-    // 1. Inicializar OneSignal (El motor principal)
-    // OneSignal 5.x ya maneja internamente la conexión con Firebase
+    // 1. Inicializar OneSignal
     OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
     OneSignal.initialize("7bbfe4e6-c2e8-40da-96eb-cfc528bcb6e6");
+    
+    // Solicitar permisos
     OneSignal.Notifications.requestPermission(true);
 
     // 2. Vincular usuario si ya está logueado
@@ -20,9 +21,14 @@ class NotificationService {
     if (currentUser != null) {
       login(currentUser.id);
     }
+    
+    // Debug: Ver si el usuario está suscrito
+    dPrint('OneSignal ID: ${OneSignal.User.pushSubscription.id}');
+    dPrint('OneSignal Opted In: ${OneSignal.User.pushSubscription.optedIn}');
   }
 
   static void login(String userId) {
+    dPrint('Vinculando OneSignal con usuario: $userId');
     OneSignal.login(userId);
     startListening();
   }
@@ -49,7 +55,6 @@ class NotificationService {
           if (_lastNotifId == lastNotif['id']) return;
           _lastNotifId = lastNotif['id'];
 
-          // Aquí podrías mostrar un banner elegante dentro de la app
           dPrint('Nueva notificación detectada en DB: ${lastNotif['content']}');
         }, onError: (e) {
           dPrint('Error en stream de notificaciones: $e');

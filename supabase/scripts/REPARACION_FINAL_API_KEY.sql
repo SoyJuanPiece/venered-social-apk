@@ -65,10 +65,10 @@ BEGIN
       'target_channel', 'push',
       'headings', jsonb_build_object('en', notif_title),
       'contents', jsonb_build_object('en', notif_body),
-      'android_channel_id', 'venered_messages_v2',
+      'android_channel_id', 'venered_messages',
       'priority', 10
-    )
-  );
+      )
+      );
 
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
