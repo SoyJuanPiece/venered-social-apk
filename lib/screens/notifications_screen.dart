@@ -132,7 +132,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               formatMonthDayHourMinute(createdAt),
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
-            trailing: notification['post_id'] != null
+            trailing: notification['related_id'] != null
                 ? Container(
                     width: 40,
                     height: 40,

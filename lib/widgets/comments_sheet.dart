@@ -21,7 +21,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
     super.initState();
     _commentsStream = Supabase.instance.client
         .from('comments')
-        .select('*, profiles(username, profile_pic_url)') // Join with profiles table
+        .select('*, profiles(username, avatar_url)') // Join with profiles table
         .eq('post_id', widget.postId)
         .order('created_at', ascending: true)
         .asStream()
@@ -83,7 +83,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                     final comment = comments[index];
                     final profile = comment['profiles'] as Map<String, dynamic>?;
                     final username = profile?['username'] ?? 'Usuario';
-                    final profilePic = profile?['profile_pic_url'];
+                    final profilePic = profile?['avatar_url']; // CORREGIDO
                     final userId = comment['user_id'];
 
                     return ListTile(

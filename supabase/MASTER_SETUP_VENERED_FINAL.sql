@@ -1,5 +1,5 @@
 -- ========================================================
--- MASTER SETUP VENERED SOCIAL - VERSION FINAL 6.0
+-- MASTER SETUP VENERED SOCIAL - VERSION FINAL 7.0 (COMPLETE)
 -- ========================================================
 
 -- 1. EXTENSIONES
@@ -64,8 +64,8 @@ CREATE TABLE IF NOT EXISTS public.messages (
     sender_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     receiver_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     content TEXT,
-    media_url TEXT, -- Unificado: media_url
-    type TEXT DEFAULT 'text',
+    media_url TEXT,
+    type TEXT DEFAULT 'text', -- 'text', 'image', 'voice'
     is_read BOOLEAN DEFAULT FALSE,
     needs_reupload BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -84,10 +84,19 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     receiver_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     sender_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    type TEXT NOT NULL,
+    type TEXT NOT NULL, -- 'like', 'comment', 'follow', 'message'
     related_id UUID,
     content TEXT,
     is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.verification_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    category TEXT NOT NULL,
+    message TEXT,
+    status TEXT DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -127,6 +136,7 @@ ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.verification_requests ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Lectura perfiles" ON public.profiles;
 CREATE POLICY "Lectura perfiles" ON public.profiles FOR SELECT USING (true);
@@ -140,8 +150,9 @@ CREATE POLICY "Enviar mensajes" ON public.messages FOR INSERT WITH CHECK (auth.u
 CREATE POLICY "Ver historias" ON public.stories FOR SELECT USING (true);
 CREATE POLICY "Subir historias" ON public.stories FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Ver mis notificaciones" ON public.notifications FOR SELECT USING (auth.uid() = receiver_id);
+CREATE POLICY "Solicitar verificacion" ON public.verification_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- 5. FUNCIONES (CORREGIDAS)
+-- 5. FUNCIONES
 -- --------------------------------------------------------
 
 -- Crear perfil con ESTADO incluido
@@ -153,7 +164,7 @@ BEGIN
     NEW.id, 
     COALESCE(NEW.raw_user_meta_data->>'username', 'user_' || substr(NEW.id::text, 1, 8)), 
     NEW.raw_user_meta_data->>'username',
-    NEW.raw_user_meta_data->>'estado' -- GUARDAR ESTADO SELECCIONADO
+    NEW.raw_user_meta_data->>'estado'
   );
   RETURN NEW;
 END;
@@ -168,7 +179,7 @@ RETURNS TRIGGER AS $$
 DECLARE
   receiver_token TEXT;
   sender_name TEXT;
-  server_key TEXT := 'PONER_AQUÍ_TU_SERVER_KEY'; 
+  server_key TEXT := 'TU_SERVER_KEY_AQUÍ'; 
 BEGIN
   SELECT fcm_token INTO receiver_token FROM public.user_fcm_tokens WHERE user_id = NEW.receiver_id ORDER BY updated_at DESC LIMIT 1;
   IF receiver_token IS NULL THEN RETURN NEW; END IF;
