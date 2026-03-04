@@ -1,5 +1,5 @@
 -- ========================================================
--- MASTER SETUP VENERED SOCIAL - VERSION FINAL 4.0 (FULL CHAT & STORIES)
+-- MASTER SETUP VENERED SOCIAL - VERSION FINAL 5.0 (ULTRA-COMPLETA)
 -- ========================================================
 
 -- 1. EXTENSIONES
@@ -10,7 +10,6 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- 2. TABLAS BASE
 -- --------------------------------------------------------
 
--- Perfiles
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     username TEXT UNIQUE NOT NULL,
@@ -25,7 +24,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Publicaciones
 CREATE TABLE IF NOT EXISTS public.posts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -35,7 +33,22 @@ CREATE TABLE IF NOT EXISTS public.posts (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Conversaciones (NECESARIA PARA EL CHAT)
+CREATE TABLE IF NOT EXISTS public.likes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    post_id UUID NOT NULL REFERENCES public.posts(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS public.conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user1_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -45,21 +58,19 @@ CREATE TABLE IF NOT EXISTS public.conversations (
     UNIQUE(user1_id, user2_id)
 );
 
--- Mensajería
 CREATE TABLE IF NOT EXISTS public.messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     conversation_id UUID REFERENCES public.conversations(id) ON DELETE CASCADE,
     sender_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     receiver_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     content TEXT,
-    audio_url TEXT,
-    type TEXT DEFAULT 'text', -- 'text', 'image', 'voice'
+    audio_url TEXT, -- Se usa para URLs de ImgBB o Telegram
+    type TEXT DEFAULT 'text',
     is_read BOOLEAN DEFAULT FALSE,
     needs_reupload BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Historias
 CREATE TABLE IF NOT EXISTS public.stories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -69,7 +80,6 @@ CREATE TABLE IF NOT EXISTS public.stories (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Notificaciones
 CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     receiver_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -81,7 +91,6 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tokens Push
 CREATE TABLE IF NOT EXISTS public.user_fcm_tokens (
     id SERIAL PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -90,10 +99,28 @@ CREATE TABLE IF NOT EXISTS public.user_fcm_tokens (
     UNIQUE(user_id)
 );
 
--- 3. VISTAS SQL (REQUERIDAS POR EL CODIGO FLUTTER)
+-- 3. VISTAS SQL
 -- --------------------------------------------------------
 
--- Vista de Conversaciones Agrupadas
+-- Feed Principal con contadores
+CREATE OR REPLACE VIEW public.posts_with_likes_count AS
+SELECT 
+    p.*,
+    (SELECT count(*)::int FROM public.likes l WHERE l.post_id = p.id) as likes_count,
+    (SELECT count(*)::int FROM public.comments c WHERE c.post_id = p.id) as comments_count,
+    pr.username,
+    pr.avatar_url
+FROM public.posts p
+JOIN public.profiles pr ON p.user_id = pr.id;
+
+-- Historias Activas
+CREATE OR REPLACE VIEW public.stories_with_profiles AS
+SELECT s.*, p.username, p.avatar_url
+FROM public.stories s
+JOIN public.profiles p ON s.user_id = p.id
+WHERE s.expires_at > NOW();
+
+-- Chats Agrupados
 CREATE OR REPLACE VIEW public.view_conversations AS
 WITH last_msgs AS (
     SELECT DISTINCT ON (conversation_id)
@@ -117,35 +144,36 @@ LEFT JOIN last_msgs lm ON c.id = lm.conversation_id
 JOIN public.profiles p ON (CASE WHEN c.user1_id = auth.uid() THEN c.user2_id ELSE c.user1_id END) = p.id
 WHERE c.user1_id = auth.uid() OR c.user2_id = auth.uid();
 
--- Vista de Historias
-CREATE OR REPLACE VIEW public.stories_with_profiles AS
-SELECT s.*, p.username, p.avatar_url
-FROM public.stories s
-JOIN public.profiles p ON s.user_id = p.id
-WHERE s.expires_at > NOW();
+-- Permisos
+GRANT SELECT ON public.posts_with_likes_count TO authenticated;
+GRANT SELECT ON public.stories_with_profiles TO authenticated;
+GRANT SELECT ON public.view_conversations TO authenticated;
 
 -- 4. SEGURIDAD (RLS)
 -- --------------------------------------------------------
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Lectura perfiles" ON public.profiles;
 CREATE POLICY "Lectura perfiles" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Update perfiles" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Posts públicos" ON public.posts FOR SELECT USING (true);
+CREATE POLICY "Crear posts" ON public.posts FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Ver mis chats" ON public.conversations FOR SELECT USING (auth.uid() = user1_id OR auth.uid() = user2_id);
-CREATE POLICY "Crear mis chats" ON public.conversations FOR INSERT WITH CHECK (auth.uid() = user1_id OR auth.uid() = user2_id);
+CREATE POLICY "Crear chats" ON public.conversations FOR INSERT WITH CHECK (auth.uid() = user1_id OR auth.uid() = user2_id);
 CREATE POLICY "Ver mis mensajes" ON public.messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() IN (SELECT user1_id FROM public.conversations WHERE id = conversation_id) OR auth.uid() IN (SELECT user2_id FROM public.conversations WHERE id = conversation_id));
 CREATE POLICY "Enviar mensajes" ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
 CREATE POLICY "Ver historias" ON public.stories FOR SELECT USING (true);
 CREATE POLICY "Subir historias" ON public.stories FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Ver mis notificaciones" ON public.notifications FOR SELECT USING (auth.uid() = receiver_id);
 
--- 5. FUNCIONES Y PUSH
+-- 5. FUNCIONES
 -- --------------------------------------------------------
 
--- Crear perfil al registrarse
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -158,16 +186,15 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Función Push Firebase (FCM)
+-- FCM Push
 CREATE OR REPLACE FUNCTION public.send_fcm_push()
 RETURNS TRIGGER AS $$
 DECLARE
   receiver_token TEXT;
   sender_name TEXT;
-  server_key TEXT := 'TU_SERVER_KEY_AQUÍ'; 
+  server_key TEXT := 'PONER_AQUÍ_TU_SERVER_KEY'; 
 BEGIN
-  SELECT fcm_token INTO receiver_token FROM public.user_fcm_tokens 
-  WHERE user_id = NEW.receiver_id ORDER BY updated_at DESC LIMIT 1;
+  SELECT fcm_token INTO receiver_token FROM public.user_fcm_tokens WHERE user_id = NEW.receiver_id ORDER BY updated_at DESC LIMIT 1;
   IF receiver_token IS NULL THEN RETURN NEW; END IF;
   SELECT COALESCE(username, 'Alguien') INTO sender_name FROM public.profiles WHERE id = NEW.sender_id;
   PERFORM net.http_post(
@@ -190,7 +217,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS on_notification_send_fcm ON public.notifications;
 CREATE TRIGGER on_notification_send_fcm AFTER INSERT ON public.notifications FOR EACH ROW EXECUTE FUNCTION public.send_fcm_push();
 
--- 6. HABILITAR REALTIME
+-- 6. REALTIME
 -- --------------------------------------------------------
 DO $$
 BEGIN
@@ -202,7 +229,7 @@ END $$;
 DO $$
 DECLARE
     t_name TEXT;
-    tables_to_add TEXT[] := ARRAY['posts', 'messages', 'stories', 'notifications', 'conversations', 'profiles'];
+    tables_to_add TEXT[] := ARRAY['posts', 'messages', 'stories', 'notifications', 'conversations', 'profiles', 'likes', 'comments'];
 BEGIN
     FOREACH t_name IN ARRAY tables_to_add LOOP
         BEGIN
