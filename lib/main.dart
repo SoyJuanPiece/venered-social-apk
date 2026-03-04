@@ -60,8 +60,8 @@ Future<void> main() async {
 
   // Supabase Initialization
   await Supabase.initialize(
-    url: 'https://tmpbeurmpiocsefpwnkq.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtcGJldXJtcGlvY3NlZnB3bmtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMTY5NTgsImV4cCI6MjA4Nzc5Mjk1OH0.AtPvatPKCTHGkA5nL17YyNp5edxEQBvpB7-_GzZkwKI',
+    url: 'https://ywbqkzvsqgyxgmguxwam.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3YnFrenZzcWd5eGdtZ3V4d2FtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1OTE1NTcsImV4cCI6MjA4ODE2NzU1N30.5JaEK5jA4c_p1bM_LEI36FQvfMcDI9NuR-Xj8wAY1ZA',
   );
   
   await ThemeManager.init();
