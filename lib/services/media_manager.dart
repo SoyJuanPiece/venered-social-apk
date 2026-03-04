@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart'; // NECESARIO PARA EL CONTENT-TYPE
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/utils.dart';
 
@@ -20,8 +21,8 @@ class MediaManager {
 
   static Future<Database> _initDB() async {
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'venered_cache_v7.db');
-    return await openDatabase(path, version: 7, onCreate: (db, version) async {
+    final path = join(dbPath, 'venered_cache_v8.db');
+    return await openDatabase(path, version: 8, onCreate: (db, version) async {
       await db.execute('CREATE TABLE media_cache (message_id TEXT PRIMARY KEY, local_path TEXT, media_type TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
       await db.execute('CREATE TABLE general_cache (id TEXT PRIMARY KEY, data TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
     });
@@ -41,29 +42,45 @@ class MediaManager {
     return null;
   }
 
-  // --- SUBIDA A TELEGRAM (Videos/Voz) ---
+  // --- SUBIDA A TELEGRAM (Videos/Voz) --- CORREGIDO CONTENT-TYPE
   static Future<Map<String, dynamic>?> uploadToTelegram(File file, {bool isStory = true}) async {
     try {
       var request = http.MultipartRequest('POST', Uri.parse(telegramServerUrl));
-      request.files.add(await http.MultipartFile.fromPath('media', file.path, filename: basename(file.path)));
+      
+      // DETECTAR TIPO DE ARCHIVO PARA EVITAR "FORMATO NO SOPORTADO"
+      final ext = extension(file.path).toLowerCase();
+      MediaType contentType;
+      if (ext == '.mp4') contentType = MediaType('video', 'mp4');
+      else if (ext == '.jpg' || ext == '.jpeg') contentType = MediaType('image', 'jpeg');
+      else if (ext == '.png') contentType = MediaType('image', 'png');
+      else contentType = MediaType('application', 'octet-stream');
+
+      request.files.add(await http.MultipartFile.fromPath(
+        'media', 
+        file.path, 
+        filename: basename(file.path),
+        contentType: contentType, // AQUÍ ESTÁ LA SOLUCIÓN
+      ));
+      
       request.fields['isStory'] = isStory.toString();
-      var streamedResponse = await request.send().timeout(const Duration(seconds: 60));
+      var streamedResponse = await request.send().timeout(const Duration(seconds: 90));
       var response = await http.Response.fromStream(streamedResponse);
+      
       if (response.statusCode == 200) return json.decode(response.body);
-    } catch (e) { dPrint('Error Telegram: $e'); }
+      else dPrint('Error Servidor Telegram: ${response.body}');
+    } catch (e) { dPrint('Error Técnico Telegram: $e'); }
     return null;
   }
 
   static Future<String?> uploadVideoToTelegram(File file) async {
     final res = await uploadToTelegram(file, isStory: true);
     if (res != null && res['ok'] == true) {
-      // El backend de Telegram devuelve file_id o una estructura similar
       return res['file_id'] ?? res['result']?['video']?['file_id'];
     }
     return null;
   }
 
-  // --- MÉTODOS DE CACHÉ REQUERIDOS POR LA APP ---
+  // --- MÉTODOS DE CACHÉ ---
   static Future<void> cacheFeed(List<Map<String, dynamic>> posts) async => saveToCache('main_feed', posts);
   static Future<List<Map<String, dynamic>>> getCachedFeed() async {
     final data = await getFromCache('main_feed');
@@ -82,7 +99,7 @@ class MediaManager {
     return null;
   }
 
-  // --- GESTIÓN LOCAL DE ARCHIVOS (Chat/Historias) ---
+  // --- GESTIÓN LOCAL ---
   static Future<String?> getLocalPath(String messageId) async {
     final db = await database;
     final maps = await db.query('media_cache', where: 'message_id = ?', whereArgs: [messageId]);
