@@ -102,7 +102,7 @@ class _RegisterPageState extends State<RegisterPage> {
         password: _passwordController.text.trim(),
         data: {
           'username': _usernameController.text.trim(),
-          'estado': _selectedEstado,
+          'estado': _selectedEstado, // ESTO ACTIVARÁ EL CAMPO EN EL TRIGGER v6.0
         },
       );
 

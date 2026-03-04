@@ -74,15 +74,15 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       
       final userEstado = userProfile['estado'] as String?;
 
+      // Usar la vista optimizada v6.0 que ya incluye likes_count y datos de perfil
       final response = await Supabase.instance.client
           .from('posts_with_likes_count')
-          .select('*, profiles!inner(username, profile_pic_url, is_verified, estado)')
-          .eq('profiles.estado', userEstado ?? '')
+          .select()
+          .eq('estado', userEstado ?? '')
           .order('created_at', ascending: false);
 
       final newPosts = List<Map<String, dynamic>>.from(response);
       
-      // Guardar en cache para la próxima vez
       await MediaManager.cacheFeed(newPosts);
 
       if (mounted) {
