@@ -25,7 +25,7 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
     try {
       final results = await supabase
           .from('profiles')
-          .select('id,username,profile_pic_url')
+          .select('id,username,avatar_url')
           .ilike('username', '%$query%')
           .limit(10);
       setState(() {
@@ -71,10 +71,10 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: CircleAvatar(
-                        backgroundImage: item['profile_pic_url'] != null
-                            ? NetworkImage(item['profile_pic_url'])
+                        backgroundImage: item['avatar_url'] != null
+                            ? NetworkImage(item['avatar_url'])
                             : null,
-                        child: item['profile_pic_url'] == null
+                        child: item['avatar_url'] == null
                             ? const Icon(Icons.person)
                             : null,
                       ),
