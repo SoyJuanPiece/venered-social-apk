@@ -91,11 +91,9 @@ class _ChatScreenState extends State<ChatScreen> {
     await supabase.from('messages').update({'is_read': true}).eq('conversation_id', widget.conversationId).neq('sender_id', myId);
   }
 
-  // --- SUBIDA DE IMAGEN ---
-  Future<void> _pickAndSendImage(ImageSource source) async {
+  Future<void> _pickAndSendImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source, imageQuality: 70);
-
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (pickedFile != null) {
       setState(() => _isUploading = true);
       try {
@@ -104,6 +102,7 @@ class _ChatScreenState extends State<ChatScreen> {
           await supabase.from('messages').insert({
             'conversation_id': widget.conversationId,
             'sender_id': supabase.auth.currentUser!.id,
+            'receiver_id': widget.otherUser['id'],
             'type': 'image',
             'media_url': imageUrl,
             'content': '📷 Foto',
@@ -114,13 +113,12 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // --- SUBIDA DE AUDIO ---
   Future<void> _startRecording() async {
     if (await _audioRecorder.hasPermission()) {
       final directory = await getApplicationDocumentsDirectory();
       final path = p.join(directory.path, 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a');
       await _audioRecorder.start(const RecordConfig(), path: path);
-      setState(() { _isRecording = true; _recordingDuration = 0; });
+      setState(() { _isRecording = true; _recordingDuration = 0; _isCancelling = false; });
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (t) => setState(() => _recordingDuration++));
     }
   }
@@ -136,13 +134,14 @@ class _ChatScreenState extends State<ChatScreen> {
         await supabase.from('messages').insert({
           'conversation_id': widget.conversationId,
           'sender_id': supabase.auth.currentUser!.id,
+          'receiver_id': widget.otherUser['id'],
           'type': 'voice',
           'media_url': result['url'],
           'content': result['file_id'],
         });
         _updateConversation();
       }
-      setState(() => _isUploading = false);
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -153,6 +152,7 @@ class _ChatScreenState extends State<ChatScreen> {
     await supabase.from('messages').insert({
       'conversation_id': widget.conversationId,
       'sender_id': supabase.auth.currentUser!.id,
+      'receiver_id': widget.otherUser['id'],
       'content': content,
       'type': 'text'
     });
@@ -184,7 +184,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.otherUser['username'] ?? 'Usuario', style: const TextStyle(fontSize: 16)),
+                Text(widget.otherUser['username'] ?? 'Usuario', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 Text(_otherOnline ? 'En línea' : 'Desconectado', style: TextStyle(fontSize: 11, color: _otherOnline ? Colors.green : Colors.grey)),
               ],
             ),
@@ -198,13 +198,14 @@ class _ChatScreenState extends State<ChatScreen> {
               stream: _messagesStream,
               builder: (context, snapshot) {
                 final messages = snapshot.data ?? [];
+                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
                 return ListView.builder(
                   controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                   itemCount: messages.length,
                   itemBuilder: (context, i) {
                     final msg = messages[i];
-                    final isMe = msg['sender_id'] == myId;
-                    return _buildBubble(msg, isMe, theme);
+                    return _buildBubble(msg, msg['sender_id'] == myId, theme);
                   },
                 );
               },
@@ -218,33 +219,134 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildBubble(Map<String, dynamic> msg, bool isMe, ThemeData theme) {
+    final type = msg['type'] ?? 'text';
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.all(8),
+        margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
           color: isMe ? theme.colorScheme.primary : theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
+            bottomLeft: Radius.circular(isMe ? 20 : 0),
+            bottomRight: Radius.circular(isMe ? 0 : 20),
+          ),
         ),
-        child: msg['type'] == 'image' 
-          ? Image.network(msg['media_url']) 
-          : Text(msg['content'] ?? '', style: TextStyle(color: isMe ? Colors.white : Colors.black)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (type == 'voice')
+              VoiceNotePlayer(url: msg['media_url'], isMe: isMe)
+            else if (type == 'image')
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: GestureDetector(
+                  onTap: () => _showFullScreen(msg['media_url']),
+                  child: Image.network(msg['media_url']),
+                ),
+              )
+            else
+              Text(msg['content'] ?? '', style: TextStyle(color: isMe ? Colors.white : theme.colorScheme.onSurface)),
+            const SizedBox(height: 4),
+            Text(formatHm(DateTime.parse(msg['created_at'])), style: TextStyle(fontSize: 9, color: isMe ? Colors.white70 : Colors.grey)),
+          ],
+        ),
       ),
     );
   }
 
+  void _showFullScreen(String url) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => Scaffold(backgroundColor: Colors.black, body: Center(child: InteractiveViewer(child: Image.network(url))))));
+  }
+
   Widget _buildInput(ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.all(8),
-      child: Row(
-        children: [
-          IconButton(icon: const Icon(Icons.image), onPressed: () => _pickAndSendImage(ImageSource.gallery)),
-          Expanded(child: TextField(controller: _messageController, decoration: const InputDecoration(hintText: 'Mensaje...'))),
-          IconButton(icon: Icon(_isRecording ? Icons.stop : Icons.mic), onPressed: _isRecording ? _stopAndSendAudio : _startRecording),
-          IconButton(icon: const Icon(Icons.send), onPressed: _sendMessage),
-        ],
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: theme.scaffoldBackgroundColor, border: Border(top: BorderSide(color: theme.dividerColor, width: 0.5))),
+      child: SafeArea(
+        child: Row(
+          children: [
+            IconButton(icon: Icon(Icons.add_circle_outline, color: theme.colorScheme.primary), onPressed: _pickAndSendImage),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(24)),
+                child: TextField(
+                  controller: _messageController,
+                  onChanged: (v) => setState(() {}),
+                  decoration: const InputDecoration(hintText: 'Escribe un mensaje...', border: InputBorder.none),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _messageController.text.isNotEmpty
+              ? IconButton(icon: Icon(Icons.send, color: theme.colorScheme.primary), onPressed: _sendMessage)
+              : GestureDetector(
+                  onLongPress: _startRecording,
+                  onLongPressUp: _stopAndSendAudio,
+                  child: CircleAvatar(
+                    backgroundColor: _isRecording ? Colors.red : theme.colorScheme.primary,
+                    child: Icon(_isRecording ? Icons.stop : Icons.mic, color: Colors.white),
+                  ),
+                ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class VoiceNotePlayer extends StatefulWidget {
+  final String url;
+  final bool isMe;
+  const VoiceNotePlayer({super.key, required this.url, required this.isMe});
+
+  @override
+  State<VoiceNotePlayer> createState() => _VoiceNotePlayerState();
+}
+
+class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
+  late AudioPlayer _player;
+  bool _isPlaying = false;
+  Duration _pos = Duration.zero;
+  Duration _dur = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player = AudioPlayer();
+    _player.onPositionChanged.listen((p) => setState(() => _pos = p));
+    _player.onDurationChanged.listen((d) => setState(() => _dur = d));
+    _player.onPlayerComplete.listen((_) => setState(() => _isPlaying = false));
+  }
+
+  @override
+  void dispose() { _player.dispose(); super.dispose(); }
+
+  void _play() async {
+    if (_isPlaying) { await _player.pause(); } 
+    else { await _player.play(UrlSource(widget.url)); }
+    setState(() => _isPlaying = !_isPlaying);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: widget.isMe ? Colors.white : Colors.blue), onPressed: _play),
+        SizedBox(
+          width: 120,
+          child: LinearProgressIndicator(
+            value: _dur.inSeconds > 0 ? _pos.inSeconds / _dur.inSeconds : 0,
+            backgroundColor: widget.isMe ? Colors.white24 : Colors.grey[300],
+            valueColor: AlwaysStoppedAnimation(widget.isMe ? Colors.white : Colors.blue),
+          ),
+        ),
+      ],
     );
   }
 }
