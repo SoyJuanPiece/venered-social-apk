@@ -54,6 +54,15 @@ class MediaManager {
     return null;
   }
 
+  static Future<String?> uploadVideoToTelegram(File file) async {
+    final res = await uploadToTelegram(file, isStory: true);
+    if (res != null && res['ok'] == true) {
+      // El backend de Telegram devuelve file_id o una estructura similar
+      return res['file_id'] ?? res['result']?['video']?['file_id'];
+    }
+    return null;
+  }
+
   // --- MÉTODOS DE CACHÉ REQUERIDOS POR LA APP ---
   static Future<void> cacheFeed(List<Map<String, dynamic>> posts) async => saveToCache('main_feed', posts);
   static Future<List<Map<String, dynamic>>> getCachedFeed() async {
