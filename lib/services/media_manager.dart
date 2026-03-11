@@ -74,8 +74,13 @@ class MediaManager {
     return null;
   }
 
-  // --- SUBIDA A TELEGRAM (Videos/Voz) --- CORREGIDO CONTENT-TYPE
-  static Future<Map<String, dynamic>?> uploadToTelegram(File file, {bool isStory = true}) async {
+  // --- SUBIDA HIBRIDA (Local backend con fallback Telegram) ---
+  static Future<Map<String, dynamic>?> uploadToTelegram(
+    File file, {
+    bool isStory = true,
+    int expiresInSec = 86400,
+    bool preferLocal = true,
+  }) async {
     try {
       if (kIsWeb) {
         dPrint('Error Técnico Telegram: Upload no soportado en Web (requiere dart:io)');
@@ -99,6 +104,8 @@ class MediaManager {
       ));
       
       request.fields['isStory'] = isStory.toString();
+      request.fields['expiresInSec'] = expiresInSec.toString();
+      request.fields['preferLocal'] = preferLocal.toString();
       var streamedResponse = await request.send().timeout(const Duration(seconds: 90));
       var response = await http.Response.fromStream(streamedResponse);
       
@@ -114,6 +121,18 @@ class MediaManager {
       return res['file_id'] ?? res['result']?['video']?['file_id'];
     }
     return null;
+  }
+
+  static Future<Map<String, dynamic>?> getBackendStorageStatus() async {
+    try {
+      final uri = Uri.parse(telegramServerUrl.replaceAll('/upload', '/api/storage/status'));
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return null;
+      return json.decode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      dPrint('Error consultando storage backend: $e');
+      return null;
+    }
   }
 
   // --- SUBIDA DE AUDIOS A SUPABASE STORAGE ---

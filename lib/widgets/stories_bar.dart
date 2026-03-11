@@ -18,11 +18,31 @@ class _StoriesBarState extends State<StoriesBar> {
   bool _isUploading = false;
   List<List<Map<String, dynamic>>> _groupedStories = [];
   bool _isLoading = true;
+  Map<String, dynamic>? _storageStatus;
+
+  static const List<int> _storyDurationOptions = [3600, 21600, 43200, 86400];
 
   @override
   void initState() {
     super.initState();
     _refreshStories();
+    _refreshStorageStatus();
+  }
+
+  Future<void> _refreshStorageStatus() async {
+    final status = await MediaManager.getBackendStorageStatus();
+    if (mounted) {
+      setState(() => _storageStatus = status);
+    }
+  }
+
+  String _formatDurationOption(int seconds) {
+    if (seconds % 3600 == 0) {
+      final h = seconds ~/ 3600;
+      return h == 24 ? '1 día' : '$h h';
+    }
+    final m = seconds ~/ 60;
+    return '$m min';
   }
 
   List<List<Map<String, dynamic>>> _groupStories(List<Map<String, dynamic>> allStories) {
@@ -86,49 +106,165 @@ class _StoriesBarState extends State<StoriesBar> {
     final file = isVideo ? await picker.pickVideo(source: ImageSource.gallery) : await picker.pickImage(source: ImageSource.gallery);
 
     if (file != null) {
-      setState(() => _isUploading = true);
-      try {
-        final upload = await MediaManager.uploadToTelegram(File(file.path), isStory: true);
-        if (upload == null) {
-          throw 'No se pudo subir el archivo.';
-        }
+      await _showStoryComposer(file.path, isVideo);
+    }
+  }
 
-        final String? fileId = upload['file_id'] ?? upload['result']?['video']?['file_id'];
-        final String? mediaUrl = upload['url'] ?? upload['media_url'];
-        final mediaType = isVideo ? 'video' : 'photo';
+  Future<void> _showStoryComposer(String filePath, bool isVideo) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
 
-        bool inserted = false;
+    int selectedDuration = 86400;
+    final confirm = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Previsualizar historia', style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        color: Colors.black,
+                        height: 220,
+                        width: double.infinity,
+                        child: isVideo
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(Icons.videocam, color: Colors.white, size: 44),
+                                    SizedBox(height: 10),
+                                    Text('Vista previa de video', style: TextStyle(color: Colors.white70)),
+                                  ],
+                                ),
+                              )
+                            : Image.file(File(filePath), fit: BoxFit.cover),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text('Duración visible', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: _storyDurationOptions.map((sec) {
+                        final selected = selectedDuration == sec;
+                        return ChoiceChip(
+                          selected: selected,
+                          label: Text(_formatDurationOption(sec)),
+                          onSelected: (_) => setSheetState(() => selectedDuration = sec),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancelar'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Publicar historia'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
 
-        // Soporta esquema antiguo: stories(file_id, media_type)
-        if (fileId != null) {
+    if (confirm != true) return;
+
+    setState(() => _isUploading = true);
+    try {
+      final upload = await MediaManager.uploadToTelegram(
+        File(filePath),
+        isStory: true,
+        expiresInSec: selectedDuration,
+        preferLocal: true,
+      );
+      if (upload == null) {
+        throw 'No se pudo subir el archivo.';
+      }
+
+      final String? fileId = upload['file_id'] ?? upload['result']?['video']?['file_id'];
+      final String? mediaUrl = upload['url'] ?? upload['media_url'];
+      final mediaType = isVideo ? 'video' : 'photo';
+      final expiresAt = DateTime.now().add(Duration(seconds: selectedDuration)).toIso8601String();
+
+      bool inserted = false;
+
+      if (fileId != null) {
+        try {
           try {
             await Supabase.instance.client.from('stories').insert({
               'user_id': user.id,
               'file_id': fileId,
               'media_type': mediaType,
+              'expires_at': expiresAt,
             });
-            inserted = true;
-          } catch (_) {}
-        }
+          } catch (_) {
+            await Supabase.instance.client.from('stories').insert({
+              'user_id': user.id,
+              'file_id': fileId,
+              'media_type': mediaType,
+            });
+          }
+          inserted = true;
+        } catch (_) {}
+      }
 
-        // Soporta esquema nuevo: stories(media_url, type)
-        if (!inserted && mediaUrl != null) {
+      if (!inserted && mediaUrl != null) {
+        try {
+          await Supabase.instance.client.from('stories').insert({
+            'user_id': user.id,
+            'media_url': mediaUrl,
+            'type': mediaType,
+            'expires_at': expiresAt,
+          });
+        } catch (_) {
           await Supabase.instance.client.from('stories').insert({
             'user_id': user.id,
             'media_url': mediaUrl,
             'type': mediaType,
           });
-          inserted = true;
         }
+        inserted = true;
+      }
 
-        if (!inserted) {
-          throw 'No se pudo guardar la historia en la base de datos.';
-        }
+      if (!inserted) {
+        throw 'No se pudo guardar la historia en la base de datos.';
+      }
 
-        _refreshStories();
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-      } finally { if (mounted) setState(() => _isUploading = false); }
+      await _refreshStories();
+      await _refreshStorageStatus();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -151,33 +287,64 @@ class _StoriesBarState extends State<StoriesBar> {
     final currentUser = Supabase.instance.client.auth.currentUser;
     final bool hasMyStory = _groupedStories.any((g) => g.first['user_id'] == currentUser?.id);
 
-    return Container(
-      height: 110,
-      margin: const EdgeInsets.only(top: 10, bottom: 5),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _groupedStories.length + (hasMyStory ? 0 : 1),
-        itemBuilder: (context, index) {
-          if (!hasMyStory && index == 0) {
-            return _buildStoryCircle(theme: theme, username: 'Tú', isMe: true, onTap: _pickAndUploadStory, isUploading: _isUploading);
-          }
-          final groupIndex = hasMyStory ? index : index - 1;
-          final userStories = _groupedStories[groupIndex];
-          final isMe = userStories.first['user_id'] == currentUser?.id;
+    final usagePct = (_storageStatus?['usagePct'] as num?)?.toDouble();
+    final usedGb = (_storageStatus?['usedGb'] as num?)?.toDouble();
+    final limitGb = (_storageStatus?['limitGb'] as num?)?.toDouble();
 
-          return _buildStoryCircle(
-            theme: theme,
-            username: isMe ? 'Tú' : (userStories.first['username'] ?? 'Usuario'),
-            imageUrl: userStories.first['avatar_url'],
-            isMe: isMe,
-            hasActiveStory: true,
-            isUploading: isMe ? _isUploading : false,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => StoryViewerScreen(stories: userStories, initialIndex: 0))),
-          );
-        },
-      ),
+    return Column(
+      children: [
+        if (usagePct != null && usedGb != null && limitGb != null)
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Storage historias backend: ${usedGb.toStringAsFixed(2)}GB / ${limitGb.toStringAsFixed(0)}GB', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                LinearProgressIndicator(
+                  value: (usagePct / 100).clamp(0.0, 1.0),
+                  minHeight: 5,
+                  borderRadius: BorderRadius.circular(999),
+                  color: usagePct >= 90 ? Colors.redAccent : const Color(0xFF6366F1),
+                ),
+              ],
+            ),
+          ),
+        Container(
+          height: 110,
+          margin: const EdgeInsets.only(top: 4, bottom: 5),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _groupedStories.length + (hasMyStory ? 0 : 1),
+            itemBuilder: (context, index) {
+              if (!hasMyStory && index == 0) {
+                return _buildStoryCircle(theme: theme, username: 'Tú', isMe: true, onTap: _pickAndUploadStory, isUploading: _isUploading);
+              }
+              final groupIndex = hasMyStory ? index : index - 1;
+              final userStories = _groupedStories[groupIndex];
+              final isMe = userStories.first['user_id'] == currentUser?.id;
+
+              return _buildStoryCircle(
+                theme: theme,
+                username: isMe ? 'Tú' : (userStories.first['username'] ?? 'Usuario'),
+                imageUrl: userStories.first['avatar_url'],
+                isMe: isMe,
+                hasActiveStory: true,
+                isUploading: isMe ? _isUploading : false,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => StoryViewerScreen(stories: userStories, initialIndex: 0))),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
