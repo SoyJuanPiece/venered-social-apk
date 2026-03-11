@@ -11,6 +11,7 @@ import 'package:venered_social/services/logger_service.dart';
 import 'package:venered_social/services/notification_service.dart';
 import 'package:venered_social/services/media_manager.dart';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 
 // --- GESTOR DE TEMA ---
 class ThemeManager {
@@ -38,7 +39,9 @@ Future<void> main() async {
 
   // Inicializar Firebase (¡Paso fundamental!)
   try {
-    await Firebase.initializeApp();
+    if (!kIsWeb) {
+      await Firebase.initializeApp();
+    }
   } catch (e) {
     debugPrint('Error al inicializar Firebase: $e');
   }

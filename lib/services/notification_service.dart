@@ -1,17 +1,26 @@
 import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/utils.dart';
 
 class NotificationService {
-  static final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   static StreamSubscription? _supabaseSub;
+  static bool _enabled = false;
 
   static Future<void> init() async {
+    if (kIsWeb || Firebase.apps.isEmpty) {
+      dPrint('Notificaciones push desactivadas en Web o sin Firebase inicializado.');
+      return;
+    }
+
+    final fcm = FirebaseMessaging.instance;
+
     // 1. Solicitar permisos (iOS y Android 13+)
-    NotificationSettings settings = await _fcm.requestPermission(
+    NotificationSettings settings = await fcm.requestPermission(
       alert: true,
       badge: true,
       sound: true,
@@ -30,6 +39,7 @@ class NotificationService {
     );
 
     await _localNotifications.initialize(initializationSettings);
+    _enabled = true;
 
     // 3. Manejar mensajes en primer plano
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -46,7 +56,9 @@ class NotificationService {
   }
 
   static Future<void> _saveToken(String userId) async {
-    String? token = await _fcm.getToken();
+    if (!_enabled || kIsWeb || Firebase.apps.isEmpty) return;
+    final fcm = FirebaseMessaging.instance;
+    String? token = await fcm.getToken();
     if (token != null) {
       dPrint('Guardando FCM Token para $userId: $token');
       await Supabase.instance.client.from('user_fcm_tokens').upsert({
@@ -58,6 +70,7 @@ class NotificationService {
   }
 
   static void login(String userId) {
+    if (!_enabled) return;
     _saveToken(userId);
     startListening();
   }
@@ -83,6 +96,7 @@ class NotificationService {
   }
 
   static void startListening() {
+    if (!_enabled) return;
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 

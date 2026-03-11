@@ -7,6 +7,11 @@ class LoggerService {
 
   static Future<void> init() async {
     try {
+      if (kIsWeb) {
+        debugPrint('LoggerService activo en modo web (solo consola).');
+        return;
+      }
+
       final directory = await getApplicationDocumentsDirectory();
       final errorDir = Directory('${directory.path}/venered_errors');
       
