@@ -55,6 +55,53 @@ Future<void> main() async {
     LoggerService.log('Flutter Error', details.exception, details.stack);
   };
 
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    LoggerService.log('Widget Build Error', details.exception, details.stack);
+    return Material(
+      color: const Color(0xFF120C18),
+      child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1028),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.redAccent.withOpacity(0.35)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Se detecto un error de renderizado',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    details.exceptionAsString(),
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Log local: ${LoggerService.currentLogPath ?? 'no disponible'}',
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  };
+
   // Capturar errores asíncronos (Plataforma/Dart)
   PlatformDispatcher.instance.onError = (error, stack) {
     LoggerService.log('Async Error', error, stack);

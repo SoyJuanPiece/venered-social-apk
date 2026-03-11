@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../utils.dart';
 import '../services/media_manager.dart';
+import '../services/logger_service.dart';
 import 'package:venered_social/widgets/post_card.dart';
 import 'package:venered_social/widgets/post_skeleton.dart';
 import 'package:venered_social/screens/notifications_screen.dart';
@@ -81,6 +82,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       }
     } catch (e) {
       dPrint('Error fetching posts: $e');
+      LoggerService.log('HomeFeedScreen _refreshFeed error', e);
       if (mounted) {
         setState(() {
           _feedError = 'No se pudo cargar el feed.';
@@ -113,6 +115,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       }
     } catch (e) {
       dPrint('Error loading more posts: $e');
+      LoggerService.log('HomeFeedScreen _loadMorePosts error', e);
       if (mounted) setState(() => _isLoadingMore = false);
     }
   }

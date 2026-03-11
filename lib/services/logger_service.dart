@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 class LoggerService {
   static File? _logFile;
 
+  static String? get currentLogPath => _logFile?.path;
+
   static Future<void> init() async {
     try {
       if (kIsWeb) {
