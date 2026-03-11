@@ -20,6 +20,10 @@ class HomeFeedScreen extends StatefulWidget {
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
   List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
+  int _pageSize = 15;
+  int _offset = 0;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
@@ -32,7 +36,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     final cached = await MediaManager.getCachedFeed();
     if (cached.isNotEmpty) {
       setState(() {
-        _posts = cached;
+        _posts = cached.take(_pageSize).toList();
         _isLoading = false;
       });
     }
@@ -50,7 +54,8 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       final response = await Supabase.instance.client
           .from('posts_with_likes_count')
           .select()
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .range(0, _pageSize - 1);
 
       final newPosts = List<Map<String, dynamic>>.from(response);
       
@@ -59,12 +64,41 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       if (mounted) {
         setState(() {
           _posts = newPosts;
+          _offset = _pageSize;
+          _hasMore = newPosts.length >= _pageSize;
           _isLoading = false;
         });
       }
     } catch (e) {
       dPrint('Error fetching posts: $e');
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadMorePosts() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    
+    try {
+      final response = await Supabase.instance.client
+          .from('posts_with_likes_count')
+          .select()
+          .order('created_at', ascending: false)
+          .range(_offset, _offset + _pageSize - 1);
+
+      final newPosts = List<Map<String, dynamic>>.from(response);
+      
+      if (mounted) {
+        setState(() {
+          _posts.addAll(newPosts);
+          _offset += _pageSize;
+          _hasMore = newPosts.length >= _pageSize;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      dPrint('Error loading more posts: $e');
+      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
@@ -153,6 +187,36 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
+                    // Mostrar botón "Cargar más" al final si hay más posts
+                    if (index == _posts.length) {
+                      if (!_hasMore) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              'No hay más publicaciones',
+                              style: TextStyle(color: Colors.grey[500]),
+                            ),
+                          ),
+                        );
+                      }
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: _isLoadingMore
+                              ? const SizedBox(
+                                  height: 40,
+                                  width: 40,
+                                  child: CircularProgressIndicator(),
+                                )
+                              : ElevatedButton(
+                                  onPressed: _loadMorePosts,
+                                  child: const Text('Cargar más'),
+                                ),
+                        ),
+                      );
+                    }
+                    
                     final post = _posts[index];
                     final postId = post['id'];
                     return Center(
@@ -174,7 +238,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                       ),
                     );
                   },
-                  childCount: _posts.length,
+                  childCount: _hasMore ? _posts.length + 1 : _posts.length,
                 ),
               ),
           ],

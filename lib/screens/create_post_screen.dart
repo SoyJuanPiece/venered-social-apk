@@ -3,9 +3,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:venered_social/services/media_manager.dart';
+import 'package:venered_social/services/draft_manager.dart';
 import '../utils.dart';
 
 class CreatePostScreen extends StatefulWidget {
@@ -17,14 +19,46 @@ class CreatePostScreen extends StatefulWidget {
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _captionController = TextEditingController();
   bool _isLoading = false;
+  double _uploadProgress = 0.0;
   File? _mediaFile;
   XFile? _pickedMedia;
   Uint8List? _webPreviewBytes;
   bool _isVideo = false;
+  Timer? _autoSaveTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDraft();
+    _startAutoSave();
+  }
+
+  void _startAutoSave() {
+    _autoSaveTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      DraftManager.savePostDraft(PostDraft(
+        caption: _captionController.text,
+        mediaPath: _mediaFile?.path,
+        mediaType: _isVideo ? 'video' : ((_mediaFile != null || _pickedMedia != null) ? 'image' : 'text'),
+      ));
+    });
+  }
+
+  Future<void> _loadDraft() async {
+    final draft = await DraftManager.loadPostDraft();
+    if (draft != null && mounted) {
+      setState(() {
+        _captionController.text = draft.caption;
+        if (draft.mediaPath != null && !kIsWeb) {
+          _mediaFile = File(draft.mediaPath!);
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
     _captionController.dispose();
+    _autoSaveTimer?.cancel();
     super.dispose();
   }
 
@@ -76,35 +110,73 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser == null) throw 'Debes iniciar sesión para publicar';
       final userId = currentUser.id;
+      
+      // Check rate limit (50 posts per day)
+      final postsToday = await Supabase.instance.client
+          .from('rate_limit_attempts')
+          .select()
+          .eq('user_id', userId)
+          .eq('action', 'post')
+          .gt('created_at', DateTime.now().subtract(const Duration(hours: 24)).toIso8601String());
+      
+      if (postsToday.length >= 50) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Límite diario de publicaciones alcanzado.'))
+          );
+        }
+        return;
+      }
+      
+      // Log the attempt
+      await Supabase.instance.client.from('rate_limit_attempts').insert({
+        'user_id': userId,
+        'action': 'post',
+      });
+      
       String? mediaUrl;
 
       if (kIsWeb && _pickedMedia != null) {
         if (_isVideo) {
           throw 'Video aún no soportado en Web.';
         }
+        setState(() => _uploadProgress = 0.3);
         final bytes = _webPreviewBytes ?? await _pickedMedia!.readAsBytes();
         mediaUrl = await MediaManager.uploadImageBytesToImgBB(bytes);
+        setState(() => _uploadProgress = 0.8);
         if (mediaUrl == null) throw 'No se pudo subir la imagen desde Web';
       } else if (_mediaFile != null) {
         if (_isVideo) {
+          setState(() => _uploadProgress = 0.3);
           mediaUrl = await MediaManager.uploadVideoToTelegram(_mediaFile!);
+          setState(() => _uploadProgress = 0.8);
         } else {
+          setState(() => _uploadProgress = 0.3);
           mediaUrl = await MediaManager.uploadToImgBB(_mediaFile!);
+          setState(() => _uploadProgress = 0.8);
         }
         if (mediaUrl == null) throw 'Error al subir el archivo';
       }
+      
+      setState(() => _uploadProgress = 0.9);
+      
       await Supabase.instance.client.from('posts').insert({
         'user_id': userId,
         'content': caption,
         'media_url': mediaUrl,
         'type': _isVideo ? 'video' : ((_mediaFile != null || _pickedMedia != null) ? 'image' : 'text'),
       });
+      
+      // Clear draft after successful publish
+      await DraftManager.deletePostDraft();
+      
       if (mounted) {
         setState(() {
           _mediaFile = null;
           _pickedMedia = null;
           _webPreviewBytes = null;
           _captionController.clear();
+          _uploadProgress = 0.0;
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: const Text('¡Publicado con éxito!'),
@@ -178,6 +250,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ),
             ),
           ],
+          bottom: _uploadProgress > 0 ? PreferredSize(
+            preferredSize: const Size.fromHeight(4),
+            child: LinearProgressIndicator(value: _uploadProgress),
+          ) : null,
         ),
         body: Center(
           child: ConstrainedBox(

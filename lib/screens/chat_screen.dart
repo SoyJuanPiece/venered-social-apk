@@ -17,6 +17,7 @@ import 'dart:convert';
 import '../formatters.dart';
 import '../utils.dart';
 import '../services/media_manager.dart';
+import '../services/draft_manager.dart';
 
 class ChatScreen extends StatefulWidget {
   final String otherId;
@@ -90,10 +91,28 @@ class _ChatScreenState extends State<ChatScreen> {
     _setupStream();
     _markAsRead();
     _cleanupExpiredVoiceFromStorage();
+    _loadChatDraft();
+    _startChatAutoSave();
     if (!kIsWeb) {
       _setupPresence();
       _setMyPresence(true);
     }
+  }
+
+  Future<void> _loadChatDraft() async {
+    final draft = await DraftManager.loadChatDraft(widget.otherId);
+    if (draft != null && mounted) {
+      setState(() => _messageController.text = draft);
+    }
+  }
+
+  Timer? _chatAutoSaveTimer;
+  void _startChatAutoSave() {
+    _chatAutoSaveTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (_messageController.text.isNotEmpty) {
+        DraftManager.saveChatDraft(widget.otherId, _messageController.text);
+      }
+    });
   }
 
   @override
@@ -105,6 +124,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _audioRecorder.dispose();
     _ampSub?.cancel();
     _waveFallbackTimer?.cancel();
+    _chatAutoSaveTimer?.cancel();
+    _typingTimer?.cancel();
     _draftPlayer.dispose();
     _messageController.dispose();
     _scrollController.dispose();
@@ -142,7 +163,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       await supabase
           .from('messages')
-          .update({'is_read': true})
+          .update({'is_read': true, 'message_status': 'read'})
           .eq('sender_id', widget.otherId)
           .eq('receiver_id', myId);
     } catch (_) {}
@@ -400,7 +421,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _pushWaveFromAmplitude(double rawDb) {
     final clamped = rawDb.clamp(-60.0, 0.0) as num;
     final normalized = ((clamped.toDouble() + 60.0) / 60.0).clamp(0.0, 1.0);
-    var target = (0.16 + (normalized * 0.84)).clamp(0.16, 1.0);
+    var target = (0.22 + (normalized * 0.78)).clamp(0.22, 1.0);
 
     // Algunos navegadores web reportan amplitud casi constante; si eso pasa,
     // agregamos variación orgánica para evitar una "línea" plana.
@@ -412,12 +433,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (_waveStillFrames > 4) {
       final t = DateTime.now().millisecondsSinceEpoch / 1000.0;
-      final pulse = 0.18 * math.sin(t * 10).abs();
-      final jitter = (_waveRandom.nextDouble() * 0.22) - 0.05;
-      target = (0.22 + pulse + jitter).clamp(0.16, 1.0);
+      final pulse = 0.26 * math.sin(t * 10).abs();
+      final jitter = (_waveRandom.nextDouble() * 0.28) - 0.06;
+      target = (0.30 + pulse + jitter).clamp(0.22, 1.0);
     }
 
-    _waveEma = (_waveEma * 0.58) + (target * 0.42);
+    _waveEma = (_waveEma * 0.48) + (target * 0.52);
     _appendWaveBar(_waveEma);
   }
 
@@ -498,13 +519,63 @@ class _ChatScreenState extends State<ChatScreen> {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
     _messageController.clear();
-    await supabase.from('messages').insert({
-      'sender_id': supabase.auth.currentUser!.id,
-      'receiver_id': widget.otherId,
-      'content': content,
-      'type': 'text'
-    });
-    _scrollToBottom();
+    _notifyTyping(false);
+    
+    // Clear draft
+    await DraftManager.deleteChatDraft(widget.otherId);
+    
+    try {
+      // Check rate limit
+      final recentMessages = await supabase
+          .from('rate_limit_attempts')
+          .select()
+          .eq('user_id', supabase.auth.currentUser!.id)
+          .eq('action', 'message')
+          .gt('created_at', DateTime.now().subtract(const Duration(minutes: 1)).toIso8601String());
+      
+      if (recentMessages.length >= 10) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Demasiadas mensajes. Intenta más tarde.'))
+          );
+        }
+        return;
+      }
+      
+      // Log the attempt
+      await supabase.from('rate_limit_attempts').insert({
+        'user_id': supabase.auth.currentUser!.id,
+        'action': 'message',
+      });
+      
+      await supabase.from('messages').insert({
+        'sender_id': supabase.auth.currentUser!.id,
+        'receiver_id': widget.otherId,
+        'content': content,
+        'type': 'text',
+        'message_status': 'sent'
+      });
+      _scrollToBottom();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Timer? _typingTimer;
+  void _notifyTyping(bool isTyping) {
+    _typingTimer?.cancel();
+    if (isTyping) {
+      supabase.from('presence').upsert({
+        'user_id': supabase.auth.currentUser!.id,
+        'chat_with': widget.otherId,
+        'is_typing': true,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id,chat_with');
+      
+      _typingTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) _notifyTyping(false);
+      });
+    }
   }
 
   void _scrollToBottom() {
@@ -524,12 +595,27 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             CircleAvatar(radius: 18, backgroundImage: widget.otherUser['avatar_url'] != null ? NetworkImage(webSafeUrl(widget.otherUser['avatar_url'] as String)) : null),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.otherUser['username'] ?? 'Usuario', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                Text(_otherOnline ? 'En línea' : 'Desconectado', style: TextStyle(fontSize: 11, color: _otherOnline ? Colors.green : Colors.grey)),
-              ],
+            Expanded(
+              child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: supabase
+                    .from('presence')
+                    .stream(primaryKey: ['user_id'])
+                    .eq('user_id', widget.otherId)
+                    .order('updated_at'),
+                builder: (context, snapshot) {
+                  final isTyping = snapshot.hasData && snapshot.data!.isNotEmpty && snapshot.data!.first['is_typing'] == true;
+                  
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.otherUser['username'] ?? 'Usuario', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      isTyping
+                          ? Text('escribiendo...', style: TextStyle(fontSize: 11, color: theme.colorScheme.primary, fontStyle: FontStyle.italic))
+                          : Text(_otherOnline ? 'En línea' : 'Desconectado', style: TextStyle(fontSize: 11, color: _otherOnline ? Colors.green : Colors.grey)),
+                    ],
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -563,6 +649,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildBubble(Map<String, dynamic> msg, bool isMe, ThemeData theme) {
     final type = msg['type'] ?? 'text';
+    final status = msg['message_status'] ?? 'sent';
+    final isRead = msg['is_read'] ?? false;
+    
+    String statusIcon = '';
+    if (isMe) {
+      if (isRead) statusIcon = '✓✓'; // Double check = read
+      else if (status == 'sent') statusIcon = '✓'; // Single check
+      else if (status == 'pending') statusIcon = '⏳'; // Pending
+    }
+    
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -598,7 +694,16 @@ class _ChatScreenState extends State<ChatScreen> {
             else
               Text(msg['content'] ?? '', style: TextStyle(color: isMe ? Colors.white : theme.colorScheme.onSurface)),
             const SizedBox(height: 4),
-            Text(formatHm(DateTime.parse(msg['created_at'])), style: TextStyle(fontSize: 9, color: isMe ? Colors.white70 : Colors.grey)),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(formatHm(DateTime.parse(msg['created_at'])), style: TextStyle(fontSize: 9, color: isMe ? Colors.white70 : Colors.grey)),
+                if (statusIcon.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Text(statusIcon, style: TextStyle(fontSize: 9, color: isMe ? (isRead ? Colors.cyan : Colors.white70) : Colors.grey)),
+                ]
+              ],
+            ),
           ],
         ),
       ),
@@ -751,7 +856,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(24)),
                 child: TextField(
                   controller: _messageController,
-                  onChanged: (v) => setState(() {}),
+                  onChanged: (v) {
+                    if (v.isNotEmpty) _notifyTyping(true);
+                    setState(() {});
+                  },
                   decoration: const InputDecoration(hintText: 'Escribe un mensaje...', border: InputBorder.none),
                 ),
               ),
@@ -806,13 +914,15 @@ class _TelegramWaveformPainter extends CustomPainter {
       final sample = samples[i].clamp(0.12, 1.0);
       final waveMotion = 0.72 + (0.28 * math.sin(phase + i * 0.42).abs());
       final emphasis = 0.78 + (0.22 * math.sin((i / samples.length) * math.pi));
-      final amplitude = (sample * waveMotion * emphasis).clamp(0.14, 1.0);
-      final halfHeight = (3 + amplitude * (size.height * 0.48)).clamp(3.0, size.height / 2);
+      final normalized = ((sample - 0.12) / 0.88).clamp(0.0, 1.0);
+      final lifted = 0.42 + (normalized * 0.58);
+      final amplitude = (lifted * waveMotion * emphasis).clamp(0.22, 1.0);
+      final halfHeight = (5 + amplitude * (size.height * 0.62)).clamp(5.0, size.height / 2);
       final x = (i * spacing) + (spacing / 2);
 
       paint
         ..strokeWidth = barWidth
-        ..color = color.withOpacity((0.42 + (i / samples.length) * 0.58).clamp(0.42, 1.0));
+        ..color = color.withOpacity((0.52 + (i / samples.length) * 0.48).clamp(0.52, 1.0));
 
       canvas.drawLine(
         Offset(x, centerY - halfHeight),
