@@ -115,7 +115,24 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final myId = supabase.auth.currentUser!.id;
+    final myId = supabase.auth.currentUser?.id;
+
+    if (myId == null) {
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: Text('Mensajes', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          backgroundColor: theme.scaffoldBackgroundColor,
+          elevation: 0,
+        ),
+        body: Center(
+          child: Text(
+            'Inicia sesión para ver tus mensajes',
+            style: GoogleFonts.poppins(color: Colors.grey),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
