@@ -30,6 +30,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   @override
   void initState() {
     super.initState();
+    LoggerService.log('HomeFeedScreen initState');
     _loadInitialData();
   }
 
@@ -122,6 +123,10 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    LoggerService.log(
+      'HomeFeedScreen build',
+      'isLoading=$_isLoading posts=${_posts.length} hasMore=$_hasMore feedError=$_feedError',
+    );
     final theme = Theme.of(context);
     final maxWidth = MediaQuery.of(context).size.width >= 1000 ? 760.0 : double.infinity;
 

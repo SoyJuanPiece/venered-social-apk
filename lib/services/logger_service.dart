@@ -47,11 +47,16 @@ class LoggerService {
 
     try {
       await _logFile!.writeAsString(logEntry, mode: FileMode.append);
-      if (kDebugMode) {
-        debugPrint('--- ERROR DETECTADO ---');
-        debugPrint(logEntry);
-      } else {
-        debugPrint('Error guardado en log local.');
+      debugPrint('--- LOGGER VENERED ---');
+      debugPrint('MENSAJE: $message');
+      if (error != null) {
+        debugPrint('ERROR: $error');
+      }
+      if (stackTrace != null) {
+        debugPrint('STACKTRACE: $stackTrace');
+      }
+      if (!kDebugMode) {
+        debugPrint('LOG_LOCAL: ${_logFile?.path ?? 'no-disponible'}');
       }
     } catch (e) {
       debugPrint('Fallo al escribir en el log file: $e');

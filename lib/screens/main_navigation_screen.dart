@@ -7,6 +7,7 @@ import 'package:venered_social/screens/create_post_screen.dart';
 import 'package:venered_social/screens/explore_screen.dart';
 import 'package:venered_social/screens/messages_screen.dart';
 import 'package:venered_social/widgets/fade_slide_in.dart';
+import 'package:venered_social/services/logger_service.dart';
 
 class _NavItem {
   final IconData icon;
@@ -68,6 +69,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    LoggerService.log('MainNavigationScreen build', 'selectedIndex=$_selectedIndex');
     return LayoutBuilder(builder: (context, constraints) {
       return constraints.maxWidth >= 800
           ? _buildWideLayout(context)

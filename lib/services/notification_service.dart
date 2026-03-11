@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/utils.dart';
+import 'package:venered_social/services/logger_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
@@ -57,15 +58,20 @@ class NotificationService {
 
   static Future<void> _saveToken(String userId) async {
     if (!_enabled || kIsWeb || Firebase.apps.isEmpty) return;
-    final fcm = FirebaseMessaging.instance;
-    String? token = await fcm.getToken();
-    if (token != null) {
-      dPrint('Guardando FCM Token para $userId: $token');
-      await Supabase.instance.client.from('user_fcm_tokens').upsert({
-        'user_id': userId,
-        'fcm_token': token,
-        'updated_at': DateTime.now().toIso8601String(),
-      });
+    try {
+      final fcm = FirebaseMessaging.instance;
+      String? token = await fcm.getToken();
+      if (token != null) {
+        dPrint('Guardando FCM Token para $userId: $token');
+        await Supabase.instance.client.from('user_fcm_tokens').upsert({
+          'user_id': userId,
+          'fcm_token': token,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
+    } catch (e, st) {
+      LoggerService.log('FCM _saveToken error', e, st);
+      dPrint('FCM token no disponible: $e');
     }
   }
 
