@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/profile_screen.dart';
+import '../utils.dart';
 
 class CommentsSheet extends StatefulWidget {
   final String postId;
@@ -13,12 +14,16 @@ class CommentsSheet extends StatefulWidget {
 
 class _CommentsSheetState extends State<CommentsSheet> {
   final TextEditingController _commentController = TextEditingController();
-  late final Stream<List<Map<String, dynamic>>> _commentsStream;
+  late Stream<List<Map<String, dynamic>>> _commentsStream;
   bool _isPosting = false;
 
   @override
   void initState() {
     super.initState();
+    _initCommentsStream();
+  }
+
+  void _initCommentsStream() {
     _commentsStream = Supabase.instance.client
         .from('comments')
         .select('*, profiles(username, avatar_url)') // Join with profiles table
@@ -28,6 +33,12 @@ class _CommentsSheetState extends State<CommentsSheet> {
         .map((data) => List<Map<String, dynamic>>.from(data));
   }
 
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
   Future<void> _postComment() async {
     final content = _commentController.text.trim();
     if (content.isEmpty) return;
@@ -35,15 +46,25 @@ class _CommentsSheetState extends State<CommentsSheet> {
     setState(() => _isPosting = true);
 
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser == null) throw 'Debes iniciar sesión para comentar';
+
+      final userId = currentUser.id;
       await Supabase.instance.client.from('comments').insert({
         'user_id': userId,
         'post_id': widget.postId,
         'content': content,
       });
       _commentController.clear();
+      // Fuerza refresco inmediato para que el comentario aparezca al instante.
+      _initCommentsStream();
+      if (mounted) setState(() {});
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al comentar: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isPosting = false);
     }
@@ -97,7 +118,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                       },
                       leading: CircleAvatar(
                         radius: 18,
-                        backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
+                        backgroundImage: profilePic != null ? NetworkImage(webSafeUrl(profilePic)) : null,
                         child: profilePic == null ? const Icon(Icons.person, size: 18) : null,
                       ),
                       title: RichText(
@@ -127,6 +148,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                 Expanded(
                   child: TextField(
                     controller: _commentController,
+                    onSubmitted: (_) => _isPosting ? null : _postComment(),
                     decoration: InputDecoration(
                       hintText: 'Añade un comentario...',
                       hintStyle: const TextStyle(color: Colors.grey),

@@ -68,13 +68,68 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
     }
   }
 
+  Future<void> _deletePost() async {
+    final myId = supabase.auth.currentUser?.id;
+    if (myId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar publicación'),
+        content: const Text('Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final deleted = await supabase
+          .from('posts')
+          .delete()
+          .eq('id', widget.post['id'])
+          .eq('user_id', myId)
+          .select('id');
+
+      if ((deleted as List).isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo eliminar (sin permisos o ya no existe)')),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+      widget.onDelete?.call();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Publicación eliminada')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo eliminar la publicación')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final myId = supabase.auth.currentUser?.id;
     final avatar = widget.post['avatar_url'] as String?;
     final media = widget.post['media_url'] as String?;
     final username = widget.post['username'] as String? ?? 'Usuario';
     final content = widget.post['content'] as String? ?? '';
+    final isOwner = widget.post['user_id'] == myId;
     final isVerified = widget.post['is_verified'] == true;
     final createdAt = widget.post['created_at'] != null ? DateTime.tryParse(widget.post['created_at']) : null;
     final timeAgo = createdAt != null ? formatTimeAgo(createdAt) : '';
@@ -83,23 +138,39 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── Header ──
-        InkWell(
-          onTap: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => ProfileScreen(userId: widget.post['user_id']),
-          )),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              children: [
-                _avatarRing(avatar, radius: 18),
-                const SizedBox(width: 10),
-                Expanded(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => ProfileScreen(userId: widget.post['user_id']),
+                )),
+                child: _avatarRing(avatar, radius: 18),
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                fit: FlexFit.loose,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => ProfileScreen(userId: widget.post['user_id']),
+                  )),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(username, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13.5, color: theme.colorScheme.onSurface)),
+                          Flexible(
+                            child: Text(
+                              username,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13.5, color: theme.colorScheme.onSurface),
+                            ),
+                          ),
                           if (isVerified) ...[
                             const SizedBox(width: 3),
                             const Icon(Icons.verified_rounded, color: Color(0xFF6366F1), size: 14),
@@ -111,9 +182,33 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
                     ],
                   ),
                 ),
-                Icon(Icons.more_horiz, color: Colors.grey[400], size: 22),
-              ],
-            ),
+              ),
+              const Spacer(),
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_horiz, color: Colors.grey[400], size: 22),
+                onSelected: (value) {
+                  if (value == 'profile') {
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => ProfileScreen(userId: widget.post['user_id']),
+                    ));
+                  }
+                  if (value == 'delete') {
+                    _deletePost();
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'profile',
+                    child: Text('Ver perfil'),
+                  ),
+                  if (isOwner)
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Eliminar publicación'),
+                    ),
+                ],
+              ),
+            ],
           ),
         ),
         // ── Image (doble tap = like) ──
@@ -121,7 +216,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
           GestureDetector(
             onDoubleTap: () { if (!_isLiked) _toggleLike(); },
             child: Image.network(
-              media,
+              webSafeUrl(media),
               width: double.infinity,
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => Container(
@@ -215,7 +310,7 @@ class _PostCardState extends State<PostCard> with SingleTickerProviderStateMixin
       ),
       child: CircleAvatar(
         radius: radius,
-        backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+        backgroundImage: avatar != null ? NetworkImage(webSafeUrl(avatar)) : null,
         onBackgroundImageError: (_, __) {},
         backgroundColor: Colors.grey[300],
         child: avatar == null ? Icon(Icons.person, size: radius, color: Colors.grey[600]) : null,

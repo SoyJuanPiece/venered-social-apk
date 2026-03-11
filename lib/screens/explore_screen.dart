@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:venered_social/screens/profile_screen.dart';
 import 'package:venered_social/widgets/post_card.dart';
+import '../utils.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -79,7 +80,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         final isVerified = user['is_verified'] == true;
         final displayName = (user['display_name'] as String?)?.isNotEmpty == true ? user['display_name'] as String : null;
         return ListTile(
-          leading: CircleAvatar(backgroundImage: user['avatar_url'] != null ? NetworkImage(user['avatar_url']) : null, onBackgroundImageError: (_, __) {}, child: user['avatar_url'] == null ? const Icon(Icons.person) : null),
+          leading: CircleAvatar(backgroundImage: user['avatar_url'] != null ? NetworkImage(webSafeUrl(user['avatar_url'])) : null, onBackgroundImageError: (_, __) {}, child: user['avatar_url'] == null ? const Icon(Icons.person) : null),
           title: Row(
             children: [
               Text(user['username'] ?? '', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14)),
@@ -107,7 +108,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         return GestureDetector(
           onTap: () {},
           child: post['media_url'] != null
-              ? Image.network(post['media_url'], fit: BoxFit.cover,
+              ? Image.network(webSafeUrl(post['media_url']), fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(color: Colors.grey[900], child: const Icon(Icons.broken_image, color: Colors.white24)))
               : Container(
                   color: Theme.of(context).cardColor,

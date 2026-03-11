@@ -203,7 +203,7 @@ class _StoriesBarState extends State<StoriesBar> {
                     child: CircleAvatar(
                       radius: 30,
                       backgroundColor: Colors.grey[200],
-                      backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+                      backgroundImage: imageUrl != null ? NetworkImage(webSafeUrl(imageUrl)) : null,
                       child: isUploading 
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6366F1))) 
                         : (imageUrl == null ? const Icon(Icons.person, color: Colors.grey) : null),

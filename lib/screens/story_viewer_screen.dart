@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import '../services/media_manager.dart';
+import '../utils.dart';
 
 class StoryViewerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> stories;
@@ -331,7 +332,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                       ? AspectRatio(aspectRatio: _videoController!.value.aspectRatio, child: VideoPlayer(_videoController!))
                       : (_isLocal 
                           ? Image.file(File(_displayPath!), fit: BoxFit.contain)
-                          : Image.network(_displayPath!, fit: BoxFit.contain))),
+                          : Image.network(webSafeUrl(_displayPath!), fit: BoxFit.contain))),
             ),
 
             // Barras y Perfil
@@ -361,7 +362,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      CircleAvatar(radius: 18, backgroundImage: story['profile_pic_url'] != null ? NetworkImage(story['profile_pic_url']) : null, child: story['profile_pic_url'] == null ? const Icon(Icons.person) : null),
+                      CircleAvatar(radius: 18, backgroundImage: story['profile_pic_url'] != null ? NetworkImage(webSafeUrl(story['profile_pic_url'] as String)) : null, child: story['profile_pic_url'] == null ? const Icon(Icons.person) : null),
                       const SizedBox(width: 10),
                       Text(isMe ? 'Tu historia' : (story['username'] ?? 'Usuario'), style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
                       const Spacer(),

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -15,6 +16,7 @@ class MediaManager {
   static final Map<String, Map<String, String>> _webMediaCache = {};
   static const String telegramServerUrl = 'http://toby.hidencloud.com:24652/upload';
   static const String imgbbApiKey = 'c4fd2ded598485660696ba819347f0bb';
+  static const String voiceBucket = 'voice-notes';
 
   static Future<Database> get database async {
     if (_database != null) return _database!;
@@ -46,6 +48,29 @@ class MediaManager {
       final responseBody = await response.stream.bytesToString();
       if (response.statusCode == 200) return json.decode(responseBody)['data']['url'];
     } catch (e) { dPrint('Error ImgBB: $e'); }
+    return null;
+  }
+
+  // --- SUBIDA DE IMÁGENES A IMGBB DESDE WEB (sin dart:io) ---
+  static Future<String?> uploadImageBytesToImgBB(Uint8List bytes) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://api.imgbb.com/1/upload'),
+        body: {
+          'key': imgbbApiKey,
+          'image': base64Encode(bytes),
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        return decoded['data']?['url'] as String?;
+      }
+
+      dPrint('Error ImgBB Web: ${response.statusCode} ${response.body}');
+    } catch (e) {
+      dPrint('Error ImgBB Web: $e');
+    }
     return null;
   }
 
@@ -89,6 +114,38 @@ class MediaManager {
       return res['file_id'] ?? res['result']?['video']?['file_id'];
     }
     return null;
+  }
+
+  // --- SUBIDA DE AUDIOS A SUPABASE STORAGE ---
+  static Future<Map<String, String>?> uploadVoiceToSupabase({
+    required Uint8List bytes,
+    required String userId,
+    String? preferredExt,
+    String? preferredContentType,
+  }) async {
+    try {
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final isWebVoice = kIsWeb;
+      final ext = preferredExt ?? (isWebVoice ? 'webm' : 'm4a');
+      final contentType = preferredContentType ?? (isWebVoice ? 'audio/webm' : 'audio/mp4');
+      final objectPath = '$userId/voice_$ts.$ext';
+      await Supabase.instance.client.storage.from(voiceBucket).uploadBinary(
+            objectPath,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: contentType,
+              upsert: false,
+            ),
+          );
+      final publicUrl = Supabase.instance.client.storage.from(voiceBucket).getPublicUrl(objectPath);
+      return {
+        'url': publicUrl,
+        'path': objectPath,
+      };
+    } catch (e) {
+      dPrint('Error Storage Voz: $e');
+      return null;
+    }
   }
 
   // --- MÉTODOS DE CACHÉ ---
@@ -148,9 +205,14 @@ class MediaManager {
         return url;
       }
       final directory = await getApplicationDocumentsDirectory();
-      final folder = Directory(join(directory.path, 'Venered', type == 'video' ? 'Stories' : 'Images'));
+      final folderName = type == 'video'
+          ? 'Stories'
+          : (type == 'voice' ? 'Audios' : 'Images');
+      final folder = Directory(join(directory.path, 'Venered', folderName));
       if (!await folder.exists()) await folder.create(recursive: true);
-      final ext = type == 'video' ? '.mp4' : '.jpg';
+      final ext = type == 'video'
+          ? '.mp4'
+          : (type == 'voice' ? '.m4a' : '.jpg');
       final localPath = join(folder.path, 'med_$messageId$ext');
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {

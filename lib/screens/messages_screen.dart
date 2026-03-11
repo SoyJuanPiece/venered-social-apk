@@ -70,8 +70,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
       final list = List<Map<String, dynamic>>.from(res);
       // Sort by last message time
       list.sort((a, b) {
-        final dateA = DateTime.parse(a['last_message_at'] ?? DateTime.now().toIso8601String());
-        final dateB = DateTime.parse(b['last_message_at'] ?? DateTime.now().toIso8601String());
+        final dateA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime(0);
+        final dateB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime(0);
         return dateB.compareTo(dateA);
       });
 
@@ -96,14 +96,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
     _channel = supabase.channel('messages_list_updates').onPostgresChanges(
       event: PostgresChangeEvent.all,
       schema: 'public',
-      table: 'conversations',
-      callback: (payload) => _loadConversations(),
-    ).onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
       table: 'messages',
       callback: (payload) => _loadConversations(),
     ).subscribe();
+  }
+
+  String _formatLastMessagePreview(Map<String, dynamic> chat, String? rawContent) {
+    final type = (chat['type'] as String?) ?? 'text';
+    if (type == 'voice') return '🎤 Mensaje de voz';
+    if (type == 'image') return '📷 Foto';
+
+    final content = (rawContent ?? '').trim();
+    if (content.isEmpty) return '¡Di hola!';
+    if (content.startsWith('storage:')) return '🎤 Mensaje de voz';
+    return content;
   }
 
   @override
@@ -135,20 +141,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   itemCount: _conversations.length,
                   itemBuilder: (context, index) {
                     final chat = _conversations[index];
-                    final otherUsername = chat['other_username'] ?? 'Usuario';
-                    final otherAvatar = chat['other_avatar_url'];
-                    final lastContent = chat['last_message_content'];
-                    final lastSender = chat['last_message_sender_id'];
-                    final updatedAt = DateTime.parse(chat['last_message_at'] ?? DateTime.now().toIso8601String());
+                      // view_conversations devuelve sender_id/receiver_id del último mensaje
+                      final otherId = chat['sender_id'] == myId
+                        ? chat['receiver_id'] as String
+                        : chat['sender_id'] as String;
+                      final otherUsername = (chat['other_username'] as String?) ?? 'Usuario';
+                      final otherAvatar = chat['other_avatar_url'] as String?;
+                      final lastContent = chat['content'] as String?;
+                      final lastSender = chat['sender_id'] as String?;
+                      final isRead = chat['is_read'] == true;
+                      final updatedAt = DateTime.tryParse(chat['created_at'] ?? '') ?? DateTime.now();
 
                     return ListTile(
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => ChatScreen(
-                            conversationId: chat['conversation_id'],
+                              otherId: otherId,
                             otherUser: {
-                              'id': chat['other_user_id'],
+                                'id': otherId,
                               'username': otherUsername,
                               'avatar_url': otherAvatar,
                             },
@@ -165,7 +176,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         child: CircleAvatar(
                           radius: 28,
                           backgroundColor: theme.scaffoldBackgroundColor,
-                          backgroundImage: (otherAvatar != null && otherAvatar.isNotEmpty) ? NetworkImage(otherAvatar) : null,
+                          backgroundImage: (otherAvatar != null && otherAvatar.isNotEmpty) ? NetworkImage(webSafeUrl(otherAvatar)) : null,
                           child: (otherAvatar == null || otherAvatar.isEmpty) ? Icon(Icons.person, color: theme.colorScheme.primary) : null,
                         ),
                       ),
@@ -177,13 +188,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         ),
                       ),
                       subtitle: Text(
-                        lastContent ?? '¡Di hola!',
+                        _formatLastMessagePreview(chat, lastContent),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           fontSize: 13,
-                          color: lastSender != myId ? theme.colorScheme.onSurface : Colors.grey,
-                          fontWeight: lastSender != myId ? FontWeight.w600 : FontWeight.w400,
+                            color: (!isRead && lastSender != myId) ? theme.colorScheme.onSurface : Colors.grey,
+                            fontWeight: (!isRead && lastSender != myId) ? FontWeight.w600 : FontWeight.w400,
                         ),
                       ),
                       trailing: Text(
@@ -213,38 +224,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
       return;
     }
 
-    try {
-      final existing = await supabase
-          .from('conversations')
-          .select('id')
-          .or('and(user1_id.eq.$myId,user2_id.eq.$otherId),and(user1_id.eq.$otherId,user2_id.eq.$myId)')
-          .maybeSingle();
-
-      String convId;
-      if (existing != null) {
-        convId = existing['id'];
-      } else {
-        final newConv = await supabase.from('conversations').insert({
-          'user1_id': myId,
-          'user2_id': otherId,
-        }).select('id').single();
-        convId = newConv['id'];
-      }
-
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatScreen(
-              conversationId: convId,
-              otherUser: profile,
-            ),
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            otherId: otherId,
+            otherUser: profile,
           ),
-        );
-      }
-    } catch (e) {
-      dPrint('Error starting chat: $e');
-    }
+        ),
+      );
   }
 
   Widget _buildEmptyState(ThemeData theme) {

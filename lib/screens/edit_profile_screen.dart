@@ -105,7 +105,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   radius: 50,
                   backgroundImage: _newProfilePicFile != null 
                     ? FileImage(_newProfilePicFile!) 
-                    : (widget.initialProfile['avatar_url'] != null ? NetworkImage(widget.initialProfile['avatar_url']) : null) as ImageProvider?,
+                    : (widget.initialProfile['avatar_url'] != null ? NetworkImage(webSafeUrl(widget.initialProfile['avatar_url'] as String)) : null) as ImageProvider?,
                   child: _newProfilePicFile == null && widget.initialProfile['avatar_url'] == null ? const Icon(Icons.camera_alt) : null,
                 ),
               ),

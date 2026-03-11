@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/profile_screen.dart';
+import '../utils.dart';
 
 class UserSearchDialog extends StatefulWidget {
   const UserSearchDialog({super.key});
@@ -80,7 +81,7 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
                       contentPadding: EdgeInsets.zero,
                       leading: CircleAvatar(
                         backgroundImage: item['avatar_url'] != null
-                            ? NetworkImage(item['avatar_url'])
+                            ? NetworkImage(webSafeUrl(item['avatar_url'] as String))
                             : null,
                         child: item['avatar_url'] == null
                             ? const Icon(Icons.person)

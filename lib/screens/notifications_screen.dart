@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../formatters.dart';
+import '../utils.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -113,7 +114,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           color: isRead ? theme.cardColor : theme.colorScheme.primary.withOpacity(0.05),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundImage: profile?['avatar_url'] != null ? NetworkImage(profile!['avatar_url']) : null,
+              backgroundImage: profile?['avatar_url'] != null ? NetworkImage(webSafeUrl(profile!['avatar_url'] as String)) : null,
               child: profile?['avatar_url'] == null ? const Icon(Icons.person) : null,
             ),
             title: RichText(

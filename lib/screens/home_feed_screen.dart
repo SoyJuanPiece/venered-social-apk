@@ -7,8 +7,8 @@ import '../services/media_manager.dart';
 import 'package:venered_social/widgets/post_card.dart';
 import 'package:venered_social/widgets/post_skeleton.dart';
 import 'package:venered_social/screens/notifications_screen.dart';
-import 'package:venered_social/screens/messages_screen.dart';
 import 'package:venered_social/widgets/stories_bar.dart';
+import 'package:venered_social/widgets/fade_slide_in.dart';
 
 class HomeFeedScreen extends StatefulWidget {
   const HomeFeedScreen({super.key});
@@ -20,13 +20,11 @@ class HomeFeedScreen extends StatefulWidget {
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
   List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
-  late Stream<int> _unreadMessagesStream;
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
-    _unreadMessagesStream = _setupUnreadCounter();
   }
 
   Future<void> _loadInitialData() async {
@@ -40,25 +38,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
     }
     // 2. Refrescar desde el servidor en segundo plano
     _refreshFeed();
-  }
-
-  Stream<int> _setupUnreadCounter() {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return Stream.value(0);
-
-    return Supabase.instance.client
-        .from('notifications')
-        .stream(primaryKey: ['id'])
-        .map((event) {
-          final unreadNotifications = event.where((n) => 
-            n['receiver_id'] == user.id && 
-            n['type'] == 'message' && 
-            n['is_read'] == false
-          );
-          final uniqueSenders = unreadNotifications.map((n) => n['sender_id']).toSet();
-          return uniqueSenders.length;
-        })
-        .handleError((e) => 0);
   }
 
   Future<void> _refreshFeed() async {
@@ -92,6 +71,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final maxWidth = MediaQuery.of(context).size.width >= 1000 ? 760.0 : double.infinity;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -119,22 +99,6 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
             icon: Icon(Icons.favorite_border_rounded, color: theme.colorScheme.onSurface, size: 26),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const NotificationsScreen())),
           ),
-          StreamBuilder<int>(
-            stream: _unreadMessagesStream,
-            initialData: 0,
-            builder: (context, snapshot) {
-              final count = snapshot.data ?? 0;
-              return Badge(
-                label: Text(count.toString()),
-                isLabelVisible: count > 0,
-                backgroundColor: theme.colorScheme.secondary,
-                child: IconButton(
-                  icon: Icon(Icons.chat_bubble_outline_rounded, color: theme.colorScheme.onSurface, size: 24),
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const MessagesScreen())),
-                ),
-              );
-            },
-          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -143,14 +107,30 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            const SliverToBoxAdapter(
-              child: StoriesBar(),
+            SliverToBoxAdapter(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: const FadeSlideIn(
+                    delay: Duration(milliseconds: 40),
+                    child: StoriesBar(),
+                  ),
+                ),
+              ),
             ),
             if (_isLoading && _posts.isEmpty)
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => const PostSkeleton(),
-                  childCount: 3,
+              SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: maxWidth),
+                    child: Column(
+                      children: const [
+                        PostSkeleton(),
+                        PostSkeleton(),
+                        PostSkeleton(),
+                      ],
+                    ),
+                  ),
                 ),
               )
             else if (_posts.isEmpty)
@@ -172,10 +152,28 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
             else
               SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) => PostCard(
-                    post: _posts[index],
-                    onDelete: _refreshFeed,
-                  ),
+                  (context, index) {
+                    final post = _posts[index];
+                    final postId = post['id'];
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: maxWidth),
+                        child: FadeSlideIn(
+                          delay: Duration(milliseconds: 70 + (index * 35)),
+                          beginOffset: const Offset(0, 0.05),
+                          child: PostCard(
+                            post: post,
+                            onDelete: () {
+                              setState(() {
+                                _posts.removeWhere((p) => p['id'] == postId);
+                              });
+                              _refreshFeed();
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                   childCount: _posts.length,
                 ),
               ),

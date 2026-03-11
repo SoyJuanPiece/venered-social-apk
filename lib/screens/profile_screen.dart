@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:venered_social/screens/chat_screen.dart';
 import 'package:venered_social/screens/edit_profile_screen.dart';
 import 'package:venered_social/widgets/post_card.dart';
+import '../utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -45,40 +46,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (myId == null || _profile == null) return;
     if (widget.userId == myId) return;
 
-    try {
-      final existing = await supabase
-          .from('conversations')
-          .select('id')
-          .or('and(user1_id.eq.$myId,user2_id.eq.${widget.userId}),and(user1_id.eq.${widget.userId},user2_id.eq.$myId)')
-          .maybeSingle();
-
-      String convId;
-      if (existing != null) {
-        convId = existing['id'];
-      } else {
-        final newConv = await supabase.from('conversations').insert({
-          'user1_id': myId,
-          'user2_id': widget.userId,
-        }).select('id').single();
-        convId = newConv['id'];
-      }
-
-      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ChatScreen(
-            conversationId: convId,
+            otherId: widget.userId,
             otherUser: _profile!,
           ),
         ),
       );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir el chat')),
-      );
-    }
   }
 
   @override
@@ -217,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       return GestureDetector(
                         onTap: () => _showPostDetail(post),
                         child: media != null
-                            ? Image.network(media, fit: BoxFit.cover,
+                            ? Image.network(webSafeUrl(media), fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Container(
                                   color: theme.cardColor,
                                   child: Icon(Icons.broken_image_outlined, color: Colors.grey[500]),
@@ -289,7 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         decoration: BoxDecoration(color: theme.scaffoldBackgroundColor, shape: BoxShape.circle),
         child: CircleAvatar(
           radius: radius,
-          backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+          backgroundImage: avatar != null ? NetworkImage(webSafeUrl(avatar)) : null,
           onBackgroundImageError: (_, __) {},
           backgroundColor: Colors.grey[200],
           child: avatar == null ? Icon(Icons.person, size: radius, color: Colors.grey) : null,
