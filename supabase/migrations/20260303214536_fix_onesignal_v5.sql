@@ -13,8 +13,8 @@ DECLARE
   notif_title TEXT;
   notif_body TEXT;
   recent_count INTEGER;
-  onesignal_app_id TEXT := '7bbfe4e6-c2e8-40da-96eb-cfc528bcb6e6';
-  onesignal_api_key TEXT := 'os_v2_app_po76jzwc5banvfxlz7csrpfw4ym765qku7be4zm4xoegs7mlyyd5nrbf5w2lsedjl5tvwnri4hmulzvb3qi5guivug52xydq2jr2hza';
+  onesignal_app_id TEXT := '';
+  onesignal_api_key TEXT := '';
 BEGIN
   -- A. Obtener nombre del remitente
   SELECT COALESCE(username, 'Alguien') INTO sender_name 
@@ -77,8 +77,19 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Re-crear el Trigger
-DROP TRIGGER IF EXISTS on_notification_send_onesignal ON public.notifications;
-CREATE TRIGGER on_notification_send_onesignal
-  AFTER INSERT ON public.notifications
-  FOR EACH ROW EXECUTE FUNCTION public.send_onesignal_notification();
+-- 3. Re-crear el Trigger (solo si la tabla existe)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'notifications'
+  ) THEN
+    DROP TRIGGER IF EXISTS on_notification_send_onesignal ON public.notifications;
+    CREATE TRIGGER on_notification_send_onesignal
+      AFTER INSERT ON public.notifications
+      FOR EACH ROW EXECUTE FUNCTION public.send_onesignal_notification();
+  END IF;
+END
+$$;
