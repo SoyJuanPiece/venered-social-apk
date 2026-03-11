@@ -192,9 +192,20 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
               )
             else if (_posts.isEmpty)
               SliverFillRemaining(
+                hasScrollBody: false,
+                fillOverscroll: true,
                 child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: theme.dividerColor.withOpacity(0.4),
+                      ),
+                    ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -224,7 +235,7 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                         const SizedBox(height: 10),
                         Text(
                           _feedError == null
-                              ? 'Cuando alguien publique algo, aparecerá aquí. También puedes crear tu primera publicación.'
+                              ? 'La app está funcionando, pero este proyecto no tiene posts visibles todavía.'
                               : 'Revisa tu conexión o intenta refrescar deslizando hacia abajo.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.poppins(color: Colors.grey, fontSize: 13),
