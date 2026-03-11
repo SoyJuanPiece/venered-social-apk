@@ -20,6 +20,7 @@ class HomeFeedScreen extends StatefulWidget {
 class _HomeFeedScreenState extends State<HomeFeedScreen> {
   List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
+  String? _feedError;
   int _pageSize = 15;
   int _offset = 0;
   bool _hasMore = true;
@@ -47,7 +48,15 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
   Future<void> _refreshFeed() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        if (mounted) {
+          setState(() {
+            _feedError = 'No se encontró la sesión. Vuelve a iniciar sesión.';
+            _isLoading = false;
+          });
+        }
+        return;
+      }
 
       // Usar la vista optimizada v6.0 que ya incluye likes_count y datos de perfil
       // Sin filtro por estado ya que la vista puede no incluir esa columna
@@ -66,12 +75,18 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
           _posts = newPosts;
           _offset = _pageSize;
           _hasMore = newPosts.length >= _pageSize;
+          _feedError = null;
           _isLoading = false;
         });
       }
     } catch (e) {
       dPrint('Error fetching posts: $e');
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _feedError = 'No se pudo cargar el feed.';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -170,16 +185,49 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
             else if (_posts.isEmpty)
               SliverFillRemaining(
                 child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.feed_outlined, size: 64, color: Colors.grey[300]),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Aún no hay publicaciones.',
-                        style: GoogleFonts.poppins(color: Colors.grey, fontSize: 16),
-                      ),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6366F1), Color(0xFFEC4899)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: const Icon(Icons.dynamic_feed_rounded, size: 42, color: Colors.white),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          _feedError ?? 'Aún no hay publicaciones.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            color: theme.colorScheme.onSurface,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          _feedError == null
+                              ? 'Cuando alguien publique algo, aparecerá aquí. También puedes crear tu primera publicación.'
+                              : 'Revisa tu conexión o intenta refrescar deslizando hacia abajo.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(color: Colors.grey, fontSize: 13),
+                        ),
+                        const SizedBox(height: 18),
+                        ElevatedButton(
+                          onPressed: _refreshFeed,
+                          child: Text(_feedError == null ? 'Actualizar feed' : 'Reintentar'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               )

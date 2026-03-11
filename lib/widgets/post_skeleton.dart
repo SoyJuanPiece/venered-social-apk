@@ -7,14 +7,17 @@ class PostSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? Colors.grey[900]! : Colors.grey[300]!;
-    final highlightColor = isDark ? Colors.grey[800]! : Colors.grey[100]!;
+    final baseColor = isDark ? const Color(0xFF23243A) : Colors.grey[300]!;
+    final highlightColor = isDark ? const Color(0xFF3B3E63) : Colors.grey[100]!;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04),
+        ),
       ),
       child: Shimmer.fromColors(
         baseColor: baseColor,
