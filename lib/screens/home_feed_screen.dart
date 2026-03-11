@@ -66,19 +66,11 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
-      final userProfile = await Supabase.instance.client
-          .from('profiles')
-          .select('estado')
-          .eq('id', user.id)
-          .single();
-      
-      final userEstado = userProfile['estado'] as String?;
-
       // Usar la vista optimizada v6.0 que ya incluye likes_count y datos de perfil
+      // Sin filtro por estado ya que la vista puede no incluir esa columna
       final response = await Supabase.instance.client
           .from('posts_with_likes_count')
           .select()
-          .eq('estado', userEstado ?? '')
           .order('created_at', ascending: false);
 
       final newPosts = List<Map<String, dynamic>>.from(response);

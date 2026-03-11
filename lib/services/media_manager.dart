@@ -34,6 +34,10 @@ class MediaManager {
   // --- SUBIDA DE IMÁGENES A IMGBB ---
   static Future<String?> uploadToImgBB(File file) async {
     try {
+      if (kIsWeb) {
+        dPrint('Error ImgBB: Upload no soportado en Web (requiere dart:io)');
+        return null;
+      }
       final compressed = await compressImage(file);
       final uploadFile = compressed ?? file;
       final request = http.MultipartRequest('POST', Uri.parse('https://api.imgbb.com/1/upload?key=$imgbbApiKey'))
@@ -48,6 +52,10 @@ class MediaManager {
   // --- SUBIDA A TELEGRAM (Videos/Voz) --- CORREGIDO CONTENT-TYPE
   static Future<Map<String, dynamic>?> uploadToTelegram(File file, {bool isStory = true}) async {
     try {
+      if (kIsWeb) {
+        dPrint('Error Técnico Telegram: Upload no soportado en Web (requiere dart:io)');
+        return null;
+      }
       var request = http.MultipartRequest('POST', Uri.parse(telegramServerUrl));
       
       // DETECTAR TIPO DE ARCHIVO PARA EVITAR "FORMATO NO SOPORTADO"
