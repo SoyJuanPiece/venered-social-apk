@@ -2,6 +2,13 @@
 
 ## 🚀 Logros Recientes
 
+### 0. Estabilización de Build y CI (Marzo 2026)
+- **Build Flutter corregido:** Se solucionó el error de compilación por parámetro faltante en `ProfileScreen` (`userId` requerido desde navegación principal).
+- **GitHub Actions robustecido:** Se corrigió la restauración de `google-services.json` desde secrets y se añadió validación del JSON antes de compilar.
+- **Permisos de release arreglados:** Se agregó `permissions: contents: write` en el workflow para permitir crear releases sin error `403`.
+- **Disparo por tags validado:** Se confirmaron ejecuciones con tags semánticos (`v1.2.x`) y funcionamiento del pipeline de build.
+- **Conexión Supabase verificada:** La app y el entorno responden correctamente contra Auth y REST del proyecto (`HTTP 200`).
+
 ### 1. Migración y Limpieza de Base de Datos (Supabase)
 - **Nuevo Proyecto:** Migración total a la instancia `ywbqkzvsqgyxgmguxwam`.
 - **Master Setup v3.0:** Se implementó un script maestro robusto que crea todo el ecosistema:
@@ -28,7 +35,7 @@
 ## 🛠️ Estado Actual
 - **Base de Datos:** 100% Configurada y Segura (RLS Activo).
 - **Notificaciones:** Funcionando vía Firebase (Priority High).
-- **APK:** Generándose automáticamente en GitHub Releases.
+- **APK:** Pipeline de compilación y release operativo en GitHub Actions.
 
 ---
-*Actualizado el 03 de Marzo de 2026*
+*Actualizado el 11 de Marzo de 2026*
