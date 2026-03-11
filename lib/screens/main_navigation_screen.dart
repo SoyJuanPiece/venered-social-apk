@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/home_feed_screen.dart';
 import 'package:venered_social/screens/profile_screen.dart';
 import 'package:venered_social/screens/create_post_screen.dart';
@@ -13,12 +14,15 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
+  final String? _currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
-  final List<Widget> _screens = [
+  List<Widget> get _screens => [
     const HomeFeedScreen(),
     const ExploreScreen(),
     CreatePostScreen(),
-    const ProfileScreen(),
+    _currentUserId == null
+        ? const Scaffold(body: Center(child: Text('Debes iniciar sesion para ver tu perfil')))
+        : ProfileScreen(userId: _currentUserId!),
   ];
 
   @override
