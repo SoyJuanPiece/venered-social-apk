@@ -22,8 +22,8 @@ jobs:
           import sys
 
           secret = os.getenv("GOOGLE_SERVICES_JSON_SECRET", "").strip()
-          if not secret:
-            print("::error::Missing GOOGLE_SERVICES_JSON secret")
+            if not secret:
+              print("::error::Missing Firebase secret. Define GOOGLE_SERVICES_JSON or GOOGLE_SERVICES_JSON_SECRET in repository secrets")
             sys.exit(1)
 
           os.makedirs("android/app", exist_ok=True)
@@ -51,7 +51,7 @@ jobs:
           sys.exit(1)
           PY
         env:
-          GOOGLE_SERVICES_JSON_SECRET: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVICES_JSON_SECRET: ${{ secrets.GOOGLE_SERVICES_JSON || secrets.GOOGLE_SERVICES_JSON_SECRET }}
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
