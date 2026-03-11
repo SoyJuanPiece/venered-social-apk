@@ -63,6 +63,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     final story = widget.stories[index];
     final storyId = story['id'].toString();
     final fileId = story['file_id'];
+    final mediaUrl = story['media_url'];
+    final mediaType = (story['media_type'] ?? story['type'] ?? 'photo').toString();
     final myId = Supabase.instance.client.auth.currentUser?.id;
 
     try {
@@ -83,19 +85,24 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       if (localPath != null && await File(localPath).exists()) {
         _displayPath = localPath;
         _isLocal = true;
-      } else {
+      } else if (mediaUrl != null && mediaUrl.toString().isNotEmpty) {
+        _displayPath = mediaUrl.toString();
+        _isLocal = false;
+      } else if (fileId != null && fileId.toString().isNotEmpty) {
         final serverUrl = MediaManager.telegramServerUrl.replaceAll('/upload', '/api/url/$fileId');
         final response = await http.get(Uri.parse(serverUrl));
-        
+
         if (response.statusCode == 200) {
           final url = json.decode(response.body)['url'];
-          localPath = await MediaManager.downloadAndCache(storyId, url, story['media_type']);
+          localPath = await MediaManager.downloadAndCache(storyId, url, mediaType == 'image' ? 'photo' : mediaType);
           _displayPath = localPath ?? url;
           _isLocal = localPath != null;
         }
+      } else {
+        throw 'Historia sin archivo asociado';
       }
 
-      if (story['media_type'] == 'video') {
+      if (mediaType == 'video') {
         _videoController = _isLocal 
             ? VideoPlayerController.file(File(_displayPath!))
             : VideoPlayerController.networkUrl(Uri.parse(_displayPath!));
@@ -206,12 +213,33 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       setState(() => _isUploadingNew = true);
       try {
         final result = await MediaManager.uploadToTelegram(File(file.path), isStory: true);
-        if (result != null && result['file_id'] != null) {
-          final res = await Supabase.instance.client.from('stories').insert({
-            'user_id': user.id,
-            'file_id': result['file_id'],
-            'media_type': (source == 'video') ? 'video' : 'photo',
-          }).select().single();
+        if (result != null) {
+          final fileId = result['file_id'] ?? result['result']?['video']?['file_id'];
+          final mediaUrl = result['url'] ?? result['media_url'];
+          final mediaType = (source == 'video') ? 'video' : 'photo';
+          Map<String, dynamic>? res;
+
+          if (fileId != null) {
+            try {
+              res = await Supabase.instance.client.from('stories').insert({
+                'user_id': user.id,
+                'file_id': fileId,
+                'media_type': mediaType,
+              }).select().single();
+            } catch (_) {}
+          }
+
+          if (res == null && mediaUrl != null) {
+            res = await Supabase.instance.client.from('stories').insert({
+              'user_id': user.id,
+              'media_url': mediaUrl,
+              'type': mediaType,
+            }).select().single();
+          }
+
+          if (res == null) {
+            throw 'No se pudo guardar la historia.';
+          }
 
           await MediaManager.registerLocalMedia(res['id'].toString(), file.path, (source == 'video') ? 'video' : 'photo');
           

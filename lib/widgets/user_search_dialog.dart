@@ -16,7 +16,8 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
   bool _loading = false;
 
   void _performSearch(String query) async {
-    if (query.isEmpty) {
+    final q = query.trim();
+    if (q.isEmpty) {
       setState(() => _results = []);
       return;
     }
@@ -25,8 +26,8 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
     try {
       final results = await supabase
           .from('profiles')
-          .select('id,username,avatar_url')
-          .ilike('username', '%$query%')
+          .select('id,username,display_name,avatar_url')
+          .or('username.ilike.%$q%,display_name.ilike.%$q%')
           .limit(10);
       setState(() {
         _loading = false;
@@ -43,6 +44,12 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
 
   void _selectUser(Map<String, dynamic> user) {
     Navigator.pop(context, user);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -80,10 +87,18 @@ class _UserSearchDialogState extends State<UserSearchDialog> {
                             : null,
                       ),
                       title: Text(item['username'] ?? ''),
+                      subtitle: (item['display_name'] != null && item['display_name'].toString().isNotEmpty)
+                          ? Text(item['display_name'])
+                          : null,
                       onTap: () => _selectUser(item),
                     );
                 },
               ),
+            ),
+          if (!_loading && _controller.text.trim().isNotEmpty && _results.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Sin resultados'),
             ),
         ],
       ),

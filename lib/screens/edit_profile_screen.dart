@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:postgrest/postgrest.dart';
 import 'dart:io';
 import 'package:venered_social/utils.dart';
 import 'package:venered_social/services/media_manager.dart';
@@ -45,7 +46,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        throw 'Sesion expirada. Inicia sesion de nuevo.';
+      }
+      final userId = user.id;
       String? avatarUrl = widget.initialProfile['avatar_url'];
 
       if (_newProfilePicFile != null) {
@@ -66,6 +71,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Perfil actualizado!')));
       }
+    } on PostgrestException catch (e) {
+      final msg = e.message.toLowerCase().contains('duplicate') || e.message.toLowerCase().contains('unique')
+          ? 'Ese nombre de usuario ya existe.'
+          : 'No se pudo actualizar el perfil: ${e.message}';
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
@@ -100,9 +110,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              TextFormField(controller: _usernameController, decoration: const InputDecoration(labelText: 'Nombre de usuario')),
+              TextFormField(
+                controller: _usernameController,
+                decoration: const InputDecoration(labelText: 'Nombre de usuario'),
+                validator: (value) {
+                  final v = (value ?? '').trim();
+                  if (v.isEmpty) return 'El nombre de usuario es obligatorio';
+                  if (v.length < 3) return 'Minimo 3 caracteres';
+                  if (!RegExp(r'^[a-zA-Z0-9_\.]+$').hasMatch(v)) {
+                    return 'Solo letras, numeros, punto y guion bajo';
+                  }
+                  return null;
+                },
+              ),
               const SizedBox(height: 16),
-              TextFormField(controller: _displayNameController, decoration: const InputDecoration(labelText: 'Nombre para mostrar')),
+              TextFormField(
+                controller: _displayNameController,
+                decoration: const InputDecoration(labelText: 'Nombre para mostrar'),
+                validator: (value) {
+                  if ((value ?? '').trim().isEmpty) return 'Ingresa un nombre para mostrar';
+                  return null;
+                },
+              ),
               const SizedBox(height: 16),
               TextFormField(controller: _bioController, decoration: const InputDecoration(labelText: 'Biografía'), maxLines: 3),
               const SizedBox(height: 16),

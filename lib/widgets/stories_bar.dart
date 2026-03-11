@@ -88,21 +88,44 @@ class _StoriesBarState extends State<StoriesBar> {
     if (file != null) {
       setState(() => _isUploading = true);
       try {
-        String? mediaUrl;
-        if (isVideo) {
-          mediaUrl = await MediaManager.uploadVideoToTelegram(File(file.path));
-        } else {
-          mediaUrl = await MediaManager.uploadToImgBB(File(file.path));
+        final upload = await MediaManager.uploadToTelegram(File(file.path), isStory: true);
+        if (upload == null) {
+          throw 'No se pudo subir el archivo.';
         }
 
-        if (mediaUrl != null) {
+        final String? fileId = upload['file_id'] ?? upload['result']?['video']?['file_id'];
+        final String? mediaUrl = upload['url'] ?? upload['media_url'];
+        final mediaType = isVideo ? 'video' : 'photo';
+
+        bool inserted = false;
+
+        // Soporta esquema antiguo: stories(file_id, media_type)
+        if (fileId != null) {
+          try {
+            await Supabase.instance.client.from('stories').insert({
+              'user_id': user.id,
+              'file_id': fileId,
+              'media_type': mediaType,
+            });
+            inserted = true;
+          } catch (_) {}
+        }
+
+        // Soporta esquema nuevo: stories(media_url, type)
+        if (!inserted && mediaUrl != null) {
           await Supabase.instance.client.from('stories').insert({
             'user_id': user.id,
             'media_url': mediaUrl,
-            'type': isVideo ? 'video' : 'image',
+            'type': mediaType,
           });
-          _refreshStories();
+          inserted = true;
         }
+
+        if (!inserted) {
+          throw 'No se pudo guardar la historia en la base de datos.';
+        }
+
+        _refreshStories();
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       } finally { if (mounted) setState(() => _isUploading = false); }
