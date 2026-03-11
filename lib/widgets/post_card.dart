@@ -36,6 +36,8 @@ class _PostCardState extends State<PostCard> {
 
   Future<void> _toggleLike() async {
     final myId = supabase.auth.currentUser!.id;
+    final previousIsLiked = _isLiked;
+    final previousCount = _likesCount;
     setState(() { _isLiked = !_isLiked; _likesCount += _isLiked ? 1 : -1; });
     try {
       if (_isLiked) {
@@ -43,7 +45,16 @@ class _PostCardState extends State<PostCard> {
       } else {
         await supabase.from('likes').delete().eq('post_id', widget.post['id']).eq('user_id', myId);
       }
-    } catch (_) {}
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLiked = previousIsLiked;
+        _likesCount = previousCount;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No tienes permisos para dar like aún')),
+      );
+    }
   }
 
   @override
@@ -61,7 +72,11 @@ class _PostCardState extends State<PostCard> {
           ListTile(
             leading: GestureDetector(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileScreen(userId: widget.post['user_id']))),
-              child: CircleAvatar(backgroundImage: avatar != null ? NetworkImage(avatar) : null),
+              child: CircleAvatar(
+                backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+                onBackgroundImageError: (_, __) {},
+                child: avatar == null ? const Icon(Icons.person) : null,
+              ),
             ),
             title: Text(widget.post['username'] ?? 'Usuario', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(widget.post['estado'] ?? '', style: const TextStyle(fontSize: 12)),
@@ -69,7 +84,17 @@ class _PostCardState extends State<PostCard> {
           if (media != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(media, fit: BoxFit.cover, width: double.infinity),
+              child: Image.network(
+                media,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 220,
+                  color: Colors.black12,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.broken_image_outlined, size: 36),
+                ),
+              ),
             ),
           Padding(
             padding: const EdgeInsets.all(16),
