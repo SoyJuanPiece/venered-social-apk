@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:venered_social/screens/home_feed_screen.dart';
-import 'package:venered_social/screens/profile_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:venered_social/screens/create_post_screen.dart';
 import 'package:venered_social/screens/explore_screen.dart';
+import 'package:venered_social/screens/home_feed_screen.dart';
 import 'package:venered_social/screens/messages_screen.dart';
-import 'package:venered_social/widgets/fade_slide_in.dart';
+import 'package:venered_social/screens/profile_screen.dart';
 import 'package:venered_social/services/logger_service.dart';
+import 'package:venered_social/widgets/fade_slide_in.dart';
 
 class _NavItem {
   final IconData icon;
@@ -18,15 +18,15 @@ class _NavItem {
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
+
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
-  late Stream<int> _unreadStream;
-  final String? _currentUserId =
-      Supabase.instance.client.auth.currentUser?.id;
+  late final Stream<int> _unreadStream;
+  final String? _currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
   static const List<_NavItem> _navItems = [
     _NavItem(Icons.home_outlined, Icons.home_rounded, 'Inicio'),
@@ -39,12 +39,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   List<Widget> get _screens => [
         const HomeFeedScreen(),
         const ExploreScreen(),
-        CreatePostScreen(),
+        const CreatePostScreen(),
         const MessagesScreen(),
         _currentUserId == null
-            ? const Scaffold(
-                body: Center(
-                    child: Text('Inicia sesión para ver tu perfil')))
+            ? const Scaffold(body: Center(child: Text('Inicia sesión para ver tu perfil')))
             : ProfileScreen(userId: _currentUserId!),
       ];
 
@@ -60,24 +58,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return Supabase.instance.client
         .from('messages')
         .stream(primaryKey: ['id'])
-        .map((rows) => rows
-            .where((m) =>
-                m['receiver_id'] == user.id && m['is_read'] == false)
-            .length)
+        .map((rows) => rows.where((m) => m['receiver_id'] == user.id && m['is_read'] == false).length)
         .handleError((_) => 0);
   }
 
   @override
   Widget build(BuildContext context) {
     LoggerService.log('MainNavigationScreen build', 'selectedIndex=$_selectedIndex');
-    return LayoutBuilder(builder: (context, constraints) {
-      return constraints.maxWidth >= 800
-          ? _buildWideLayout(context)
-          : _buildNarrowLayout(context);
-    });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return constraints.maxWidth >= 800 ? _buildWideLayout(context) : _buildNarrowLayout(context);
+      },
+    );
   }
 
-  // ── WEB / TABLET ──────────────────────────────────────────────────────────
   Widget _buildWideLayout(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -86,9 +80,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       body: Row(
         children: [
           _buildSidebar(theme, isDark),
-          Expanded(
-              child: IndexedStack(
-                  index: _selectedIndex, children: _screens)),
+          Expanded(child: _screens[_selectedIndex]),
         ],
       ),
     );
@@ -101,9 +93,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         color: isDark ? const Color(0xFF0C0C1A) : Colors.white,
         border: Border(
           right: BorderSide(
-            color: isDark
-                ? const Color(0xFF1E1E36)
-                : const Color(0xFFE8EDF5),
+            color: isDark ? const Color(0xFF1E1E36) : const Color(0xFFE8EDF5),
             width: 1,
           ),
         ),
@@ -139,9 +129,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                       child: StreamBuilder<int>(
                         stream: _unreadStream,
                         initialData: 0,
-                        builder: (_, snap) => _sidebarItem(
-                            theme, isDark, i,
-                            badge: snap.data ?? 0),
+                        builder: (_, snap) => _sidebarItem(theme, isDark, i, badge: snap.data ?? 0),
                       ),
                     );
                   }
@@ -159,8 +147,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
-  Widget _sidebarItem(ThemeData theme, bool isDark, int index,
-      {int badge = 0}) {
+  Widget _sidebarItem(ThemeData theme, bool isDark, int index, {int badge = 0}) {
     final item = _navItems[index];
     final isSelected = _selectedIndex == index;
     return Padding(
@@ -173,17 +160,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           onTap: () => setState(() => _selectedIndex = index),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
               gradient: isSelected
                   ? LinearGradient(
                       colors: [
-                        const Color(0xFF6366F1)
-                            .withOpacity(isDark ? 0.22 : 0.12),
-                        const Color(0xFFEC4899)
-                            .withOpacity(isDark ? 0.08 : 0.04),
+                        const Color(0xFF6366F1).withOpacity(isDark ? 0.22 : 0.12),
+                        const Color(0xFFEC4899).withOpacity(isDark ? 0.08 : 0.04),
                       ],
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
@@ -194,14 +178,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               children: [
                 ShaderMask(
                   shaderCallback: (b) => (isSelected
-                          ? const LinearGradient(colors: [
-                              Color(0xFF818CF8),
-                              Color(0xFFF472B6)
-                            ])
-                          : LinearGradient(colors: [
-                              Colors.grey.shade500,
-                              Colors.grey.shade500
-                            ]))
+                          ? const LinearGradient(colors: [Color(0xFF818CF8), Color(0xFFF472B6)])
+                          : LinearGradient(colors: [Colors.grey.shade500, Colors.grey.shade500]))
                       .createShader(b),
                   child: Icon(
                     isSelected ? item.activeIcon : item.icon,
@@ -215,31 +193,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     item.label,
                     style: GoogleFonts.poppins(
                       fontSize: 15,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w400,
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface.withOpacity(0.6),
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                      color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                 ),
                 if (badge > 0)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [
-                        Color(0xFF6366F1),
-                        Color(0xFFEC4899)
-                      ]),
+                      gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text('$badge',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold)),
+                    child: Text(
+                      '$badge',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
                   ),
               ],
             ),
@@ -249,11 +218,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
-  // ── MOBILE ────────────────────────────────────────────────────────────────
   Widget _buildNarrowLayout(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 180),
         child: KeyedSubtree(
@@ -261,54 +230,54 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           child: _screens[_selectedIndex],
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0C0C1A) : Colors.white,
-          border: Border(
-            top: BorderSide(
-              color: isDark
-                  ? Colors.white.withOpacity(0.06)
-                  : Colors.black.withOpacity(0.06),
-              width: 0.5,
+      bottomNavigationBar: MediaQuery.removeViewInsets(
+        removeBottom: true,
+        context: context,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0C0C1A) : Colors.white,
+            border: Border(
+              top: BorderSide(
+                color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
+                width: 0.5,
+              ),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.5 : 0.1),
+                blurRadius: 24,
+                offset: const Offset(0, -4),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.5 : 0.1),
-              blurRadius: 24,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            child: StreamBuilder<int>(
-              stream: _unreadStream,
-              initialData: 0,
-              builder: (_, snap) {
-                final unread = snap.data ?? 0;
-                return Row(
-                  children: List.generate(_navItems.length, (i) {
-                    if (i == 2) {
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: StreamBuilder<int>(
+                stream: _unreadStream,
+                initialData: 0,
+                builder: (_, snap) {
+                  final unread = snap.data ?? 0;
+                  return Row(
+                    children: List.generate(_navItems.length, (i) {
+                      if (i == 2) {
+                        return Expanded(
+                          child: FadeSlideIn(
+                            delay: const Duration(milliseconds: 80),
+                            child: _createButton(context),
+                          ),
+                        );
+                      }
                       return Expanded(
                         child: FadeSlideIn(
-                          delay: const Duration(milliseconds: 80),
-                          child: _createButton(context),
+                          delay: Duration(milliseconds: 40 + (i * 30)),
+                          child: _bottomNavItem(context, i, i == 3 ? unread : 0),
                         ),
                       );
-                    }
-                    return Expanded(
-                      child: FadeSlideIn(
-                        delay: Duration(milliseconds: 40 + (i * 30)),
-                        child: _bottomNavItem(
-                            context, i, i == 3 ? unread : 0),
-                      ),
-                    );
-                  }),
-                );
-              },
+                    }),
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -332,14 +301,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               child: ShaderMask(
                 key: ValueKey(isSelected),
                 shaderCallback: (b) => (isSelected
-                        ? const LinearGradient(colors: [
-                            Color(0xFF818CF8),
-                            Color(0xFFF472B6)
-                          ])
-                        : LinearGradient(colors: [
-                            Colors.grey.shade600,
-                            Colors.grey.shade600
-                          ]))
+                        ? const LinearGradient(colors: [Color(0xFF818CF8), Color(0xFFF472B6)])
+                        : LinearGradient(colors: [Colors.grey.shade600, Colors.grey.shade600]))
                     .createShader(b),
                 child: Icon(
                   isSelected ? item.activeIcon : item.icon,
@@ -355,8 +318,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   width: 4,
                   height: 4,
                   decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                        colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
+                    gradient: LinearGradient(colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -369,16 +331,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   width: 16,
                   height: 16,
                   decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                        colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
+                    gradient: LinearGradient(colors: [Color(0xFF6366F1), Color(0xFFEC4899)]),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: Text('$badge',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold)),
+                    child: Text(
+                      '$badge',
+                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ),
