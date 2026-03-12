@@ -8,6 +8,8 @@ import '../services/logger_service.dart';
 import 'package:venered_social/widgets/post_card.dart';
 import 'package:venered_social/widgets/post_skeleton.dart';
 import 'package:venered_social/screens/notifications_screen.dart';
+import 'package:venered_social/screens/create_post_screen.dart';
+import 'package:venered_social/screens/explore_screen.dart';
 import 'package:venered_social/widgets/stories_bar.dart';
 import 'package:venered_social/widgets/fade_slide_in.dart';
 
@@ -241,9 +243,37 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                           style: GoogleFonts.poppins(color: Colors.grey, fontSize: 13),
                         ),
                         const SizedBox(height: 18),
+                        if (_feedError == null) ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+                                );
+                              },
+                              icon: const Icon(Icons.add_rounded),
+                              label: const Text('Crear mi primer post'),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const ExploreScreen()),
+                                );
+                              },
+                              icon: const Icon(Icons.explore_rounded),
+                              label: const Text('Explorar usuarios'),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
                         ElevatedButton(
                           onPressed: _refreshFeed,
-                          child: Text(_feedError == null ? 'Actualizar feed' : 'Reintentar'),
+                          child: Text(_feedError == null ? 'Volver a cargar' : 'Reintentar'),
                         ),
                       ],
                     ),

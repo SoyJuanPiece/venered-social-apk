@@ -223,13 +223,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 180),
-        child: KeyedSubtree(
-          key: ValueKey(_selectedIndex),
-          child: _screens[_selectedIndex],
-        ),
-      ),
+      body: _screens[_selectedIndex],
       bottomNavigationBar: MediaQuery.removeViewInsets(
         removeBottom: true,
         context: context,
