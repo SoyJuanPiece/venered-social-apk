@@ -1,33 +1,57 @@
 # Venered Social
 
-Una red social moderna tipo Instagram/Threads, hecha en Flutter, con diseño Premium y notificaciones en tiempo real.
+Red social tipo Instagram/Threads construida en Flutter con Supabase, mensajeria en tiempo real, historias y pipeline de APK automatizado.
 
-## Características principales
-- ✨ **Diseño Premium:** Estética moderna con Google Fonts (Poppins) y gradientes vibrantes.
-- 📱 **Multiplataforma:** Optimizada para Android (APK/AAB) y Web.
-- ✉️ **Mensajería Directa:** Chats en tiempo real con indicadores de presencia y mensajes no leídos.
-- 🔔 **Notificaciones Push:** Integración con Firebase Cloud Messaging y Supabase Realtime.
-- 👤 **Perfiles Completos:** Gestión de seguidores, seguidos, biografía y fotos de perfil.
-- 🌑 **Modo Oscuro/Claro:** Adaptabilidad total según las preferencias del sistema.
+## Caracteristicas principales
+- Feed con posts, likes y comentarios.
+- Historias con expiracion y viewer interactivo.
+- Chat en tiempo real.
+- Notificaciones push con Firebase FCM.
+- Perfil editable, seguidores/seguidos y paneles auxiliares (moderacion/verificacion).
+- Soporte multiplataforma (Android, iOS, Web, Desktop).
 
-## Instalación y ejecución
+## Politica multimedia actual
+- Imagenes:
+   - Perfil, posts, mensajes e historias usan ImgBB.
+   - Nombres de archivos estandarizados por categoria/usuario.
+- Video:
+   - Solo historias en movil mediante backend Telegram.
+   - En web, video de historias esta deshabilitado mientras el backend siga sin HTTPS.
 
-1. Instala Flutter 3.35.x o superior.
-2. Configura tu proyecto en Supabase y Firebase.
-3. Ejecuta:
-   ```bash
-   flutter pub get
-   flutter run
-   ```
+## Stack
+- Flutter `3.24.5` (Dart `3.5.4`).
+- Supabase (Auth, Postgres, Realtime, Storage).
+- Firebase Cloud Messaging para push.
+- Backend Node/Express en `almacenamiento-temporal` para flujo hibrido de historias.
 
-## ⚖️ Licencia
+## Estructura relevante
+- `lib/`: app Flutter.
+- `supabase/`: SQL y configuracion backend.
+- `almacenamiento-temporal/`: servicio Node para historias/media.
+- `test/`: pruebas de widgets y flujo base.
 
-Este proyecto es de **Código Visible (Source Available)** pero bajo una **Licencia de Uso Personal y No Comercial**.
+## Ejecucion local
 
-- ✅ Se permite: Ver, estudiar, descargar y modificar el código para fines de aprendizaje.
-- ❌ Se prohíbe: Copiar la aplicación, redistribuirla, venderla o utilizarla para crear productos comerciales que compitan con Venered Social.
+### Flutter
+```bash
+flutter pub get
+flutter run
+```
 
-Consulta el archivo [LICENSE](LICENSE) para ver los términos legales completos.
+### Backend de historias (Node)
+```bash
+cd almacenamiento-temporal
+npm install
+npm run dev
+```
 
-## Créditos
-Desarrollado por **JuanPiece**.
+## Notas de entorno
+- Si pruebas la app web desde HTTPS (por ejemplo Codespaces), cualquier endpoint HTTP sera bloqueado por el navegador (Mixed Content).
+- Para habilitar video de historias en web se requiere exponer el backend de historias con HTTPS.
+
+## Licencia
+Este proyecto es Source Available con uso personal y no comercial.
+Consulta [LICENSE](LICENSE).
+
+## Creditos
+Desarrollado por JuanPiece.

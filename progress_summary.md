@@ -1,41 +1,53 @@
-# Progreso de Venered Social - v3.0 (Final Setup)
+# Progreso de Venered Social - Estado Actual
 
-## 🚀 Logros Recientes
+## Resumen Ejecutivo
+- App Flutter con backend Supabase + backend hibrido para historias en `almacenamiento-temporal`.
+- CI/CD de APK activo por tags en GitHub Actions.
+- Historias estabilizadas: refresco correcto, navegacion por tap derecha/izquierda y correcciones de reproduccion.
+- Politica multimedia unificada:
+    - Imagenes (perfil, post, mensaje, historia): ImgBB.
+    - Video: solo historias via backend Telegram (en movil).
 
-### 0. Estabilización de Build y CI (Marzo 2026)
-- **Build Flutter corregido:** Se solucionó el error de compilación por parámetro faltante en `ProfileScreen` (`userId` requerido desde navegación principal).
-- **GitHub Actions robustecido:** Se corrigió la restauración de `google-services.json` desde secrets y se añadió validación del JSON antes de compilar.
-- **Permisos de release arreglados:** Se agregó `permissions: contents: write` en el workflow para permitir crear releases sin error `403`.
-- **Disparo por tags validado:** Se confirmaron ejecuciones con tags semánticos (`v1.2.x`) y funcionamiento del pipeline de build.
-- **Conexión Supabase verificada:** La app y el entorno responden correctamente contra Auth y REST del proyecto (`HTTP 200`).
+## Logros Recientes (Marzo 2026)
 
-### 1. Migración y Limpieza de Base de Datos (Supabase)
-- **Nuevo Proyecto:** Migración total a la instancia `ywbqkzvsqgyxgmguxwam`.
-- **Master Setup v3.0:** Se implementó un script maestro robusto que crea todo el ecosistema:
-    - **Módulos Core:** Perfiles (auto-creación), Posts, Likes, Comentarios, Seguidores.
-    - **Mensajería:** Tabla de mensajes y vista de conversaciones para chats en tiempo real.
-    - **Historias (Stories):** Sistema completo con vistas y expiración de 24 horas.
-    - **Moderación:** Sistema de reportes y solicitudes de verificación.
-- **Vistas SQL:** Creadas vistas críticas como `stories_with_profiles` y `posts_with_likes_count` para optimizar la carga de la App.
+### 1) UI y navegacion
+- Barra de navegacion inferior en movil reconstruida para evitar desplazamientos y solapamientos.
+- Feed vacio con estado visual mejorado y acciones rapidas.
+- Corregido overflow menor en el estado vacio del feed.
 
-### 2. Notificaciones Push Definitivas (Firebase FCM)
-- **Migración OneSignal -> Firebase:** Se eliminó OneSignal para usar el sistema nativo y gratuito de Google (FCM).
-- **Registro de Tokens:** La App ahora registra automáticamente el FCM Token de cada dispositivo en Supabase al iniciar sesión.
-- **Trigger SQL:** Se implementó el disparador `send_fcm_push` que envía notificaciones automáticas al móvil cuando hay mensajes, nuevos seguidores o interacciones.
+### 2) Historias
+- Carga y refresco de historias ajustados para que nuevas historias aparezcan sin inconsistencias.
+- Viewer mejorado:
+    - Avance al tocar zona derecha/izquierda.
+    - Manejo de URLs de Telegram expiradas con reintento de URL fresca por `file_id`.
+    - Flujo de agregar/eliminar historia manteniendo estado local del viewer.
+- Banner de estado de almacenamiento oculto para usuarios finales (solo debug).
 
-### 3. Correcciones de la Aplicación (Flutter)
-- **Buscador Arreglado:** Se sincronizaron los nombres de columnas entre la App y la DB (`avatar_url`).
-- **Compatibilidad Android:** Actualización de `desugar_jdk_libs` a la versión 2.1.4 para permitir compilaciones exitosas con las nuevas librerías de Firebase.
-- **Realtime:** Activación de Supabase Realtime en todas las tablas clave para una experiencia fluida.
+### 3) Politica de medios implementada
+- Publicaciones: solo imagen (video removido).
+- ImgBB con nombre estandarizado por categoria y usuario.
+- Backend Telegram forzado para videos de historias en movil.
 
-### 4. Repositorio y CI/CD
-- **Unificación:** Se fusionó la carpeta `almacenamiento-temporal` eliminando dependencias externas.
-- **Automatización:** Tag `1.0` configurado para disparar la compilación automática del APK en GitHub Actions con cada cambio importante.
+### 4) Web vs movil
+- Web:
+    - Historias configuradas para fotos (HTTPS compatible).
+    - Video en historias deshabilitado mientras el endpoint de Telegram siga en HTTP.
+- Movil (APK):
+    - Mantiene flujo completo de historias con video via backend Telegram.
 
-## 🛠️ Estado Actual
-- **Base de Datos:** 100% Configurada y Segura (RLS Activo).
-- **Notificaciones:** Funcionando vía Firebase (Priority High).
-- **APK:** Pipeline de compilación y release operativo en GitHub Actions.
+### 5) CI/CD y build
+- Ajustes de Gradle para evitar fallas de descarga.
+- Builds por tags validadas en varias iteraciones `v1.2.x` y `v1.3.x`.
+
+## Estado Actual
+- Base de datos Supabase operativa con RLS.
+- Realtime activo en modulos principales.
+- Notificaciones push via Firebase FCM.
+- Rama `main` limpia y sincronizada con `origin/main`.
+
+## Pendientes Tecnicos Recomendados
+- Exponer backend de historias por HTTPS para habilitar video tambien en web.
+- Mantener variables de entorno del backend centralizadas para despliegues.
 
 ---
-*Actualizado el 11 de Marzo de 2026*
+Actualizado el 12 de Marzo de 2026

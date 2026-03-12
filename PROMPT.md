@@ -25,7 +25,7 @@ Crea una aplicación móvil completa de red social para Android usando Flutter, 
    - Sistema de likes y comentarios en tiempo real.
    - Mensajería directa (Chat) integrada.
 
-6. **Notificaciones Push Inteligentes (OneSignal):**
+6. **Notificaciones Push Inteligentes (Firebase FCM):**
    - Notificaciones automáticas para Likes, Comentarios, Mensajes y Seguidores.
    - **Control de SPAM:** Lógica de cooldown (15 min) para interacciones repetitivas en el mismo post.
    - **Privacidad:** Los mensajes push ocultan el contenido sensible (Ej: "Tienes un mensaje de Juan").
@@ -45,12 +45,18 @@ Crea una aplicación móvil completa de red social para Android usando Flutter, 
 
 - **Framework:** Flutter 3.24.x o superior.
 - **Backend:** Supabase (Auth, Database, Storage, Realtime, Edge Functions).
-- **Notificaciones:** OneSignal Flutter SDK con automatización vía Triggers SQL.
-- **Geolocalización:** Integración con IP-API (con soporte Cleartext configurado).
+- **Notificaciones:** Firebase Cloud Messaging (FCM) con registro de token en Supabase.
+- **Geolocalización:** Integración con IP-API (con soporte Cleartext configurado en Android).
 - **Gestión de Iconos:** Uso de `flutter_launcher_icons` para branding automatizado.
 - **Base de Datos:**
     - Lógica de negocio protegida por Triggers y Row Level Security (RLS).
     - Scripts organizados en `/supabase` para despliegue maestro (`MASTER_SETUP_VENERED.sql`).
+
+## Politica de Multimedia (estado implementado)
+
+- Imagenes de perfil, posts, mensajes e historias: ImgBB.
+- Video: solo historias en movil mediante backend Telegram.
+- Web: historias en foto; video deshabilitado si backend de historias no expone HTTPS.
 
 ## Requisitos de Diseño
 
