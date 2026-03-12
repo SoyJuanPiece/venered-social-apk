@@ -219,9 +219,25 @@ class _StoriesBarState extends State<StoriesBar> {
           File(filePath),
           isStory: true,
           expiresInSec: selectedDuration,
-          preferLocal: true,
+          preferLocal: false,
+          forceTelegram: true,
         );
         mediaUrl = upload?['url'] ?? upload?['media_url'];
+        final fileId = upload?['file_id'] ?? upload?['result']?['video']?['file_id'];
+        if ((mediaUrl != null && mediaUrl.isNotEmpty) && fileId != null) {
+          try {
+            await Supabase.instance.client.from('stories').insert({
+              'user_id': user.id,
+              'media_url': mediaUrl,
+              'type': 'video',
+              'file_id': fileId,
+              'expires_at': DateTime.now().add(Duration(seconds: selectedDuration)).toIso8601String(),
+            });
+            await _refreshStories();
+            await _refreshStorageStatus();
+            return;
+          } catch (_) {}
+        }
       } else {
         mediaUrl = await MediaManager.uploadToImgBB(
           File(filePath),

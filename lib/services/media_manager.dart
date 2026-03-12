@@ -119,6 +119,7 @@ class MediaManager {
     bool isStory = true,
     int expiresInSec = 86400,
     bool preferLocal = true,
+    bool forceTelegram = false,
   }) async {
     try {
       if (kIsWeb) {
@@ -145,6 +146,7 @@ class MediaManager {
       request.fields['isStory'] = isStory.toString();
       request.fields['expiresInSec'] = expiresInSec.toString();
       request.fields['preferLocal'] = preferLocal.toString();
+      request.fields['forceTelegram'] = forceTelegram.toString();
       var streamedResponse = await request.send().timeout(const Duration(seconds: 90));
       var response = await http.Response.fromStream(streamedResponse);
       

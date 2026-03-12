@@ -32,6 +32,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   bool _isLocal = false;
   int _viewCount = 0;
   bool _isUploadingNew = false;
+  bool _currentStoryIsVideo = false;
   
   late AnimationController _progressController;
 
@@ -66,6 +67,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     final fileId = story['file_id'];
     final mediaUrl = story['media_url'];
     final mediaType = (story['type'] ?? story['media_type'] ?? 'image').toString();
+    _currentStoryIsVideo = mediaType == 'video';
     final myId = Supabase.instance.client.auth.currentUser?.id;
 
     try {
@@ -104,11 +106,32 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       }
 
       if (mediaType == 'video') {
-        _videoController = _isLocal 
+        _videoController = _isLocal
             ? VideoPlayerController.file(File(_displayPath!))
             : VideoPlayerController.networkUrl(Uri.parse(_displayPath!));
-            
-        await _videoController!.initialize();
+
+        try {
+          await _videoController!.initialize();
+        } catch (_) {
+          // Telegram URLs can expire. If file_id exists, fetch a fresh URL and retry once.
+          if (fileId != null && fileId.toString().isNotEmpty) {
+            final freshUrlResp = await http.get(
+              Uri.parse('${MediaManager.telegramServerUrl.replaceAll('/upload', '/api/url')}/$fileId'),
+            );
+            if (freshUrlResp.statusCode == 200) {
+              final freshUrl = json.decode(freshUrlResp.body)['url'] as String?;
+              if (freshUrl != null && freshUrl.isNotEmpty) {
+                _displayPath = freshUrl;
+                _isLocal = false;
+                _videoController?.dispose();
+                _videoController = VideoPlayerController.networkUrl(Uri.parse(freshUrl));
+                await _videoController!.initialize();
+              }
+            }
+          } else {
+            rethrow;
+          }
+        }
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -215,8 +238,29 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       try {
         String? mediaUrl;
         if (source == 'video') {
-          final result = await MediaManager.uploadToTelegram(File(file.path), isStory: true);
+          final result = await MediaManager.uploadToTelegram(
+            File(file.path),
+            isStory: true,
+            preferLocal: false,
+            forceTelegram: true,
+          );
           mediaUrl = result?['url'] ?? result?['media_url'];
+          final fileId = result?['file_id'] ?? result?['result']?['video']?['file_id'];
+          if (mediaUrl != null && mediaUrl.isNotEmpty && fileId != null) {
+            final res = await Supabase.instance.client.from('stories').insert({
+              'user_id': user.id,
+              'media_url': mediaUrl,
+              'type': 'video',
+              'file_id': fileId,
+            }).select().single();
+
+            await MediaManager.registerLocalMedia(res['id'].toString(), file.path, 'video');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Historia añadida!')));
+              Navigator.pop(context);
+            }
+            return;
+          }
         } else {
           mediaUrl = await MediaManager.uploadToImgBB(
             File(file.path),
@@ -227,7 +271,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
 
         final mediaType = (source == 'video') ? 'video' : 'image';
         if (mediaUrl == null || mediaUrl.isEmpty) {
-          throw source == 'video'
+            throw source == 'video'
               ? 'No se pudo subir el video al backend de historias.'
               : 'No se pudo subir la imagen de historia a ImgBB.';
         }
@@ -323,7 +367,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
             Center(
               child: _isLoading || _isUploadingNew
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : (story['media_type'] == 'video'
+                : (_currentStoryIsVideo
                       ? AspectRatio(aspectRatio: _videoController!.value.aspectRatio, child: VideoPlayer(_videoController!))
                       : (_isLocal 
                           ? Image.file(File(_displayPath!), fit: BoxFit.contain)

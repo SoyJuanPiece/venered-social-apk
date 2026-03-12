@@ -231,7 +231,8 @@ app.post('/upload', upload.single('media'), async (req, res) => {
     const isStory = req.body.isStory === 'true';
     const expiresInSec = parseExpiresInSeconds(req.body);
     const nowSec = Math.floor(Date.now() / 1000);
-    const shouldTryLocal = isStory || req.body.preferLocal === 'true';
+    const forceTelegram = req.body.forceTelegram === 'true' || (isStory && fileType === 'video');
+    const shouldTryLocal = !forceTelegram && (isStory || req.body.preferLocal === 'true');
     const hasLocalSpace = storageStatus.freeBytes >= buffer.length;
 
     let newEntry;
