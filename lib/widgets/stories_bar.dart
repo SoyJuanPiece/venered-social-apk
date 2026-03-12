@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -89,40 +90,49 @@ class _StoriesBarState extends State<StoriesBar> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    final isVideo = await showModalBottomSheet<bool>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 20),
-            Text('¿Qué quieres subir?', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildOption(context, Icons.photo, 'Foto', false),
-                _buildOption(context, Icons.videocam, 'Video', true),
-              ],
-            ),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
-    );
+    bool isVideo = false;
 
-    if (isVideo == null) return;
+    if (kIsWeb) {
+      // En web no se puede subir video (backend HTTP bloqueado por Mixed Content)
+      isVideo = false;
+    } else {
+      final picked = await showModalBottomSheet<bool>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) => Container(
+          decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 20),
+              Text('¿Qué quieres subir?', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildOption(context, Icons.photo, 'Foto', false),
+                  _buildOption(context, Icons.videocam, 'Video', true),
+                ],
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      );
+      if (picked == null) return;
+      isVideo = picked;
+    }
+
     final picker = ImagePicker();
     final file = isVideo ? await picker.pickVideo(source: ImageSource.gallery) : await picker.pickImage(source: ImageSource.gallery);
 
     if (file != null) {
-      await _showStoryComposer(file.path, isVideo);
+      final bytes = kIsWeb ? await file.readAsBytes() : null;
+      await _showStoryComposer(file.path, isVideo, webBytes: bytes, fileName: file.name);
     }
   }
 
-  Future<void> _showStoryComposer(String filePath, bool isVideo) async {
+  Future<void> _showStoryComposer(String filePath, bool isVideo, {Uint8List? webBytes, String? fileName}) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
@@ -164,7 +174,9 @@ class _StoriesBarState extends State<StoriesBar> {
                                   ],
                                 ),
                               )
-                            : Image.file(File(filePath), fit: BoxFit.cover),
+                            : (kIsWeb && webBytes != null
+                                ? Image.memory(webBytes, fit: BoxFit.cover)
+                                : Image.file(File(filePath), fit: BoxFit.cover)),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -215,13 +227,24 @@ class _StoriesBarState extends State<StoriesBar> {
       String? mediaUrl;
 
       if (isVideo) {
-        final upload = await MediaManager.uploadToTelegram(
-          File(filePath),
-          isStory: true,
-          expiresInSec: selectedDuration,
-          preferLocal: false,
-          forceTelegram: true,
-        );
+        Map<String, dynamic>? upload;
+        if (kIsWeb && webBytes != null) {
+          upload = await MediaManager.uploadToTelegramBytes(
+            webBytes,
+            filename: fileName ?? 'story.mp4',
+            isStory: true,
+            expiresInSec: selectedDuration,
+            forceTelegram: true,
+          );
+        } else {
+          upload = await MediaManager.uploadToTelegram(
+            File(filePath),
+            isStory: true,
+            expiresInSec: selectedDuration,
+            preferLocal: false,
+            forceTelegram: true,
+          );
+        }
         mediaUrl = upload?['url'] ?? upload?['media_url'];
         final fileId = upload?['file_id'] ?? upload?['result']?['video']?['file_id'];
         if ((mediaUrl != null && mediaUrl.isNotEmpty) && fileId != null) {
@@ -239,11 +262,19 @@ class _StoriesBarState extends State<StoriesBar> {
           } catch (_) {}
         }
       } else {
-        mediaUrl = await MediaManager.uploadToImgBB(
-          File(filePath),
-          category: 'story',
-          userId: user.id,
-        );
+        if (kIsWeb && webBytes != null) {
+          mediaUrl = await MediaManager.uploadImageBytesToImgBB(
+            webBytes,
+            category: 'story',
+            userId: user.id,
+          );
+        } else {
+          mediaUrl = await MediaManager.uploadToImgBB(
+            File(filePath),
+            category: 'story',
+            userId: user.id,
+          );
+        }
       }
 
       if (mediaUrl == null || mediaUrl.isEmpty) {

@@ -164,7 +164,44 @@ class MediaManager {
     return null;
   }
 
+  /// Web-compatible upload using raw bytes
+  static Future<Map<String, dynamic>?> uploadToTelegramBytes(
+    Uint8List bytes, {
+    required String filename,
+    bool isStory = true,
+    int expiresInSec = 86400,
+    bool forceTelegram = false,
+  }) async {
+    try {
+      final ext = filename.split('.').last.toLowerCase();
+      MediaType contentType;
+      if (ext == 'mp4') contentType = MediaType('video', 'mp4');
+      else if (ext == 'jpg' || ext == 'jpeg') contentType = MediaType('image', 'jpeg');
+      else if (ext == 'png') contentType = MediaType('image', 'png');
+      else if (ext == 'webm') contentType = MediaType('video', 'webm');
+      else contentType = MediaType('application', 'octet-stream');
+
+      var request = http.MultipartRequest('POST', Uri.parse(telegramServerUrl));
+      request.files.add(http.MultipartFile.fromBytes(
+        'media',
+        bytes,
+        filename: filename,
+        contentType: contentType,
+      ));
+      request.fields['isStory'] = isStory.toString();
+      request.fields['expiresInSec'] = expiresInSec.toString();
+      request.fields['preferLocal'] = 'false';
+      request.fields['forceTelegram'] = forceTelegram.toString();
+      var streamedResponse = await request.send().timeout(const Duration(seconds: 90));
+      var response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200) return json.decode(response.body);
+      else dPrint('Error Servidor Telegram (bytes): ${response.body}');
+    } catch (e) { dPrint('Error Técnico Telegram (bytes): $e'); }
+    return null;
+  }
+
   static Future<Map<String, dynamic>?> getBackendStorageStatus() async {
+    if (kIsWeb) return null; // Skip on web to avoid Mixed Content errors
     try {
       final uri = Uri.parse(telegramServerUrl.replaceAll('/upload', '/api/storage/status'));
       final response = await http.get(uri).timeout(const Duration(seconds: 15));

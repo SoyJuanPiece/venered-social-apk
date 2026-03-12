@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
@@ -204,48 +205,67 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     if (user == null) return;
 
     final picker = ImagePicker();
-    final source = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(color: Color(0xFF171717), borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Nueva Historia', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.videocam, color: Colors.white)),
-                title: const Text('Video', style: TextStyle(color: Colors.white)),
-                onTap: () => Navigator.pop(context, 'video'),
-              ),
-              ListTile(
-                leading: const CircleAvatar(backgroundColor: Colors.purple, child: Icon(Icons.photo, color: Colors.white)),
-                title: const Text('Foto', style: TextStyle(color: Colors.white)),
-                onTap: () => Navigator.pop(context, 'photo'),
-              ),
-            ],
+    String source;
+
+    if (kIsWeb) {
+      // Web no soporta video (backend HTTP bloqueado por Mixed Content)
+      source = 'photo';
+    } else {
+      final picked = await showModalBottomSheet<String>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) => Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(color: Color(0xFF171717), borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Nueva Historia', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.videocam, color: Colors.white)),
+                  title: const Text('Video', style: TextStyle(color: Colors.white)),
+                  onTap: () => Navigator.pop(context, 'video'),
+                ),
+                ListTile(
+                  leading: const CircleAvatar(backgroundColor: Colors.purple, child: Icon(Icons.photo, color: Colors.white)),
+                  title: const Text('Foto', style: TextStyle(color: Colors.white)),
+                  onTap: () => Navigator.pop(context, 'photo'),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-
-    if (source == null) return;
+      );
+      if (picked == null) return;
+      source = picked;
+    }
     final file = (source == 'video') ? await picker.pickVideo(source: ImageSource.gallery) : await picker.pickImage(source: ImageSource.gallery);
 
     if (file != null) {
+      if (!mounted) return;
       setState(() => _isUploadingNew = true);
       try {
+        final bytes = kIsWeb ? await file.readAsBytes() : null;
         String? mediaUrl;
         if (source == 'video') {
-          final result = await MediaManager.uploadToTelegram(
-            File(file.path),
-            isStory: true,
-            preferLocal: false,
-            forceTelegram: true,
-          );
+          Map<String, dynamic>? result;
+          if (kIsWeb && bytes != null) {
+            result = await MediaManager.uploadToTelegramBytes(
+              bytes,
+              filename: file.name,
+              isStory: true,
+              forceTelegram: true,
+            );
+          } else {
+            result = await MediaManager.uploadToTelegram(
+              File(file.path),
+              isStory: true,
+              preferLocal: false,
+              forceTelegram: true,
+            );
+          }
           mediaUrl = result?['url'] ?? result?['media_url'];
           final fileId = result?['file_id'] ?? result?['result']?['video']?['file_id'];
           if (mediaUrl != null && mediaUrl.isNotEmpty && fileId != null) {
@@ -256,7 +276,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
               'file_id': fileId,
             }).select().single();
 
-            await MediaManager.registerLocalMedia(res['id'].toString(), file.path, 'video');
+            if (!kIsWeb) await MediaManager.registerLocalMedia(res['id'].toString(), file.path, 'video');
             if (mounted) {
               setState(() {
                 _stories.add(Map<String, dynamic>.from(res));
@@ -267,11 +287,19 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
             return;
           }
         } else {
-          mediaUrl = await MediaManager.uploadToImgBB(
-            File(file.path),
-            category: 'story',
-            userId: user.id,
-          );
+          if (kIsWeb && bytes != null) {
+            mediaUrl = await MediaManager.uploadImageBytesToImgBB(
+              bytes,
+              category: 'story',
+              userId: user.id,
+            );
+          } else {
+            mediaUrl = await MediaManager.uploadToImgBB(
+              File(file.path),
+              category: 'story',
+              userId: user.id,
+            );
+          }
         }
 
         final mediaType = (source == 'video') ? 'video' : 'image';
@@ -287,7 +315,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
           'type': mediaType,
         }).select().single();
 
-        await MediaManager.registerLocalMedia(res['id'].toString(), file.path, (source == 'video') ? 'video' : 'photo');
+        if (!kIsWeb) await MediaManager.registerLocalMedia(res['id'].toString(), file.path, (source == 'video') ? 'video' : 'photo');
 
         if (mounted) {
           setState(() {

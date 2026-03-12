@@ -210,10 +210,11 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 88,
-                          height: 88,
+                          width: 72,
+                          height: 72,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: const LinearGradient(
@@ -222,27 +223,27 @@ class _HomeFeedScreenState extends State<HomeFeedScreen> {
                               end: Alignment.bottomRight,
                             ),
                           ),
-                          child: const Icon(Icons.dynamic_feed_rounded, size: 42, color: Colors.white),
+                          child: const Icon(Icons.dynamic_feed_rounded, size: 36, color: Colors.white),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
                         Text(
                           _feedError ?? 'Aún no hay publicaciones.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.poppins(
                             color: theme.colorScheme.onSurface,
-                            fontSize: 17,
+                            fontSize: 15,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         Text(
                           _feedError == null
                               ? 'La app está funcionando, pero este proyecto no tiene posts visibles todavía.'
                               : 'Revisa tu conexión o intenta refrescar deslizando hacia abajo.',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(color: Colors.grey, fontSize: 13),
+                          style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 12),
                         if (_feedError == null) ...[
                           SizedBox(
                             width: double.infinity,
