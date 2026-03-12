@@ -221,59 +221,80 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget _buildNarrowLayout(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: MediaQuery.removeViewInsets(
-        removeBottom: true,
-        context: context,
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0C0C1A) : Colors.white,
-            border: Border(
-              top: BorderSide(
-                color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
-                width: 0.5,
+    final media = MediaQuery.of(context);
+    final bottomInset = media.padding.bottom;
+    const navHeight = 60.0;
+
+    return MediaQuery(
+      data: media.removeViewInsets(removeBottom: true),
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: navHeight + bottomInset),
+                child: _screens[_selectedIndex],
               ),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.5 : 0.1),
-                blurRadius: 24,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              child: StreamBuilder<int>(
-                stream: _unreadStream,
-                initialData: 0,
-                builder: (_, snap) {
-                  final unread = snap.data ?? 0;
-                  return Row(
-                    children: List.generate(_navItems.length, (i) {
-                      if (i == 2) {
-                        return Expanded(
-                          child: FadeSlideIn(
-                            delay: const Duration(milliseconds: 80),
-                            child: _createButton(context),
-                          ),
-                        );
-                      }
-                      return Expanded(
-                        child: FadeSlideIn(
-                          delay: Duration(milliseconds: 40 + (i * 30)),
-                          child: _bottomNavItem(context, i, i == 3 ? unread : 0),
-                        ),
-                      );
-                    }),
-                  );
-                },
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0C0C1A) : Colors.white,
+                  border: Border(
+                    top: BorderSide(
+                      color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06),
+                      width: 0.5,
+                    ),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isDark ? 0.5 : 0.1),
+                      blurRadius: 24,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: SizedBox(
+                    height: navHeight,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                      child: StreamBuilder<int>(
+                        stream: _unreadStream,
+                        initialData: 0,
+                        builder: (_, snap) {
+                          final unread = snap.data ?? 0;
+                          return Row(
+                            children: List.generate(_navItems.length, (i) {
+                              if (i == 2) {
+                                return Expanded(
+                                  child: FadeSlideIn(
+                                    delay: const Duration(milliseconds: 80),
+                                    child: _createButton(context),
+                                  ),
+                                );
+                              }
+                              return Expanded(
+                                child: FadeSlideIn(
+                                  delay: Duration(milliseconds: 40 + (i * 30)),
+                                  child: _bottomNavItem(context, i, i == 3 ? unread : 0),
+                                ),
+                              );
+                            }),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
