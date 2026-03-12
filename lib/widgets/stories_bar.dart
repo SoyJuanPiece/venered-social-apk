@@ -218,61 +218,34 @@ class _StoriesBarState extends State<StoriesBar> {
         expiresInSec: selectedDuration,
         preferLocal: true,
       );
+      String? mediaUrl = upload?['url'] ?? upload?['media_url'];
       String? fallbackImageUrl;
-      if (upload == null && !isVideo) {
+      if ((mediaUrl == null || mediaUrl.isEmpty) && !isVideo) {
         fallbackImageUrl = await MediaManager.uploadToImgBB(File(filePath));
+        mediaUrl = fallbackImageUrl;
       }
-      if (upload == null && fallbackImageUrl == null) {
-        throw 'No se pudo subir la historia. Verifica conexión del backend.';
+      if (mediaUrl == null || mediaUrl.isEmpty) {
+        throw isVideo
+            ? 'No se pudo subir la historia en video. Revisa el backend de historias.'
+            : 'No se pudo subir la historia. Verifica conexión.';
       }
 
-      final String? fileId = upload?['file_id'] ?? upload?['result']?['video']?['file_id'];
-      final String? mediaUrl = upload?['url'] ?? upload?['media_url'] ?? fallbackImageUrl;
-      final mediaType = isVideo ? 'video' : 'photo';
+      final mediaType = isVideo ? 'video' : 'image';
       final expiresAt = DateTime.now().add(Duration(seconds: selectedDuration)).toIso8601String();
 
-      bool inserted = false;
-
-      if (fileId != null) {
-        try {
-          try {
-            await Supabase.instance.client.from('stories').insert({
-              'user_id': user.id,
-              'file_id': fileId,
-              'media_type': mediaType,
-              'expires_at': expiresAt,
-            });
-          } catch (_) {
-            await Supabase.instance.client.from('stories').insert({
-              'user_id': user.id,
-              'file_id': fileId,
-              'media_type': mediaType,
-            });
-          }
-          inserted = true;
-        } catch (_) {}
-      }
-
-      if (!inserted && mediaUrl != null) {
-        try {
-          await Supabase.instance.client.from('stories').insert({
-            'user_id': user.id,
-            'media_url': mediaUrl,
-            'type': mediaType,
-            'expires_at': expiresAt,
-          });
-        } catch (_) {
-          await Supabase.instance.client.from('stories').insert({
-            'user_id': user.id,
-            'media_url': mediaUrl,
-            'type': mediaType,
-          });
-        }
-        inserted = true;
-      }
-
-      if (!inserted) {
-        throw 'No se pudo guardar la historia en la base de datos.';
+      try {
+        await Supabase.instance.client.from('stories').insert({
+          'user_id': user.id,
+          'media_url': mediaUrl,
+          'type': mediaType,
+          'expires_at': expiresAt,
+        });
+      } catch (_) {
+        await Supabase.instance.client.from('stories').insert({
+          'user_id': user.id,
+          'media_url': mediaUrl,
+          'type': mediaType,
+        });
       }
 
       await _refreshStories();

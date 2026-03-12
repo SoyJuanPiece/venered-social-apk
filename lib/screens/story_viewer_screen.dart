@@ -65,7 +65,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     final storyId = story['id'].toString();
     final fileId = story['file_id'];
     final mediaUrl = story['media_url'];
-    final mediaType = (story['media_type'] ?? story['type'] ?? 'photo').toString();
+    final mediaType = (story['type'] ?? story['media_type'] ?? 'image').toString();
     final myId = Supabase.instance.client.auth.currentUser?.id;
 
     try {
@@ -215,22 +215,14 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       try {
         final result = await MediaManager.uploadToTelegram(File(file.path), isStory: true);
         if (result != null) {
-          final fileId = result['file_id'] ?? result['result']?['video']?['file_id'];
-          final mediaUrl = result['url'] ?? result['media_url'];
-          final mediaType = (source == 'video') ? 'video' : 'photo';
+          String? mediaUrl = result['url'] ?? result['media_url'];
+          if ((mediaUrl == null || mediaUrl.isEmpty) && source != 'video') {
+            mediaUrl = await MediaManager.uploadToImgBB(File(file.path));
+          }
+          final mediaType = (source == 'video') ? 'video' : 'image';
           Map<String, dynamic>? res;
 
-          if (fileId != null) {
-            try {
-              res = await Supabase.instance.client.from('stories').insert({
-                'user_id': user.id,
-                'file_id': fileId,
-                'media_type': mediaType,
-              }).select().single();
-            } catch (_) {}
-          }
-
-          if (res == null && mediaUrl != null) {
+          if (mediaUrl != null && mediaUrl.isNotEmpty) {
             res = await Supabase.instance.client.from('stories').insert({
               'user_id': user.id,
               'media_url': mediaUrl,
@@ -362,7 +354,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      CircleAvatar(radius: 18, backgroundImage: story['profile_pic_url'] != null ? NetworkImage(webSafeUrl(story['profile_pic_url'] as String)) : null, child: story['profile_pic_url'] == null ? const Icon(Icons.person) : null),
+                      CircleAvatar(radius: 18, backgroundImage: story['avatar_url'] != null ? NetworkImage(webSafeUrl(story['avatar_url'] as String)) : null, child: story['avatar_url'] == null ? const Icon(Icons.person) : null),
                       const SizedBox(width: 10),
                       Text(isMe ? 'Tu historia' : (story['username'] ?? 'Usuario'), style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
                       const Spacer(),
