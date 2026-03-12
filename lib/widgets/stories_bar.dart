@@ -212,18 +212,24 @@ class _StoriesBarState extends State<StoriesBar> {
 
     setState(() => _isUploading = true);
     try {
-      final upload = await MediaManager.uploadToTelegram(
-        File(filePath),
-        isStory: true,
-        expiresInSec: selectedDuration,
-        preferLocal: true,
-      );
-      String? mediaUrl = upload?['url'] ?? upload?['media_url'];
-      String? fallbackImageUrl;
-      if ((mediaUrl == null || mediaUrl.isEmpty) && !isVideo) {
-        fallbackImageUrl = await MediaManager.uploadToImgBB(File(filePath));
-        mediaUrl = fallbackImageUrl;
+      String? mediaUrl;
+
+      if (isVideo) {
+        final upload = await MediaManager.uploadToTelegram(
+          File(filePath),
+          isStory: true,
+          expiresInSec: selectedDuration,
+          preferLocal: true,
+        );
+        mediaUrl = upload?['url'] ?? upload?['media_url'];
+      } else {
+        mediaUrl = await MediaManager.uploadToImgBB(
+          File(filePath),
+          category: 'story',
+          userId: user.id,
+        );
       }
+
       if (mediaUrl == null || mediaUrl.isEmpty) {
         throw isVideo
             ? 'No se pudo subir la historia en video. Revisa el backend de historias.'
@@ -250,11 +256,6 @@ class _StoriesBarState extends State<StoriesBar> {
 
       await _refreshStories();
       await _refreshStorageStatus();
-      if (mounted && fallbackImageUrl != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Historia subida con modo alterno de imagen.')),
-        );
-      }
     } catch (e) {
       LoggerService.log('StoriesBar upload error', e);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));

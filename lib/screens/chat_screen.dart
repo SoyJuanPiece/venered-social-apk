@@ -175,7 +175,11 @@ class _ChatScreenState extends State<ChatScreen> {
     if (pickedFile != null) {
       setState(() => _isUploading = true);
       try {
-        final imageUrl = await MediaManager.uploadToImgBB(File(pickedFile.path));
+        final imageUrl = await MediaManager.uploadToImgBB(
+          File(pickedFile.path),
+          category: 'message',
+          userId: supabase.auth.currentUser?.id,
+        );
         if (imageUrl != null) {
           await supabase.from('messages').insert({
             'sender_id': supabase.auth.currentUser!.id,

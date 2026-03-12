@@ -18,6 +18,21 @@ class MediaManager {
   static const String imgbbApiKey = 'c4fd2ded598485660696ba819347f0bb';
   static const String voiceBucket = 'voice-notes';
 
+  static String _buildImgName({
+    required String category,
+    String? userId,
+    String? extensionHint,
+  }) {
+    final safeCategory = category.trim().isEmpty ? 'misc' : category.trim().toLowerCase();
+    final cleanedUserId = (userId ?? '').replaceAll('-', '');
+    final uid = cleanedUserId.isNotEmpty
+        ? cleanedUserId.substring(0, cleanedUserId.length >= 8 ? 8 : cleanedUserId.length)
+        : 'anon';
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final ext = (extensionHint == null || extensionHint.trim().isEmpty) ? 'jpg' : extensionHint.trim().toLowerCase();
+    return 'venered_${safeCategory}_${uid}_$ts.$ext';
+  }
+
   static Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB();
@@ -34,7 +49,11 @@ class MediaManager {
   }
 
   // --- SUBIDA DE IMÁGENES A IMGBB ---
-  static Future<String?> uploadToImgBB(File file) async {
+  static Future<String?> uploadToImgBB(
+    File file, {
+    String category = 'misc',
+    String? userId,
+  }) async {
     try {
       if (kIsWeb) {
         dPrint('Error ImgBB: Upload no soportado en Web (requiere dart:io)');
@@ -42,8 +61,16 @@ class MediaManager {
       }
       final compressed = await compressImage(file);
       final uploadFile = compressed ?? file;
+      final ext = extension(uploadFile.path).replaceFirst('.', '');
+      final currentUserId = userId ?? Supabase.instance.client.auth.currentUser?.id;
+      final imageName = _buildImgName(
+        category: category,
+        userId: currentUserId,
+        extensionHint: ext,
+      );
       final request = http.MultipartRequest('POST', Uri.parse('https://api.imgbb.com/1/upload?key=$imgbbApiKey'))
-        ..files.add(await http.MultipartFile.fromPath('image', uploadFile.path));
+        ..fields['name'] = imageName
+        ..files.add(await http.MultipartFile.fromPath('image', uploadFile.path, filename: imageName));
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
       if (response.statusCode == 200) return json.decode(responseBody)['data']['url'];
@@ -52,12 +79,24 @@ class MediaManager {
   }
 
   // --- SUBIDA DE IMÁGENES A IMGBB DESDE WEB (sin dart:io) ---
-  static Future<String?> uploadImageBytesToImgBB(Uint8List bytes) async {
+  static Future<String?> uploadImageBytesToImgBB(
+    Uint8List bytes, {
+    String category = 'misc',
+    String? userId,
+    String extensionHint = 'jpg',
+  }) async {
     try {
+      final currentUserId = userId ?? Supabase.instance.client.auth.currentUser?.id;
+      final imageName = _buildImgName(
+        category: category,
+        userId: currentUserId,
+        extensionHint: extensionHint,
+      );
       final response = await http.post(
         Uri.parse('https://api.imgbb.com/1/upload'),
         body: {
           'key': imgbbApiKey,
+          'name': imageName,
           'image': base64Encode(bytes),
         },
       );

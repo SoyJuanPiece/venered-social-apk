@@ -213,33 +213,36 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     if (file != null) {
       setState(() => _isUploadingNew = true);
       try {
-        final result = await MediaManager.uploadToTelegram(File(file.path), isStory: true);
-        if (result != null) {
-          String? mediaUrl = result['url'] ?? result['media_url'];
-          if ((mediaUrl == null || mediaUrl.isEmpty) && source != 'video') {
-            mediaUrl = await MediaManager.uploadToImgBB(File(file.path));
-          }
-          final mediaType = (source == 'video') ? 'video' : 'image';
-          Map<String, dynamic>? res;
+        String? mediaUrl;
+        if (source == 'video') {
+          final result = await MediaManager.uploadToTelegram(File(file.path), isStory: true);
+          mediaUrl = result?['url'] ?? result?['media_url'];
+        } else {
+          mediaUrl = await MediaManager.uploadToImgBB(
+            File(file.path),
+            category: 'story',
+            userId: user.id,
+          );
+        }
 
-          if (mediaUrl != null && mediaUrl.isNotEmpty) {
-            res = await Supabase.instance.client.from('stories').insert({
-              'user_id': user.id,
-              'media_url': mediaUrl,
-              'type': mediaType,
-            }).select().single();
-          }
+        final mediaType = (source == 'video') ? 'video' : 'image';
+        if (mediaUrl == null || mediaUrl.isEmpty) {
+          throw source == 'video'
+              ? 'No se pudo subir el video al backend de historias.'
+              : 'No se pudo subir la imagen de historia a ImgBB.';
+        }
 
-          if (res == null) {
-            throw 'No se pudo guardar la historia.';
-          }
+        final res = await Supabase.instance.client.from('stories').insert({
+          'user_id': user.id,
+          'media_url': mediaUrl,
+          'type': mediaType,
+        }).select().single();
 
-          await MediaManager.registerLocalMedia(res['id'].toString(), file.path, (source == 'video') ? 'video' : 'photo');
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Historia añadida!')));
-            Navigator.pop(context); // Cerrar visor para refrescar
-          }
+        await MediaManager.registerLocalMedia(res['id'].toString(), file.path, (source == 'video') ? 'video' : 'photo');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Historia añadida!')));
+          Navigator.pop(context); // Cerrar visor para refrescar
         }
       } catch (_) {} finally { if (mounted) setState(() => _isUploadingNew = false); }
     }

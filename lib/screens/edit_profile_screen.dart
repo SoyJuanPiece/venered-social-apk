@@ -54,7 +54,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       String? avatarUrl = widget.initialProfile['avatar_url'];
 
       if (_newProfilePicFile != null) {
-        avatarUrl = await MediaManager.uploadToImgBB(_newProfilePicFile!);
+        avatarUrl = await MediaManager.uploadToImgBB(
+          _newProfilePicFile!,
+          category: 'profile',
+          userId: userId,
+        );
         if (avatarUrl == null) throw 'Error al subir la imagen a ImgBB';
       }
 

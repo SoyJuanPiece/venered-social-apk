@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:path/path.dart' as p;
 import 'package:flutter/foundation.dart';
 import 'package:venered_social/services/media_manager.dart';
 import 'package:venered_social/services/draft_manager.dart';
@@ -128,12 +129,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       if (kIsWeb && _pickedMedia != null) {
         setState(() => _uploadProgress = 0.3);
         final bytes = _webPreviewBytes ?? await _pickedMedia!.readAsBytes();
-        mediaUrl = await MediaManager.uploadImageBytesToImgBB(bytes);
+        mediaUrl = await MediaManager.uploadImageBytesToImgBB(
+          bytes,
+          category: 'post',
+          extensionHint: p.extension(_pickedMedia!.name).replaceFirst('.', '').isEmpty
+              ? 'jpg'
+              : p.extension(_pickedMedia!.name).replaceFirst('.', ''),
+        );
         setState(() => _uploadProgress = 0.8);
         if (mediaUrl == null) throw 'No se pudo subir la imagen desde Web';
       } else if (_mediaFile != null) {
         setState(() => _uploadProgress = 0.3);
-        mediaUrl = await MediaManager.uploadToImgBB(_mediaFile!);
+        mediaUrl = await MediaManager.uploadToImgBB(
+          _mediaFile!,
+          category: 'post',
+        );
         setState(() => _uploadProgress = 0.8);
         if (mediaUrl == null) throw 'Error al subir el archivo';
       }
