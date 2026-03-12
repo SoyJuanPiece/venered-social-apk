@@ -23,7 +23,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   File? _mediaFile;
   XFile? _pickedMedia;
   Uint8List? _webPreviewBytes;
-  bool _isVideo = false;
   Timer? _autoSaveTimer;
 
   @override
@@ -38,7 +37,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       DraftManager.savePostDraft(PostDraft(
         caption: _captionController.text,
         mediaPath: _mediaFile?.path,
-        mediaType: _isVideo ? 'video' : ((_mediaFile != null || _pickedMedia != null) ? 'image' : 'text'),
+        mediaType: ((_mediaFile != null || _pickedMedia != null) ? 'image' : 'text'),
       ));
     });
   }
@@ -62,29 +61,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     super.dispose();
   }
 
-  Future<void> _pickMedia(bool isVideo) async {
+  Future<void> _pickMedia() async {
     final picker = ImagePicker();
-    final pickedFile = isVideo
-        ? await picker.pickVideo(source: ImageSource.gallery)
-        : await picker.pickImage(
-            source: ImageSource.gallery, imageQuality: 80);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
 
     if (pickedFile != null) {
       if (kIsWeb) {
-        if (isVideo) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Video aún no soportado en Web. Publica imagen o texto.')),
-            );
-          }
-          return;
-        }
         final bytes = await pickedFile.readAsBytes();
         setState(() {
           _pickedMedia = pickedFile;
           _webPreviewBytes = bytes;
           _mediaFile = null;
-          _isVideo = isVideo;
         });
         return;
       }
@@ -93,7 +83,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         _mediaFile = File(pickedFile.path);
         _pickedMedia = pickedFile;
         _webPreviewBytes = null;
-        _isVideo = isVideo;
       });
     }
   }
@@ -137,24 +126,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       String? mediaUrl;
 
       if (kIsWeb && _pickedMedia != null) {
-        if (_isVideo) {
-          throw 'Video aún no soportado en Web.';
-        }
         setState(() => _uploadProgress = 0.3);
         final bytes = _webPreviewBytes ?? await _pickedMedia!.readAsBytes();
         mediaUrl = await MediaManager.uploadImageBytesToImgBB(bytes);
         setState(() => _uploadProgress = 0.8);
         if (mediaUrl == null) throw 'No se pudo subir la imagen desde Web';
       } else if (_mediaFile != null) {
-        if (_isVideo) {
-          setState(() => _uploadProgress = 0.3);
-          mediaUrl = await MediaManager.uploadVideoToTelegram(_mediaFile!);
-          setState(() => _uploadProgress = 0.8);
-        } else {
-          setState(() => _uploadProgress = 0.3);
-          mediaUrl = await MediaManager.uploadToImgBB(_mediaFile!);
-          setState(() => _uploadProgress = 0.8);
-        }
+        setState(() => _uploadProgress = 0.3);
+        mediaUrl = await MediaManager.uploadToImgBB(_mediaFile!);
+        setState(() => _uploadProgress = 0.8);
         if (mediaUrl == null) throw 'Error al subir el archivo';
       }
       
@@ -164,7 +144,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         'user_id': userId,
         'content': caption,
         'media_url': mediaUrl,
-        'type': _isVideo ? 'video' : ((_mediaFile != null || _pickedMedia != null) ? 'image' : 'text'),
+        'type': ((_mediaFile != null || _pickedMedia != null) ? 'image' : 'text'),
       });
       
       // Clear draft after successful publish
@@ -286,11 +266,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: _mediaFile != null
-                          ? (_isVideo
-                              ? _videoPlaceholder()
-                              : Image.file(_mediaFile!,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity))
+                          ? Image.file(_mediaFile!,
+                            fit: BoxFit.cover,
+                            width: double.infinity)
                           : (_webPreviewBytes != null
                               ? Image.memory(_webPreviewBytes!, fit: BoxFit.cover, width: double.infinity)
                               : _mediaPlaceholder(isDark)),
@@ -436,39 +414,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ),
         ),
         const SizedBox(height: 14),
-        Text('Toca para agregar foto o video',
+        Text('Toca para agregar una foto',
             style: GoogleFonts.poppins(
               fontSize: 15,
               fontWeight: FontWeight.w500,
               color: isDark ? Colors.grey[400] : Colors.grey[600],
             )),
         const SizedBox(height: 6),
-        Text('PNG, JPG, MP4',
+        Text('PNG, JPG',
             style: GoogleFonts.poppins(
                 fontSize: 12,
                 color: isDark ? Colors.grey[600] : Colors.grey[400])),
       ],
-    );
-  }
-
-  Widget _videoPlaceholder() {
-    return Container(
-      color: Colors.black,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ShaderMask(
-            shaderCallback: (b) => const LinearGradient(
-                colors: [Color(0xFF818CF8), Color(0xFFF472B6)]).createShader(b),
-            child: const Icon(Icons.play_circle_fill_rounded,
-                size: 72, color: Colors.white),
-          ),
-          const SizedBox(height: 12),
-          Text('Video seleccionado',
-              style: GoogleFonts.poppins(
-                  color: Colors.white70, fontSize: 14)),
-        ],
-      ),
     );
   }
 
@@ -515,16 +472,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   subtitle: 'JPG, PNG',
                   onTap: () {
                     Navigator.pop(context);
-                    _pickMedia(false);
-                  },
-                ),
-                _pickerOption(
-                  icon: Icons.videocam_outlined,
-                  label: 'Video de la galería',
-                  subtitle: 'MP4, MOV',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickMedia(true);
+                    _pickMedia();
                   },
                 ),
                 const SizedBox(height: 16),

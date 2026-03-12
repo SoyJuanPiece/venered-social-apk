@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/media_manager.dart';
+import '../services/logger_service.dart';
 import '../utils.dart';
 import '../screens/story_viewer_screen.dart';
 
@@ -19,6 +21,7 @@ class _StoriesBarState extends State<StoriesBar> {
   List<List<Map<String, dynamic>>> _groupedStories = [];
   bool _isLoading = true;
   Map<String, dynamic>? _storageStatus;
+  String? _storiesError;
 
   static const List<int> _storyDurationOptions = [3600, 21600, 43200, 86400];
 
@@ -68,9 +71,18 @@ class _StoriesBarState extends State<StoriesBar> {
         setState(() {
           _groupedStories = _groupStories(List<Map<String, dynamic>>.from(response));
           _isLoading = false;
+          _storiesError = null;
         });
       }
-    } catch (e) { if (mounted) setState(() => _isLoading = false); }
+    } catch (e, st) {
+      LoggerService.log('StoriesBar _refreshStories error', e, st);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _storiesError = 'No se pudieron cargar las historias.';
+        });
+      }
+    }
   }
 
   Future<void> _pickAndUploadStory() async {
@@ -206,12 +218,16 @@ class _StoriesBarState extends State<StoriesBar> {
         expiresInSec: selectedDuration,
         preferLocal: true,
       );
-      if (upload == null) {
-        throw 'No se pudo subir el archivo.';
+      String? fallbackImageUrl;
+      if (upload == null && !isVideo) {
+        fallbackImageUrl = await MediaManager.uploadToImgBB(File(filePath));
+      }
+      if (upload == null && fallbackImageUrl == null) {
+        throw 'No se pudo subir la historia. Verifica conexión del backend.';
       }
 
-      final String? fileId = upload['file_id'] ?? upload['result']?['video']?['file_id'];
-      final String? mediaUrl = upload['url'] ?? upload['media_url'];
+      final String? fileId = upload?['file_id'] ?? upload?['result']?['video']?['file_id'];
+      final String? mediaUrl = upload?['url'] ?? upload?['media_url'] ?? fallbackImageUrl;
       final mediaType = isVideo ? 'video' : 'photo';
       final expiresAt = DateTime.now().add(Duration(seconds: selectedDuration)).toIso8601String();
 
@@ -261,7 +277,13 @@ class _StoriesBarState extends State<StoriesBar> {
 
       await _refreshStories();
       await _refreshStorageStatus();
+      if (mounted && fallbackImageUrl != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Historia subida con modo alterno de imagen.')),
+        );
+      }
     } catch (e) {
+      LoggerService.log('StoriesBar upload error', e);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -290,10 +312,11 @@ class _StoriesBarState extends State<StoriesBar> {
     final usagePct = (_storageStatus?['usagePct'] as num?)?.toDouble();
     final usedGb = (_storageStatus?['usedGb'] as num?)?.toDouble();
     final limitGb = (_storageStatus?['limitGb'] as num?)?.toDouble();
+    final showStorageBanner = kDebugMode && usagePct != null && usedGb != null && limitGb != null;
 
     return Column(
       children: [
-        if (usagePct != null && usedGb != null && limitGb != null)
+        if (showStorageBanner)
           Container(
             margin: const EdgeInsets.fromLTRB(16, 2, 16, 6),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -314,6 +337,14 @@ class _StoriesBarState extends State<StoriesBar> {
                   color: usagePct >= 90 ? Colors.redAccent : const Color(0xFF6366F1),
                 ),
               ],
+            ),
+          ),
+        if (_storiesError != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              _storiesError!,
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.redAccent),
             ),
           ),
         Container(
