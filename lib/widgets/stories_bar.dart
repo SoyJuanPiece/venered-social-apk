@@ -360,7 +360,7 @@ class _StoriesBarState extends State<StoriesBar> {
                 isMe: isMe,
                 hasActiveStory: true,
                 isUploading: isMe ? _isUploading : false,
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => StoryViewerScreen(stories: userStories, initialIndex: 0))),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => StoryViewerScreen(stories: userStories, initialIndex: 0))).then((_) => _refreshStories()),
               );
             },
           ),

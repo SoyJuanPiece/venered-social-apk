@@ -33,12 +33,14 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   int _viewCount = 0;
   bool _isUploadingNew = false;
   bool _currentStoryIsVideo = false;
+  late List<Map<String, dynamic>> _stories;
   
   late AnimationController _progressController;
 
   @override
   void initState() {
     super.initState();
+    _stories = List<Map<String, dynamic>>.from(widget.stories);
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
     _progressController = AnimationController(vsync: this);
@@ -62,7 +64,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       _isLocal = false;
     });
 
-    final story = widget.stories[index];
+    final story = _stories[index];
     final storyId = story['id'].toString();
     final fileId = story['file_id'];
     final mediaUrl = story['media_url'];
@@ -256,8 +258,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
 
             await MediaManager.registerLocalMedia(res['id'].toString(), file.path, 'video');
             if (mounted) {
+              setState(() {
+                _stories.add(Map<String, dynamic>.from(res));
+              });
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Historia añadida!')));
-              Navigator.pop(context);
+              _goToStory(_stories.length - 1);
             }
             return;
           }
@@ -285,8 +290,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
         await MediaManager.registerLocalMedia(res['id'].toString(), file.path, (source == 'video') ? 'video' : 'photo');
 
         if (mounted) {
+          setState(() {
+            _stories.add(Map<String, dynamic>.from(res));
+          });
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Historia añadida!')));
-          Navigator.pop(context); // Cerrar visor para refrescar
+          _goToStory(_stories.length - 1);
         }
       } catch (_) {} finally { if (mounted) setState(() => _isUploadingNew = false); }
     }
@@ -309,7 +317,17 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     if (confirm == true) {
       try {
         await Supabase.instance.client.from('stories').delete().eq('id', storyId);
-        if (mounted) Navigator.pop(context);
+        if (mounted) {
+          setState(() {
+            _stories.removeWhere((s) => s['id'].toString() == storyId);
+          });
+          if (_stories.isEmpty) {
+            Navigator.pop(context);
+          } else {
+            final newIndex = _currentIndex >= _stories.length ? _stories.length - 1 : _currentIndex;
+            _goToStory(newIndex);
+          }
+        }
       } catch (_) {}
     }
   }
@@ -321,8 +339,17 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     _progressController.forward();
   }
 
+  void _goToStory(int index) {
+    if (index < 0 || index >= _stories.length) return;
+    _currentIndex = index;
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(index);
+    }
+    _loadStory(index);
+  }
+
   void _nextStory() {
-    if (_currentIndex < widget.stories.length - 1) {
+    if (_currentIndex < _stories.length - 1) {
       _currentIndex++;
       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
       _loadStory(_currentIndex);
@@ -349,7 +376,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    final story = widget.stories[_currentIndex];
+    final story = _stories[_currentIndex];
     final myId = Supabase.instance.client.auth.currentUser?.id;
     final isMe = story['user_id'] == myId;
 
@@ -381,7 +408,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
-                    children: widget.stories.asMap().entries.map((entry) {
+                    children: _stories.asMap().entries.map((entry) {
                       return Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 2),
