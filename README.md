@@ -1,57 +1,71 @@
 # Venered Social
 
-Red social tipo Instagram/Threads construida en Flutter con Supabase, mensajeria en tiempo real, historias y pipeline de APK automatizado.
+Aplicacion social inspirada en Instagram/Threads, desarrollada en Flutter con backend en Supabase.
+Incluye feed, historias, chat en tiempo real, notificaciones push y pipeline de compilacion automatica para Android.
 
-## Caracteristicas principales
-- Feed con posts, likes y comentarios.
-- Historias con expiracion y viewer interactivo.
-- Chat en tiempo real.
-- Notificaciones push con Firebase FCM.
-- Perfil editable, seguidores/seguidos y paneles auxiliares (moderacion/verificacion).
-- Soporte multiplataforma (Android, iOS, Web, Desktop).
+## Funcionalidades
+- Feed con publicaciones de texto e imagen.
+- Likes y comentarios por publicacion.
+- Historias con expiracion automatica.
+- Mensajeria en tiempo real.
+- Notificaciones push con Firebase Cloud Messaging.
+- Perfil de usuario editable y flujo de verificacion.
+- Compatibilidad con Android, iOS, Web y Desktop.
 
-## Politica multimedia actual
-- Imagenes:
-   - Perfil, posts, mensajes e historias usan ImgBB.
-   - Nombres de archivos estandarizados por categoria/usuario.
-- Video:
-   - Solo historias en movil mediante backend Telegram.
-   - En web, video de historias esta deshabilitado mientras el backend siga sin HTTPS.
-
-## Stack
-- Flutter `3.24.5` (Dart `3.5.4`).
-- Supabase (Auth, Postgres, Realtime, Storage).
+## Stack tecnico
+- Flutter 3.24.5 y Dart 3.5.4.
+- Supabase: Auth, PostgreSQL, Realtime y politicas RLS.
 - Firebase Cloud Messaging para push.
-- Backend Node/Express en `almacenamiento-temporal` para flujo hibrido de historias.
+- Backend Node/Express para soporte de media en historias.
 
-## Estructura relevante
-- `lib/`: app Flutter.
-- `supabase/`: SQL y configuracion backend.
-- `almacenamiento-temporal/`: servicio Node para historias/media.
-- `test/`: pruebas de widgets y flujo base.
+## Estructura del proyecto
+- lib: aplicacion Flutter (pantallas, widgets, servicios).
+- supabase: esquema SQL, migraciones y configuracion.
+- almacenamiento-temporal: servicio Node para flujo hibrido de historias.
+- test: pruebas de widgets y flujo base.
+- .github/workflows: CI/CD de build y release.
+
+## Requisitos
+- Flutter 3.24.5+
+- Dart 3.5.4+
+- Node.js 18+ (para almacenamiento-temporal)
+- Proyecto Supabase configurado
+- Firebase configurado para push en Android/iOS
 
 ## Ejecucion local
 
-### Flutter
+### 1) App Flutter
 ```bash
 flutter pub get
 flutter run
 ```
 
-### Backend de historias (Node)
+### 2) Backend de historias (opcional)
 ```bash
 cd almacenamiento-temporal
 npm install
 npm run dev
 ```
 
-## Notas de entorno
-- Si pruebas la app web desde HTTPS (por ejemplo Codespaces), cualquier endpoint HTTP sera bloqueado por el navegador (Mixed Content).
-- Para habilitar video de historias en web se requiere exponer el backend de historias con HTTPS.
+## Base de datos y migraciones
+- Script principal SQL: supabase/MASTER_SETUP_VENERED_FINAL.sql
+- Migraciones versionadas: supabase/migrations
+- Guia de aplicacion manual: MIGRATION_INSTRUCTIONS.md
+- Script auxiliar: apply_migrations.sh
+
+## CI/CD
+El workflow de GitHub Actions compila APK por ABI, genera App Bundle y crea release al publicar tags.
+
+Archivo de referencia: .github/workflows/build.yml
+
+## Notas de despliegue
+- En entorno Web bajo HTTPS, endpoints HTTP se bloquean por Mixed Content.
+- Para habilitar video de historias en Web, el backend de historias debe publicarse con HTTPS.
+
+## Testing
+- Pruebas actuales en test/app_test.dart y test/user_search_dialog_test.dart.
+- Se recomienda ampliar cobertura con pruebas unitarias de servicios y validaciones de negocio.
 
 ## Licencia
-Este proyecto es Source Available con uso personal y no comercial.
-Consulta [LICENSE](LICENSE).
-
-## Creditos
-Desarrollado por JuanPiece.
+Este proyecto es Source Available para uso personal y no comercial.
+Mas informacion en LICENSE.
