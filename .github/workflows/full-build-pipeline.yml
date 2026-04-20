@@ -1,0 +1,158 @@
+name: Full Build Pipeline
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+      - 'kmp-v*'
+  workflow_dispatch:
+
+jobs:
+  notify-start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⏳ **Build Pipeline Started**\n\nBuilding Flutter and KMP projects...'
+            })
+
+  build-flutter:
+    needs: notify-start
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+
+  build-kmp-android:
+    needs: notify-start
+    uses: ./.github/workflows/build-kmp-android.yml
+    secrets: inherit
+
+  build-kmp-ios:
+    needs: notify-start
+    uses: ./.github/workflows/build-kmp-ios.yml
+    secrets: inherit
+
+  code-quality:
+    needs: notify-start
+    uses: ./.github/workflows/code-quality.yml
+    secrets: inherit
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: [build-flutter, build-kmp-android]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download Flutter Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: flutter-apks
+          path: artifacts/flutter/
+
+      - name: Download KMP Android Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: kmp-android-apk
+          path: artifacts/kmp-android/
+
+      - name: Create Release Assets Archive
+        run: |
+          mkdir -p release_assets
+          cp -r artifacts/flutter/* release_assets/ || true
+          cp -r artifacts/kmp-android/* release_assets/ || true
+          cd release_assets && zip -r ../venered_social_releases.zip . && cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release_assets/**/*
+            venered_social_releases.zip
+          name: "Venered Social ${{ github.ref_name }}"
+          body: |
+            # Venered Social Release ${{ github.ref_name }}
+            
+            This release includes builds for:
+            - **Flutter** (APK, AAB)
+            - **KMP Android** (APK, Bundle)
+            - **KMP iOS** (Archive)
+            
+            ## Download Links
+            - Flutter APKs: See artifacts
+            - KMP Android APKs: See artifacts
+            
+            For more details, visit the [GitHub Actions logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-completion:
+    runs-on: ubuntu-latest
+    needs: [build-flutter, build-kmp-android, build-kmp-ios, code-quality]
+    if: always()
+    steps:
+      - name: Determine Status
+        id: status
+        run: |
+          if [ "${{ needs.build-flutter.result }}" == "success" ] && \
+             [ "${{ needs.build-kmp-android.result }}" == "success" ]; then
+            echo "status=✅ SUCCESS" >> $GITHUB_OUTPUT
+            echo "color=0x00FF00" >> $GITHUB_OUTPUT
+          else
+            echo "status=❌ FAILURE" >> $GITHUB_OUTPUT
+            echo "color=0xFF0000" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const flutter = '${{ needs.build-flutter.result }}';
+            const android = '${{ needs.build-kmp-android.result }}';
+            const ios = '${{ needs.build-kmp-ios.result }}';
+            
+            let body = '## 🔨 Build Pipeline Results\n\n';
+            body += `- Flutter: ${flutter === 'success' ? '✅' : '❌'}\n`;
+            body += `- KMP Android: ${android === 'success' ? '✅' : '❌'}\n`;
+            body += `- KMP iOS: ${ios === 'success' ? '✅' : '❌'}\n`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            })
+
+      - name: Send Telegram Notification
+        if: startsWith(github.ref, 'refs/tags/') && always()
+        uses: appleboy/telegram-action@master
+        continue-on-error: true
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            📱 **Venered Social Build Report** 📱
+            
+            Build: ${{ github.ref_name }}
+            Status: ${{ steps.status.outputs.status }}
+            
+            ✅ Flutter: ${{ needs.build-flutter.result }}
+            ✅ KMP Android: ${{ needs.build-kmp-android.result }}
+            ✅ KMP iOS: ${{ needs.build-kmp-ios.result }}
+            
+            🔗 Repository: https://github.com/${{ github.repository }}
+            📊 Action: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

@@ -1,0 +1,123 @@
+name: Code Quality & Analysis
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    name: Code Analysis
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Run Gradle Lint (KMP)
+        working-directory: venered-kmp
+        continue-on-error: true
+        run: |
+          ./gradlew :androidApp:lintRelease --stacktrace
+
+      - name: Run Gradle Analysis (KMP)
+        working-directory: venered-kmp
+        continue-on-error: true
+        run: |
+          ./gradlew :shared:check --stacktrace
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+
+      - name: Analyze Flutter Code
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos
+
+      - name: Check Flutter Format
+        run: |
+          flutter pub get
+          dart format --set-exit-if-changed .
+
+      - name: Upload Analysis Reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: analysis-reports
+          path: |
+            venered-kmp/androidApp/build/reports/
+            analysis/
+
+      - name: Comment PR with Analysis Results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v6
+        continue-on-error: true
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🔍 **Code Analysis Complete**\n\nCheck artifacts for detailed reports.'
+            })
+
+  lint-flutter:
+    runs-on: ubuntu-latest
+    name: Flutter Linting
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run Flutter Linter
+        run: flutter pub global activate dart_code_metrics
+
+      - name: Analyze with metrics
+        continue-on-error: true
+        run: |
+          flutter pub global run dart_code_metrics:metrics analyze lib/ \
+            --set-exit-on-violation-level=info
+
+  security:
+    runs-on: ubuntu-latest
+    name: Security Check
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
