@@ -10,7 +10,6 @@ on:
       - main
     paths:
       - 'venered-kmp/**'
-      - '.github/workflows/build-kmp-ios.yml'
     tags:
       - 'kmp-v*'
   pull_request:
@@ -22,7 +21,6 @@ on:
 
 jobs:
   build:
-    if: ${{ hashFiles('venered-kmp/**') != '' }}
     runs-on: macos-latest
     steps:
       - name: Checkout code
