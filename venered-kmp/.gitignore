@@ -1,0 +1,51 @@
+# Venered KMP Build Ignore
+.gradle/
+.idea/
+*.iml
+.DS_Store
+build/
+dist/
+*.swp
+*.swo
+*~
+.vscode/
+.env
+local.properties
+
+# Android
+local.properties
+.gradle
+.gradle/
+*.so
+*.apk
+*.ap_
+*.dex
+*.class
+bin/
+obj/
+gen/
+*.zip
+*.tar.gz
+.classpath
+.project
+proguard/
+proguard-project.txt
+
+# iOS
+Pods/
+Podfile.lock
+.xcworkspace/
+*.xcworkspace
+*.xcodeproj/
+DerivedData/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db

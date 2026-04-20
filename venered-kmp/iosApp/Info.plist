@@ -1,0 +1,28 @@
+// iOS Configuration
+// Info.plist structure for iOS app
+
+{
+    "CFBundleDevelopmentRegion": "es",
+    "CFBundleExecutable": "Venered",
+    "CFBundleIdentifier": "com.venered.social",
+    "CFBundleInfoDictionaryVersion": "6.0",
+    "CFBundleName": "Venered Social",
+    "CFBundlePackageType": "APPL",
+    "CFBundleShortVersionString": "1.0",
+    "CFBundleVersion": "1",
+    "LSRequiresIPhoneOS": true,
+    "UIApplication RequiredDeviceCapabilities": [
+        "armv7"
+    ],
+    "UISupportedInterfaceOrientations": [
+        "UIInterfaceOrientationPortrait",
+        "UIInterfaceOrientationLandscapeLeft",
+        "UIInterfaceOrientationLandscapeRight"
+    ],
+    "NSCameraUsageDescription": "Se necesita acceso a la cámara para capturar fotos y videos",
+    "NSPhotoLibraryUsageDescription": "Se necesita acceso a la galería para seleccionar imágenes",
+    "NSMicrophoneUsageDescription": "Se necesita acceso al micrófono para grabar videos",
+    "UIBackgroundModes": [
+        "remote-notification"
+    ]
+}
