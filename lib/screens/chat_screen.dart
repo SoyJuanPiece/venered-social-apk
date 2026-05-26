@@ -10,14 +10,13 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:http/http.dart' as http;
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:convert';
 
 import '../formatters.dart';
 import '../utils.dart';
 import '../services/media_manager.dart';
 import '../services/draft_manager.dart';
+import 'package:venered_social/widgets/user_search_dialog.dart';
 
 class ChatScreen extends StatefulWidget {
   final String otherId;
@@ -67,6 +66,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _otherOnline = false;
   DateTime? _otherLastSeen;
   late StreamSubscription<List<Map<String, dynamic>>> _presenceSub;
+  Map<String, dynamic>? _replyToMessage;
+  Map<String, dynamic>? _pinnedMessage;
 
   @override
   void initState() {
@@ -186,8 +187,13 @@ class _ChatScreenState extends State<ChatScreen> {
             'receiver_id': widget.otherId,
             'type': 'image',
             'media_url': imageUrl,
-            'content': '📷 Foto',
+            'content': _composeMessageContent('📷 Foto'),
           });
+          if (mounted) {
+            setState(() {
+              _replyToMessage = null;
+            });
+          }
           _scrollToBottom();
         }
       } catch (e) { dPrint('Error image: $e'); } finally { if (mounted) setState(() => _isUploading = false); }
@@ -368,6 +374,11 @@ class _ChatScreenState extends State<ChatScreen> {
         await MediaManager.registerLocalMedia(msgId, draftPath, 'voice');
       }
 
+      if (mounted) {
+        setState(() {
+          _replyToMessage = null;
+        });
+      }
       await _discardDraftAudio();
       _scrollToBottom();
     } catch (e) {
@@ -522,6 +533,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage() async {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
+    final payloadContent = _composeMessageContent(content);
     _messageController.clear();
     _notifyTyping(false);
     
@@ -555,14 +567,247 @@ class _ChatScreenState extends State<ChatScreen> {
       await supabase.from('messages').insert({
         'sender_id': supabase.auth.currentUser!.id,
         'receiver_id': widget.otherId,
-        'content': content,
+        'content': payloadContent,
         'type': 'text',
         'message_status': 'sent'
       });
+      if (mounted) {
+        setState(() {
+          _replyToMessage = null;
+        });
+      }
       _scrollToBottom();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
+  }
+
+  bool _isDeletedMessage(Map<String, dynamic> msg) {
+    return (msg['content'] ?? '').toString().trim() == 'Mensaje eliminado';
+  }
+
+  String _messagePreview(Map<String, dynamic> msg) {
+    if (_isDeletedMessage(msg)) return 'Mensaje eliminado';
+    final type = (msg['type'] ?? 'text').toString();
+    if (type == 'image') return '📷 Foto';
+    if (type == 'voice') return '🎤 Mensaje de voz';
+    final parsed = _splitReplyAndBody((msg['content'] ?? '').toString());
+    final body = (parsed['body'] ?? '').trim();
+    if (body.isEmpty) return 'Mensaje';
+    return body.length > 80 ? '${body.substring(0, 80)}…' : body;
+  }
+
+  String _senderLabelForMessage(Map<String, dynamic> msg) {
+    final myId = supabase.auth.currentUser!.id;
+    return msg['sender_id'] == myId ? 'Tú' : (widget.otherUser['username'] ?? 'Usuario').toString();
+  }
+
+  Map<String, String?> _splitReplyAndBody(String rawContent) {
+    final text = rawContent.trimRight();
+    if (text.startsWith('↪ ')) {
+      final splitAt = text.indexOf('\n');
+      if (splitAt > 0 && splitAt < text.length - 1) {
+        return {
+          'reply': text.substring(0, splitAt),
+          'body': text.substring(splitAt + 1),
+        };
+      }
+    }
+    return {'reply': null, 'body': text};
+  }
+
+  String _composeMessageContent(String body) {
+    final replyingTo = _replyToMessage;
+    if (replyingTo == null) return body;
+    final sender = _senderLabelForMessage(replyingTo);
+    final preview = _messagePreview(replyingTo);
+    return '↪ $sender: $preview\n$body';
+  }
+
+  void _startReply(Map<String, dynamic> msg) {
+    if (_isDeletedMessage(msg)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No puedes responder a un mensaje eliminado')),
+        );
+      }
+      return;
+    }
+    setState(() {
+      _replyToMessage = Map<String, dynamic>.from(msg);
+    });
+  }
+
+  void _togglePin(Map<String, dynamic> msg) {
+    setState(() {
+      if (_pinnedMessage?['id'] == msg['id']) {
+        _pinnedMessage = null;
+      } else {
+        _pinnedMessage = Map<String, dynamic>.from(msg);
+      }
+    });
+  }
+
+  Future<void> _deleteMessage(Map<String, dynamic> msg) async {
+    try {
+      await supabase.from('messages').update({
+        'content': 'Mensaje eliminado',
+        'type': 'text',
+        'media_url': null,
+      }).eq('id', msg['id']);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo eliminar: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _editMessage(Map<String, dynamic> msg) async {
+    if ((msg['type'] ?? 'text') != 'text' || _isDeletedMessage(msg)) return;
+    final parts = _splitReplyAndBody((msg['content'] ?? '').toString());
+    final controller = TextEditingController(text: parts['body'] ?? '');
+    final next = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar mensaje'),
+        content: TextField(
+          controller: controller,
+          minLines: 1,
+          maxLines: 5,
+          decoration: const InputDecoration(hintText: 'Escribe tu mensaje'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    if (next == null || next.isEmpty) return;
+    final updatedContent = parts['reply'] != null ? '${parts['reply']}\n$next' : next;
+    try {
+      await supabase.from('messages').update({'content': updatedContent}).eq('id', msg['id']);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo editar: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _forwardMessage(Map<String, dynamic> msg) async {
+    if (_isDeletedMessage(msg)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No puedes reenviar un mensaje eliminado')),
+        );
+      }
+      return;
+    }
+    final profile = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => const UserSearchDialog(),
+    );
+    if (profile == null) return;
+    final myId = supabase.auth.currentUser!.id;
+    final receiverId = (profile['id'] ?? '').toString();
+    if (receiverId.isEmpty || receiverId == myId) return;
+
+    final type = (msg['type'] ?? 'text').toString();
+    final mediaUrl = (msg['media_url'] ?? '').toString();
+    final content = (msg['content'] ?? '').toString();
+    final payload = {
+      'sender_id': myId,
+      'receiver_id': receiverId,
+      'type': type,
+      'content': type == 'text' ? content : _messagePreview(msg),
+      'message_status': 'sent',
+      if (mediaUrl.isNotEmpty && (type == 'image' || type == 'voice')) 'media_url': mediaUrl,
+    };
+
+    try {
+      await supabase.from('messages').insert(payload);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mensaje reenviado')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo reenviar: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showMessageActions(Map<String, dynamic> msg, bool isMe) async {
+    final type = (msg['type'] ?? 'text').toString();
+    final deleted = _isDeletedMessage(msg);
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        final pinned = _pinnedMessage?['id'] == msg['id'];
+        return SafeArea(
+          child: Wrap(
+            children: [
+              if (!deleted)
+                ListTile(
+                  leading: const Icon(Icons.reply_outlined),
+                  title: const Text('Responder'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _startReply(msg);
+                  },
+                ),
+              if (!deleted)
+                ListTile(
+                  leading: const Icon(Icons.forward_to_inbox_outlined),
+                  title: const Text('Reenviar'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _forwardMessage(msg);
+                  },
+                ),
+              ListTile(
+                leading: Icon(pinned ? Icons.push_pin : Icons.push_pin_outlined),
+                title: Text(pinned ? 'Desanclar' : 'Anclar'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _togglePin(msg);
+                },
+              ),
+              if (isMe && type == 'text' && !deleted)
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: const Text('Editar'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _editMessage(msg);
+                  },
+                ),
+              if (isMe && !deleted)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  title: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _deleteMessage(msg);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Timer? _typingTimer;
@@ -626,6 +871,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
+          if (_pinnedMessage != null) _buildPinnedMessage(theme),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _messagesStream,
@@ -655,6 +901,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final type = msg['type'] ?? 'text';
     final status = msg['message_status'] ?? 'sent';
     final isRead = msg['is_read'] ?? false;
+    final parts = _splitReplyAndBody((msg['content'] ?? '').toString());
+    final replyLine = parts['reply'];
+    final body = (parts['body'] ?? '').toString();
     
     String statusIcon = '';
     if (isMe) {
@@ -665,51 +914,116 @@ class _ChatScreenState extends State<ChatScreen> {
     
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        decoration: BoxDecoration(
-          color: isMe ? theme.colorScheme.primary : theme.colorScheme.surface,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(isMe ? 20 : 0),
-            bottomRight: Radius.circular(isMe ? 0 : 20),
+      child: GestureDetector(
+        onLongPress: () => _showMessageActions(msg, isMe),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+          decoration: BoxDecoration(
+            color: isMe ? theme.colorScheme.primary : theme.colorScheme.surface,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(20),
+              topRight: const Radius.circular(20),
+              bottomLeft: Radius.circular(isMe ? 20 : 0),
+              bottomRight: Radius.circular(isMe ? 0 : 20),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (replyLine != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isMe ? Colors.white24 : theme.colorScheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    replyLine,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isMe ? Colors.white : theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              if (type == 'voice')
+                VoiceNotePlayer(
+                  messageId: msg['id'].toString(),
+                  url: (msg['media_url'] ?? '').toString(),
+                  isMe: isMe,
+                )
+              else if (type == 'image')
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: GestureDetector(
+                    onTap: () => _showFullScreen(msg['media_url']),
+                    child: Image.network(webSafeUrl(msg['media_url'] as String)),
+                  ),
+                )
+              else
+                Text(
+                  body,
+                  style: TextStyle(
+                    color: isMe ? Colors.white : theme.colorScheme.onSurface,
+                    fontStyle: _isDeletedMessage(msg) ? FontStyle.italic : FontStyle.normal,
+                  ),
+                ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(formatHm(DateTime.parse(msg['created_at'])), style: TextStyle(fontSize: 9, color: isMe ? Colors.white70 : Colors.grey)),
+                  if (statusIcon.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Text(statusIcon, style: TextStyle(fontSize: 9, color: isMe ? (isRead ? Colors.cyan : Colors.white70) : Colors.grey)),
+                  ]
+                ],
+              ),
+            ],
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (type == 'voice')
-              VoiceNotePlayer(
-                messageId: msg['id'].toString(),
-                url: (msg['media_url'] ?? '').toString(),
-                isMe: isMe,
-              )
-            else if (type == 'image')
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: GestureDetector(
-                  onTap: () => _showFullScreen(msg['media_url']),
-                  child: Image.network(webSafeUrl(msg['media_url'] as String)),
-                ),
-              )
-            else
-              Text(msg['content'] ?? '', style: TextStyle(color: isMe ? Colors.white : theme.colorScheme.onSurface)),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(formatHm(DateTime.parse(msg['created_at'])), style: TextStyle(fontSize: 9, color: isMe ? Colors.white70 : Colors.grey)),
-                if (statusIcon.isNotEmpty) ...[
-                  const SizedBox(width: 4),
-                  Text(statusIcon, style: TextStyle(fontSize: 9, color: isMe ? (isRead ? Colors.cyan : Colors.white70) : Colors.grey)),
-                ]
-              ],
-            ),
-          ],
+      ),
+    );
+  }
+
+  Widget _buildPinnedMessage(ThemeData theme) {
+    final pinned = _pinnedMessage;
+    if (pinned == null) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withOpacity(0.08),
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.4)),
         ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.push_pin, size: 18, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _messagePreview(pinned),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            onPressed: () => setState(() => _pinnedMessage = null),
+          ),
+        ],
       ),
     );
   }
@@ -848,38 +1162,88 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: theme.scaffoldBackgroundColor, border: Border(top: BorderSide(color: theme.dividerColor, width: 0.5))),
       child: SafeArea(
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              icon: Icon(Icons.add_circle_outline, color: theme.colorScheme.primary),
-              onPressed: _pickAndSendImage,
-            ),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(24)),
-                child: TextField(
-                  controller: _messageController,
-                  onChanged: (v) {
-                    if (v.isNotEmpty) _notifyTyping(true);
-                    setState(() {});
-                  },
-                  decoration: const InputDecoration(hintText: 'Escribe un mensaje...', border: InputBorder.none),
+            if (_replyToMessage != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: theme.dividerColor.withOpacity(0.45)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 3,
+                      height: 32,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Respondiendo a',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            _messagePreview(_replyToMessage!),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.75)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => setState(() => _replyToMessage = null),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            if (_messageController.text.isNotEmpty)
-              IconButton(icon: Icon(Icons.send, color: theme.colorScheme.primary), onPressed: _sendMessage)
-            else
-              InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: _startRecording,
-                child: CircleAvatar(
-                  backgroundColor: theme.colorScheme.primary,
-                  child: const Icon(Icons.mic, color: Colors.white),
+            Row(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.add_circle_outline, color: theme.colorScheme.primary),
+                  onPressed: _pickAndSendImage,
                 ),
-              ),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(24)),
+                    child: TextField(
+                      controller: _messageController,
+                      onChanged: (v) {
+                        if (v.isNotEmpty) _notifyTyping(true);
+                        setState(() {});
+                      },
+                      decoration: const InputDecoration(hintText: 'Escribe un mensaje...', border: InputBorder.none),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (_messageController.text.isNotEmpty)
+                  IconButton(icon: Icon(Icons.send, color: theme.colorScheme.primary), onPressed: _sendMessage)
+                else
+                  InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: _startRecording,
+                    child: CircleAvatar(
+                      backgroundColor: theme.colorScheme.primary,
+                      child: const Icon(Icons.mic, color: Colors.white),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
