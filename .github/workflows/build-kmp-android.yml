@@ -8,15 +8,11 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'venered-kmp/**'
     tags:
       - 'kmp-v*'
   pull_request:
     branches:
       - main
-    paths:
-      - 'venered-kmp/**'
   workflow_dispatch:
 
 jobs:
