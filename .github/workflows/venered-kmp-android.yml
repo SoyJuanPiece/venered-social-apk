@@ -33,25 +33,28 @@ jobs:
         with:
           gradle-version: 8.4
 
-      - name: Set up Kotlin
+      - name: Make Gradlew Executable
+        working-directory: venered-kmp
         run: |
-          sudo apt-get update
-          sudo apt-get install -y kotlin
+          if [ ! -f gradlew ]; then
+            gradle wrapper
+          fi
+          chmod +x gradlew
 
       - name: Build with Gradle
         working-directory: venered-kmp
         run: |
-          gradle :androidApp:build --stacktrace
+          ./gradlew :androidApp:build --stacktrace
 
       - name: Build Release APK
         working-directory: venered-kmp
         run: |
-          gradle :androidApp:assembleRelease --stacktrace
+          ./gradlew :androidApp:assembleRelease --stacktrace
 
       - name: Build Release Bundle
         working-directory: venered-kmp
         run: |
-          gradle :androidApp:bundleRelease --stacktrace
+          ./gradlew :androidApp:bundleRelease --stacktrace
 
       - name: Get APK path
         id: apk
@@ -77,7 +80,7 @@ jobs:
         working-directory: venered-kmp
         continue-on-error: true
         run: |
-          gradle :shared:test --stacktrace
+          ./gradlew :shared:test --stacktrace
 
       - name: Generate Build Report
         if: always()
