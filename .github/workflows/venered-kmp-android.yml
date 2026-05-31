@@ -33,10 +33,21 @@ jobs:
         with:
           gradle-version: 8.4
 
+      - name: Restore Google Services JSON
+        env:
+          GOOGLE_SERVICES_JSON_SECRET: ${{ secrets.GOOGLE_SERVICES_JSON || secrets.GOOGLE_SERVICES_JSON_SECRET }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_SECRET" ]; then
+            echo "::warning::Missing GOOGLE_SERVICES_JSON secret - skipping google-services.json setup"
+            echo '{"placeholder": true}' > venered-kmp/androidApp/google-services.json
+          else
+            printf '%s' "$GOOGLE_SERVICES_JSON_SECRET" > venered-kmp/androidApp/google-services.json
+          fi
+
       - name: Make Gradlew Executable
         working-directory: venered-kmp
         run: |
-          gradle wrapper --gradle-version 8.1.4
+          gradle wrapper --gradle-version 8.4
           chmod +x gradlew
 
       - name: Build and Assemble Release
