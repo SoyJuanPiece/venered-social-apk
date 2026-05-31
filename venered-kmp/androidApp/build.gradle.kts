@@ -9,7 +9,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.venered.social"
+        applicationId = "com.juanpiece.venered"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

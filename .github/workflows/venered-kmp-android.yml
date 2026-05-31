@@ -38,8 +38,25 @@ jobs:
           GOOGLE_SERVICES_JSON_SECRET: ${{ secrets.GOOGLE_SERVICES_JSON || secrets.GOOGLE_SERVICES_JSON_SECRET }}
         run: |
           if [ -z "$GOOGLE_SERVICES_JSON_SECRET" ]; then
-            echo "::warning::Missing GOOGLE_SERVICES_JSON secret - skipping google-services.json setup"
-            echo '{"placeholder": true}' > venered-kmp/androidApp/google-services.json
+            echo "::warning::Missing GOOGLE_SERVICES_JSON secret - using dummy google-services.json"
+            cat > venered-kmp/androidApp/google-services.json << 'EOF'
+            {
+              "project_info": { "project_number": "123", "project_id": "dummy" },
+              "client": [
+                {
+                  "client_info": { "mobilesdk_app_id": "1:123:android:abc", "android_client_info": { "package_name": "com.juanpiece.venered" } },
+                  "api_key": [{ "current_key": "dummy" }],
+                  "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+                },
+                {
+                  "client_info": { "mobilesdk_app_id": "1:123:android:def", "android_client_info": { "package_name": "com.venered.social" } },
+                  "api_key": [{ "current_key": "dummy" }],
+                  "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+                }
+              ],
+              "configuration_version": "1"
+            }
+          EOF
           else
             printf '%s' "$GOOGLE_SERVICES_JSON_SECRET" > venered-kmp/androidApp/google-services.json
           fi
