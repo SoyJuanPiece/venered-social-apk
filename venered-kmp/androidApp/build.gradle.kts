@@ -4,13 +4,13 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 android {
     namespace = "com.venered.social.android"
     compileSdk = 34
-
-    kotlin {
-        jvmToolchain(17)
-    }
 
     defaultConfig {
         applicationId = "com.juanpiece.venered"
@@ -18,6 +18,28 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            // Usa variables de entorno o valores por defecto para pruebas locales
+            val keystorePath = System.getenv("RELEASE_STORE_FILE") ?: "../../venered-release.jks"
+            storeFile = file(keystorePath)
+            storePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: "JuanPiece2026*"
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: "juanpiece"
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: "JuanPiece2026*"
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
 
     compileOptions {

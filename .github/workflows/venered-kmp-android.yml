@@ -61,6 +61,18 @@ jobs:
             printf '%s' "$GOOGLE_SERVICES_JSON_SECRET" > venered-kmp/androidApp/google-services.json
           fi
 
+      - name: Restore Keystore
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > venered-release.jks
+          else
+            echo "::warning::Missing RELEASE_KEYSTORE_BASE64 secret - APK will be unsigned or use dummy"
+            # Si no hay keystore, el build podría fallar si signingConfig es obligatorio.
+            # Podríamos crear un keystore temporal o dejar que falle para alertar al usuario.
+          fi
+
       - name: Make Gradlew Executable
         working-directory: venered-kmp
         run: |
@@ -69,6 +81,11 @@ jobs:
 
       - name: Build and Assemble Release
         working-directory: venered-kmp
+        env:
+          RELEASE_STORE_FILE: ../venered-release.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || 'JuanPiece2026*' }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'juanpiece' }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || 'JuanPiece2026*' }}
         run: |
           ./gradlew :androidApp:assembleRelease --stacktrace
 
