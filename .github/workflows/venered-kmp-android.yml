@@ -36,17 +36,10 @@ jobs:
       - name: Make Gradlew Executable
         working-directory: venered-kmp
         run: |
-          if [ ! -f gradlew ]; then
-            gradle wrapper
-          fi
+          gradle wrapper --gradle-version 8.1.4
           chmod +x gradlew
 
-      - name: Build with Gradle
-        working-directory: venered-kmp
-        run: |
-          ./gradlew :androidApp:build --stacktrace
-
-      - name: Build Release APK
+      - name: Build and Assemble Release
         working-directory: venered-kmp
         run: |
           ./gradlew :androidApp:assembleRelease --stacktrace
