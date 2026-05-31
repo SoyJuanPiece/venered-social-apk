@@ -34,23 +34,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y kotlin
 
-      - name: Validate Gradle wrapper
-        uses: gradle/wrapper-validation-action@v1
-
       - name: Build with Gradle
         working-directory: venered-kmp
         run: |
-          ./gradlew :androidApp:build --stacktrace
+          gradle :androidApp:build --stacktrace
 
       - name: Build Release APK
         working-directory: venered-kmp
         run: |
-          ./gradlew :androidApp:assembleRelease --stacktrace
+          gradle :androidApp:assembleRelease --stacktrace
 
       - name: Build Release Bundle
         working-directory: venered-kmp
         run: |
-          ./gradlew :androidApp:bundleRelease --stacktrace
+          gradle :androidApp:bundleRelease --stacktrace
 
       - name: Get APK path
         id: apk
@@ -76,7 +73,7 @@ jobs:
         working-directory: venered-kmp
         continue-on-error: true
         run: |
-          ./gradlew :shared:test --stacktrace
+          gradle :shared:test --stacktrace
 
       - name: Generate Build Report
         if: always()
