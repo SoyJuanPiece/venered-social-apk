@@ -6,6 +6,7 @@ import com.venered.social.data.network.getSupabaseUrl
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import kotlinx.datetime.Clock
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -71,7 +72,7 @@ class UserRepository {
     suspend fun setOnlineStatus(userId: String, isOnline: Boolean): Result<Unit> = runCatching {
         val updateData = buildJsonObject {
             put("is_online", isOnline)
-            put("last_seen", System.currentTimeMillis())
+            put("last_seen", Clock.System.now().toEpochMilliseconds())
         }
 
         client.patch("$baseUrl/profiles") {

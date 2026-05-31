@@ -2,14 +2,15 @@ package com.venered.social.android.ui.screens
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -68,7 +69,7 @@ fun MainNavigationScreen(rootNavController: NavController, userId: String) {
                     }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.MailOutline, contentDescription = "Messages") },
+                    icon = { Icon(Icons.Default.Email, contentDescription = "Messages") },
                     label = { Text("Mensajes") },
                     selected = currentRoute == "messages_inner",
                     onClick = {

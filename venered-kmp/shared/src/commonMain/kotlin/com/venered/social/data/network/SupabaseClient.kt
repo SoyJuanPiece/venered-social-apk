@@ -1,7 +1,10 @@
 package com.venered.social.data.network
 
 import io.ktor.client.*
+import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.logging.*
+import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
@@ -17,11 +20,12 @@ object SupabaseClient {
             })
         }
 
-        install(io.ktor.client.plugins.logging.Logging) {
-            level = io.ktor.client.plugins.logging.LogLevel.ALL
+        install(Logging) {
+            level = LogLevel.ALL
         }
 
         defaultRequest {
+            url(SUPABASE_URL)
             header("apikey", SUPABASE_KEY)
             header("Authorization", "Bearer $SUPABASE_KEY")
         }

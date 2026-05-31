@@ -48,6 +48,13 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
+    // Firebase
+    implementation("com.google.firebase:firebase-messaging-ktx:23.4.0")
+    implementation("com.google.firebase:firebase-core:21.1.1")
+
+    // Android Core
+    implementation("androidx.core:core-ktx:1.12.0")
+
     // Coil para imágenes
     implementation("io.coil-kt:coil-compose:2.5.0")
 

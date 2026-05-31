@@ -17,6 +17,8 @@ import com.venered.social.presentation.theme.VeneredSpacing
 import com.venered.social.presentation.viewmodel.PostViewModel
 import com.venered.social.di.SharedComponent
 
+import androidx.compose.ui.graphics.Color
+
 @Composable
 fun CreatePostScreen(navController: NavController, userId: String) {
     val viewModel = remember { SharedComponent.providePostViewModel() }
@@ -70,10 +72,9 @@ fun CreatePostScreen(navController: NavController, userId: String) {
                     .fillMaxWidth()
                     .weight(1f),
                 placeholder = { Text("¿Qué estás pensando?") },
-                border = null,
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = MaterialTheme.colorScheme.surface,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.surface
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent
                 )
             )
             
