@@ -22,6 +22,7 @@ import com.venered.social.di.SharedComponent
 import com.venered.social.data.model.Message
 import com.venered.social.utils.DateTimeFormatter
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(conversationId: String, otherUsername: String, currentUserId: String, navController: NavController) {
     val viewModel = remember { SharedComponent.provideMessagesViewModel() }

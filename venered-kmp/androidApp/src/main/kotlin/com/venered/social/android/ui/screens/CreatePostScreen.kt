@@ -19,6 +19,7 @@ import com.venered.social.di.SharedComponent
 
 import androidx.compose.ui.graphics.Color
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePostScreen(navController: NavController, userId: String) {
     val viewModel = remember { SharedComponent.providePostViewModel() }

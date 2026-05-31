@@ -19,6 +19,11 @@ import com.venered.social.presentation.theme.VeneredSpacing
 import com.venered.social.presentation.viewmodel.AuthViewModel
 import com.venered.social.di.SharedComponent
 
+import androidx.navigation.NavController
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+
 @Composable
 fun LoginScreen(navController: NavController, onLoginSuccess: (String) -> Unit) {
     val viewModel = remember { SharedComponent.provideAuthViewModel() }
@@ -85,7 +90,10 @@ fun LoginScreen(navController: NavController, onLoginSuccess: (String) -> Unit) 
             shape = RoundedCornerShape(VeneredCornerRadius.Large.dp),
             trailingIcon = {
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Text(if (passwordVisible) "👁️" else "🔒")
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (passwordVisible) "Ocultar" else "Ver"
+                    )
                 }
             }
         )

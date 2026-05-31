@@ -26,7 +26,7 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
                 
                 // Serialization
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
                 
                 // HTTP Client
                 implementation("io.ktor:ktor-client-core:2.3.6")
@@ -37,7 +37,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-json:2.3.6")
                 
                 // DateTime
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
+                api("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
                 
                 // Database (SQLDelight)
                 implementation("app.cash.sqldelight:runtime:2.0.1")

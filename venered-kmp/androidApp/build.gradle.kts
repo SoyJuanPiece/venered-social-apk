@@ -48,9 +48,13 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation("androidx.navigation:navigation-compose:2.7.5")
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    
+    // DateTime
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
 
     // Firebase
     implementation("com.google.firebase:firebase-messaging-ktx:23.4.0")

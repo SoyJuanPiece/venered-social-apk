@@ -7,8 +7,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Comment
+import androidx.compose.material.icons.filled.ModeComment
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,14 +20,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.venered.social.presentation.theme.VeneredCornerRadius
 import com.venered.social.presentation.theme.VeneredSpacing
-
 import com.venered.social.presentation.viewmodel.HomeFeedViewModel
 import com.venered.social.di.SharedComponent
 import com.venered.social.data.model.Post
 import com.venered.social.utils.DateTimeFormatter
 
-import androidx.compose.material.icons.filled.Add
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController, userId: String) {
     val viewModel = remember { SharedComponent.provideHomeFeedViewModel() }
@@ -183,7 +182,7 @@ fun PostCard(post: Post, navController: NavController) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Comment,
+                        imageVector = Icons.Filled.ModeComment,
                         contentDescription = "Comment",
                         tint = MaterialTheme.colorScheme.onBackground
                     )

@@ -21,6 +21,7 @@ import com.venered.social.di.SharedComponent
 import com.venered.social.data.model.Notification
 import com.venered.social.utils.DateTimeFormatter
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationsScreen(navController: NavController, userId: String) {
     val viewModel = remember { SharedComponent.provideNotificationsViewModel() }

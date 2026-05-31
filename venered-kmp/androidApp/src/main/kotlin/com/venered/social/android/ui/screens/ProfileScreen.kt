@@ -21,6 +21,7 @@ import com.venered.social.di.SharedComponent
 import com.venered.social.data.model.User
 import com.venered.social.data.model.Post
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(userId: String, navController: NavController) {
     val viewModel = remember { SharedComponent.provideProfileViewModel() }
