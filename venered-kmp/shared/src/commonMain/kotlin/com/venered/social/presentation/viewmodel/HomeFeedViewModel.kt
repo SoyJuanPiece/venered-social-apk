@@ -18,7 +18,7 @@ class HomeFeedViewModel(
     private val getFeedPostsUseCase: GetFeedPostsUseCase,
     private val likePostUseCase: LikePostUseCase,
     private val unlikePostUseCase: UnlikePostUseCase
-) {
+) : BaseViewModel() {
     private val _state = MutableStateFlow(HomeFeedState())
     val state: StateFlow<HomeFeedState> = _state
 
@@ -45,42 +45,32 @@ class HomeFeedViewModel(
             currentOffset = 0
         }
 
-        kotlin.runCatching {
-            kotlinx.coroutines.runBlocking {
-                getFeedPostsUseCase(limit = pageSize, offset = currentOffset)
-            }
-        }.onSuccess { result ->
-            result.onSuccess { newPosts ->
-                val updatedPosts = if (reset) newPosts else _state.value.posts + newPosts
-                currentOffset += pageSize
+        viewModelScope.launch {
+            getFeedPostsUseCase(limit = pageSize, offset = currentOffset)
+                .onSuccess { newPosts ->
+                    val updatedPosts = if (reset) newPosts else _state.value.posts + newPosts
+                    currentOffset += pageSize
 
-                _state.value = _state.value.copy(
-                    posts = updatedPosts,
-                    isLoading = false,
-                    hasMore = newPosts.size == pageSize
-                )
-            }.onFailure { exception ->
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = exception.message ?: "Error cargando feed"
-                )
-            }
-        }.onFailure { exception ->
-            _state.value = _state.value.copy(
-                isLoading = false,
-                error = exception.message ?: "Error cargando feed"
-            )
+                    _state.value = _state.value.copy(
+                        posts = updatedPosts,
+                        isLoading = false,
+                        hasMore = newPosts.size == pageSize
+                    )
+                }.onFailure { exception ->
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        error = exception.message ?: "Error cargando feed"
+                    )
+                }
         }
     }
 
     fun toggleLike(postId: String, userId: String, isLiked: Boolean) {
-        kotlin.runCatching {
-            kotlinx.coroutines.runBlocking {
-                if (isLiked) {
-                    unlikePostUseCase(userId, postId)
-                } else {
-                    likePostUseCase(userId, postId)
-                }
+        viewModelScope.launch {
+            if (isLiked) {
+                unlikePostUseCase(userId, postId)
+            } else {
+                likePostUseCase(userId, postId)
             }
         }
     }

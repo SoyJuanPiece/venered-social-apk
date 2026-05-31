@@ -13,25 +13,26 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.venered.social.presentation.theme.VeneredCornerRadius
 import com.venered.social.presentation.theme.VeneredSpacing
-
 import com.venered.social.presentation.viewmodel.AuthViewModel
 import com.venered.social.di.SharedComponent
 
 @Composable
-fun LoginScreen(navController: NavController, onLoginSuccess: (String) -> Unit) {
+fun RegisterScreen(navController: NavController, onRegisterSuccess: (String) -> Unit) {
     val viewModel = remember { SharedComponent.provideAuthViewModel() }
     val state by viewModel.state.collectAsState()
 
     var email by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.authResponse) {
         state.authResponse?.let { response ->
             response.user?.id?.let { userId ->
-                onLoginSuccess(userId)
+                onRegisterSuccess(userId)
             }
         }
     }
@@ -44,20 +45,25 @@ fun LoginScreen(navController: NavController, onLoginSuccess: (String) -> Unit) 
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Logo/Título
+        // Título
         Text(
-            text = "Venered",
-            fontSize = 32.sp,
+            text = "Crear Cuenta",
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = VeneredSpacing.ExtraSmall.dp)
+            modifier = Modifier.padding(bottom = VeneredSpacing.ExtraLarge.dp)
         )
 
-        Text(
-            text = "Red Social",
-            fontSize = 16.sp,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f),
-            modifier = Modifier.padding(bottom = VeneredSpacing.ExtraLarge.dp)
+        // Username Input
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text("Nombre de usuario") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = VeneredSpacing.ExtraSmall.dp),
+            singleLine = true,
+            shape = RoundedCornerShape(VeneredCornerRadius.Large.dp)
         )
 
         // Email Input
@@ -102,11 +108,11 @@ fun LoginScreen(navController: NavController, onLoginSuccess: (String) -> Unit) 
             )
         }
 
-        // Login Button
+        // Register Button
         Button(
             onClick = {
-                if (email.isNotEmpty() && password.isNotEmpty()) {
-                    viewModel.login(email, password)
+                if (email.isNotEmpty() && password.isNotEmpty() && username.isNotEmpty()) {
+                    viewModel.register(email, password, username)
                 }
             },
             modifier = Modifier
@@ -118,22 +124,20 @@ fun LoginScreen(navController: NavController, onLoginSuccess: (String) -> Unit) 
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
             } else {
-                Text("Iniciar sesión")
+                Text("Registrarse")
             }
         }
 
-        // Register link
-        Row(
-            modifier = Modifier.padding(top = VeneredSpacing.Medium.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("¿No tienes cuenta? ")
+        // Login link
+        Row(modifier = Modifier.padding(top = VeneredSpacing.Medium.dp)) {
+            Text("¿Ya tienes cuenta? ")
             TextButton(
-                onClick = { navController.navigate("register") },
+                onClick = { navController.popBackStack() },
+                modifier = Modifier.padding(start = 0.dp),
                 contentPadding = PaddingValues(0.dp)
             ) {
                 Text(
-                    text = "Regístrate",
+                    text = "Inicia sesión",
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )

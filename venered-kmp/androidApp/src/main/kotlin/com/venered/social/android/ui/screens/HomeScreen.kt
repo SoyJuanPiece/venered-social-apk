@@ -20,14 +20,21 @@ import androidx.navigation.NavController
 import com.venered.social.presentation.theme.VeneredCornerRadius
 import com.venered.social.presentation.theme.VeneredSpacing
 
+import com.venered.social.presentation.viewmodel.HomeFeedViewModel
+import com.venered.social.di.SharedComponent
+import com.venered.social.data.model.Post
+import com.venered.social.utils.DateTimeFormatter
+
+import androidx.compose.material.icons.filled.Add
+
 @Composable
-fun HomeScreen(navController: NavController) {
-    var posts by remember { mutableStateOf(emptyList<PostItemData>()) }
-    var isLoading by remember { mutableStateOf(true) }
+fun HomeScreen(navController: NavController, userId: String) {
+    val viewModel = remember { SharedComponent.provideHomeFeedViewModel() }
+    val state by viewModel.state.collectAsState()
 
     LaunchedEffect(Unit) {
-        // TODO: Load posts from repository
-        isLoading = false
+        viewModel.setCurrentUser(userId)
+        viewModel.loadInitialFeed()
     }
 
     Scaffold(
@@ -40,26 +47,51 @@ fun HomeScreen(navController: NavController) {
                     titleContentColor = MaterialTheme.colorScheme.primary
                 )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate("create_post") },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Crear Post")
+            }
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            items(posts) { post ->
-                PostCard(post, navController)
-            }
+        Box(modifier = Modifier.padding(paddingValues)) {
+            if (state.isLoading && state.posts.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (state.error != null && state.posts.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "Error: ${state.error}", color = MaterialTheme.colorScheme.error)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(state.posts) { post ->
+                        PostCard(post, navController)
+                    }
 
-            if (isLoading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    if (state.isLoading) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
                     }
                 }
             }
@@ -68,7 +100,7 @@ fun HomeScreen(navController: NavController) {
 }
 
 @Composable
-fun PostCard(post: PostItemData, navController: NavController) {
+fun PostCard(post: Post, navController: NavController) {
     var isLiked by remember { mutableStateOf(false) }
 
     Card(
@@ -98,12 +130,12 @@ fun PostCard(post: PostItemData, navController: NavController) {
 
                 Column(modifier = Modifier.padding(start = VeneredSpacing.Medium.dp)) {
                     Text(
-                        text = post.authorName,
+                        text = if (post.username.isNotEmpty()) post.username else "Usuario",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
                     Text(
-                        text = post.timestamp,
+                        text = DateTimeFormatter.formatRelativeTime(post.createdAt),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )
@@ -111,11 +143,13 @@ fun PostCard(post: PostItemData, navController: NavController) {
             }
 
             // Content
-            Text(
-                text = post.content,
-                modifier = Modifier.padding(bottom = VeneredSpacing.Medium.dp),
-                fontSize = 14.sp
-            )
+            post.content?.let {
+                Text(
+                    text = it,
+                    modifier = Modifier.padding(bottom = VeneredSpacing.Medium.dp),
+                    fontSize = 14.sp
+                )
+            }
 
             // Engagement Stats
             Row(
@@ -169,13 +203,3 @@ fun PostCard(post: PostItemData, navController: NavController) {
         }
     }
 }
-
-data class PostItemData(
-    val id: String = "",
-    val authorName: String = "Usuario",
-    val content: String = "Este es un post de ejemplo",
-    val timestamp: String = "hace 2 horas",
-    val likesCount: Int = 0,
-    val commentsCount: Int = 0,
-    val mediaUrl: String? = null
-)

@@ -2,8 +2,8 @@ package com.venered.social.android.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -14,18 +14,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.venered.social.presentation.theme.VeneredCornerRadius
+import com.venered.social.presentation.theme.VeneredSpacing
+import com.venered.social.presentation.viewmodel.NotificationsViewModel
+import com.venered.social.di.SharedComponent
+import com.venered.social.data.model.Notification
+import com.venered.social.utils.DateTimeFormatter
 
 @Composable
-fun NotificationsScreen(navController: NavController) {
-    var notifications by remember { mutableStateOf(emptyList<NotificationItem>()) }
+fun NotificationsScreen(navController: NavController, userId: String) {
+    val viewModel = remember { SharedComponent.provideNotificationsViewModel() }
+    val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(Unit) {
-        // TODO: Load notifications
-        notifications = listOf(
-            NotificationItem("1", "Usuario1", "le gustó tu post", "hace 2 horas"),
-            NotificationItem("2", "Usuario2", "te comenzó a seguir", "hace 5 horas"),
-            NotificationItem("3", "Usuario3", "comentó en tu post", "hace 1 día"),
-        )
+    LaunchedEffect(userId) {
+        viewModel.loadNotifications(userId)
     }
 
     Scaffold(
@@ -43,27 +45,28 @@ fun NotificationsScreen(navController: NavController) {
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            items(notifications.size) { index ->
-                NotificationItemCard(notifications[index])
-            }
+        Box(modifier = Modifier.padding(paddingValues)) {
+            if (state.isLoading && state.notifications.isEmpty()) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else if (state.error != null && state.notifications.isEmpty()) {
+                Text(state.error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.Center))
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(state.notifications) { notification ->
+                        NotificationItemCard(notification) {
+                            viewModel.markAsRead(notification.id)
+                        }
+                    }
 
-            if (notifications.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "No hay notificaciones",
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                        )
+                    if (state.notifications.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("No hay notificaciones", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
+                            }
+                        }
                     }
                 }
             }
@@ -72,56 +75,44 @@ fun NotificationsScreen(navController: NavController) {
 }
 
 @Composable
-fun NotificationItemCard(notification: NotificationItem) {
+fun NotificationItemCard(notification: Notification, onRead: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(12.dp)
+            .padding(horizontal = VeneredSpacing.Large.dp, vertical = VeneredSpacing.ExtraSmall.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (notification.isRead) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(VeneredCornerRadius.Medium.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(VeneredSpacing.Medium.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar
             Surface(
                 modifier = Modifier.size(40.dp),
                 shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
             ) {}
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 12.dp)
-            ) {
+            Column(modifier = Modifier.weight(1f).padding(horizontal = VeneredSpacing.Medium.dp)) {
                 Text(
-                    text = notification.userName,
+                    text = "Alguien ${notification.type}", // TODO: Better mapping
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
-                Text(
-                    text = notification.message,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
+                notification.content?.let {
+                    Text(text = it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
+                }
             }
 
             Text(
-                text = notification.timestamp,
+                text = DateTimeFormatter.formatRelativeTime(notification.createdAt),
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
             )
         }
     }
 }
-
-data class NotificationItem(
-    val id: String = "",
-    val userName: String = "",
-    val message: String = "",
-    val timestamp: String = ""
-)

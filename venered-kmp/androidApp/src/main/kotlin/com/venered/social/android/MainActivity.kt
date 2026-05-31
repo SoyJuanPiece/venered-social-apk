@@ -11,10 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.venered.social.android.ui.theme.VeneredTheme
-import com.venered.social.android.ui.screens.LoginScreen
-import com.venered.social.android.ui.screens.HomeScreen
-import com.venered.social.android.ui.screens.ProfileScreen
-import com.venered.social.android.ui.screens.MessagesScreen
+import com.venered.social.android.ui.screens.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,35 +31,58 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun VeneredNavigation() {
-    val navController = rememberNavController()
+    val rootNavController = rememberNavController()
     val isLoggedIn = remember { mutableStateOf(false) }
+    val currentUserId = remember { mutableStateOf("") }
 
     NavHost(
-        navController = navController,
-        startDestination = if (isLoggedIn.value) "home" else "login"
+        navController = rootNavController,
+        startDestination = if (isLoggedIn.value) "main" else "login"
     ) {
         composable("login") {
             LoginScreen(
-                onLoginSuccess = {
+                navController = rootNavController,
+                onLoginSuccess = { userId ->
+                    currentUserId.value = userId
                     isLoggedIn.value = true
-                    navController.navigate("home") {
+                    rootNavController.navigate("main") {
                         popUpTo("login") { inclusive = true }
                     }
                 }
             )
         }
 
-        composable("home") {
-            HomeScreen(navController)
+        composable("register") {
+            RegisterScreen(
+                navController = rootNavController,
+                onRegisterSuccess = { userId ->
+                    currentUserId.value = userId
+                    isLoggedIn.value = true
+                    rootNavController.navigate("main") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
         }
 
+        composable("main") {
+            MainNavigationScreen(rootNavController, currentUserId.value)
+        }
+
+        composable("create_post") {
+            CreatePostScreen(rootNavController, currentUserId.value)
+        }
+
+        composable("chat/{conversationId}/{otherUsername}") { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+            val otherUsername = backStackEntry.arguments?.getString("otherUsername") ?: ""
+            ChatScreen(conversationId, otherUsername, currentUserId.value, rootNavController)
+        }
+
+        // External Profile (e.g., from search or post)
         composable("profile/{userId}") { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
-            ProfileScreen(userId, navController)
-        }
-
-        composable("messages") {
-            MessagesScreen(navController)
+            ProfileScreen(userId, rootNavController)
         }
     }
 }

@@ -6,6 +6,8 @@ import com.venered.social.domain.usecase.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+import kotlinx.coroutines.launch
+
 data class MessagesState(
     val conversations: List<Conversation> = emptyList(),
     val currentMessages: List<Message> = emptyList(),
@@ -17,7 +19,7 @@ class MessagesViewModel(
     private val getConversationsUseCase: GetConversationsUseCase,
     private val getConversationMessagesUseCase: GetConversationMessagesUseCase,
     private val sendMessageUseCase: SendMessageUseCase
-) {
+) : BaseViewModel() {
     private val _state = MutableStateFlow(MessagesState())
     val state: StateFlow<MessagesState> = _state
 
@@ -26,22 +28,19 @@ class MessagesViewModel(
     fun loadConversations(userId: String) {
         _state.value = _state.value.copy(isLoading = true, error = null)
 
-        kotlin.runCatching {
-            kotlinx.coroutines.runBlocking {
-                getConversationsUseCase(userId)
-            }
-        }.onSuccess { result ->
-            result.onSuccess { conversations ->
-                _state.value = _state.value.copy(
-                    conversations = conversations,
-                    isLoading = false
-                )
-            }.onFailure { exception ->
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = exception.message
-                )
-            }
+        viewModelScope.launch {
+            getConversationsUseCase(userId)
+                .onSuccess { conversations ->
+                    _state.value = _state.value.copy(
+                        conversations = conversations,
+                        isLoading = false
+                    )
+                }.onFailure { exception ->
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        error = exception.message
+                    )
+                }
         }
     }
 
@@ -49,36 +48,30 @@ class MessagesViewModel(
         currentConversationId = conversationId
         _state.value = _state.value.copy(isLoading = true, error = null)
 
-        kotlin.runCatching {
-            kotlinx.coroutines.runBlocking {
-                getConversationMessagesUseCase(conversationId)
-            }
-        }.onSuccess { result ->
-            result.onSuccess { messages ->
-                _state.value = _state.value.copy(
-                    currentMessages = messages,
-                    isLoading = false
-                )
-            }.onFailure { exception ->
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    error = exception.message
-                )
-            }
+        viewModelScope.launch {
+            getConversationMessagesUseCase(conversationId)
+                .onSuccess { messages ->
+                    _state.value = _state.value.copy(
+                        currentMessages = messages,
+                        isLoading = false
+                    )
+                }.onFailure { exception ->
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        error = exception.message
+                    )
+                }
         }
     }
 
     fun sendMessage(conversationId: String, senderId: String, receiverId: String, content: String) {
-        kotlin.runCatching {
-            kotlinx.coroutines.runBlocking {
-                sendMessageUseCase(conversationId, senderId, receiverId, content)
-            }
-        }.onSuccess { result ->
-            result.onSuccess { message ->
-                _state.value = _state.value.copy(
-                    currentMessages = _state.value.currentMessages + message
-                )
-            }
+        viewModelScope.launch {
+            sendMessageUseCase(conversationId, senderId, receiverId, content)
+                .onSuccess { message ->
+                    _state.value = _state.value.copy(
+                        currentMessages = _state.value.currentMessages + message
+                    )
+                }
         }
     }
 }
