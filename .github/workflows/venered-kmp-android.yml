@@ -1,10 +1,9 @@
 name: Build KMP Android
 
 permissions:
-  contents: read
+  contents: write
 
 on:
-  workflow_call:
   push:
     branches:
       - main
