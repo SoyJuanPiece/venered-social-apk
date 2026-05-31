@@ -6,6 +6,7 @@ plugins {
 
 kotlin {
     jvmToolchain(17)
+    
     androidTarget {
         compilations.all {
             kotlinOptions {
@@ -62,8 +63,7 @@ kotlin {
             }
         }
 
-        val iosMain by creating {
-            dependsOn(commonMain)
+        val iosMain by getting {
             dependencies {
                 implementation("io.ktor:ktor-client-ios:2.3.6")
                 implementation("app.cash.sqldelight:native-driver:2.0.1")

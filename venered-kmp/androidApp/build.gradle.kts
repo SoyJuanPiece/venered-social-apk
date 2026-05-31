@@ -4,13 +4,13 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-kotlin {
-    jvmToolchain(17)
-}
-
 android {
     namespace = "com.venered.social.android"
     compileSdk = 34
+
+    kotlin {
+        jvmToolchain(17)
+    }
 
     defaultConfig {
         applicationId = "com.juanpiece.venered"
