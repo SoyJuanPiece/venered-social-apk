@@ -63,21 +63,23 @@ android {
 dependencies {
     implementation(project(":shared"))
 
-    // Compose BOM para asegurar versiones compatibles
-    val composeBom = platform("androidx.compose:compose-bom:2024.01.00")
+    // Compose BOM 2024.05.00 (Incluye Compose 1.6.7 y Material3 1.2.1)
+    val composeBom = platform("androidx.compose:compose-bom:2024.05.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
-    // Jetpack Compose (Versiones manejadas por BOM)
+    // Jetpack Compose - Sin versiones manuales para dejar que la BOM decida
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.animation:animation") // Forzamos inclusión de la versión correcta
     implementation("androidx.compose.material:material-icons-extended")
     
-    // Activity y Navigation (Versiones alineadas con Compose 1.6)
-    implementation("androidx.activity:activity-compose:1.8.2")
-    implementation("androidx.navigation:navigation-compose:2.7.6")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    // Integración con Android (Alineadas con la época de la BOM)
+    implementation("androidx.activity:activity-compose:1.9.0")
+    implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -92,8 +94,8 @@ dependencies {
     // Android Core
     implementation("androidx.core:core-ktx:1.12.0")
 
-    // Coil para imágenes
-    implementation("io.coil-kt:coil-compose:2.5.0")
+    // Coil para imágenes (Versión compatible con Compose 1.6+)
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     // Security
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
