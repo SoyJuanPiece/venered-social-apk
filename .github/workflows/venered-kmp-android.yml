@@ -66,11 +66,9 @@ jobs:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
-            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > venered-release.jks
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > venered-kmp/venered-release.jks
           else
             echo "::warning::Missing RELEASE_KEYSTORE_BASE64 secret - APK will be unsigned or use dummy"
-            # Si no hay keystore, el build podría fallar si signingConfig es obligatorio.
-            # Podríamos crear un keystore temporal o dejar que falle para alertar al usuario.
           fi
 
       - name: Make Gradlew Executable
