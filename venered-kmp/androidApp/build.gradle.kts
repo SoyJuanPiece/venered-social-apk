@@ -63,14 +63,21 @@ android {
 dependencies {
     implementation(project(":shared"))
 
-    // Jetpack Compose
-    implementation("androidx.compose.ui:ui:1.6.0")
-    implementation("androidx.compose.material3:material3:1.1.2")
-    implementation("androidx.compose.foundation:foundation:1.6.0")
-    implementation("androidx.activity:activity-compose:1.8.1")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
-    implementation("androidx.navigation:navigation-compose:2.7.5")
-    implementation("androidx.compose.material:material-icons-extended:1.6.0")
+    // Compose BOM para asegurar versiones compatibles
+    val composeBom = platform("androidx.compose:compose-bom:2024.01.00")
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
+
+    // Jetpack Compose (Versiones manejadas por BOM)
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material:material-icons-extended")
+    
+    // Activity y Navigation (Versiones alineadas con Compose 1.6)
+    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.navigation:navigation-compose:2.7.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
