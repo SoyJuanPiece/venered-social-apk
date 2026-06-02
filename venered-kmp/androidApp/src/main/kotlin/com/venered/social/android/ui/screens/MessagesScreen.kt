@@ -67,7 +67,8 @@ fun MessagesScreen(navController: NavController, userId: String) {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(state.conversations) { conversation ->
                         ConversationItem(conversation) {
-                            navController.navigate("chat/${conversation.id}/${conversation.otherUsername}")
+                            val otherUserId = if (conversation.user1Id == userId) conversation.user2Id else conversation.user1Id
+                            navController.navigate("chat/${conversation.id}/${conversation.otherUsername}/$otherUserId")
                         }
                     }
                 }

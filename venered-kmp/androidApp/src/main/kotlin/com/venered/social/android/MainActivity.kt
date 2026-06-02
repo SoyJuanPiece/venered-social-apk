@@ -77,11 +77,13 @@ composable("story_viewer/{storyId}") { backStackEntry ->
     StoryViewerScreen(rootNavController, storyId)
 }
 
-composable("chat/{conversationId}/{otherUsername}") { backStackEntry ->
-...
-            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
-            val otherUsername = backStackEntry.arguments?.getString("otherUsername") ?: ""
-            ChatScreen(conversationId, otherUsername, currentUserId.value, rootNavController)
+composable("chat/{conversationId}/{otherUsername}/{otherUserId}") { backStackEntry ->
+    val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+    val otherUsername = backStackEntry.arguments?.getString("otherUsername") ?: ""
+    val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: ""
+    ChatScreen(conversationId, otherUsername, otherUserId, currentUserId.value, rootNavController)
+}
+
         }
 
         // External Profile (e.g., from search or post)

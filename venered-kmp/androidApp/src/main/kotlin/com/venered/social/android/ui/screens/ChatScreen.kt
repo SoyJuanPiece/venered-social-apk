@@ -24,7 +24,7 @@ import com.venered.social.utils.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(conversationId: String, otherUsername: String, currentUserId: String, navController: NavController) {
+fun ChatScreen(conversationId: String, otherUsername: String, otherUserId: String, currentUserId: String, navController: NavController) {
     val viewModel = remember { SharedComponent.provideMessagesViewModel() }
     val state by viewModel.state.collectAsState()
     var messageText by remember { mutableStateOf("") }
@@ -36,7 +36,7 @@ fun ChatScreen(conversationId: String, otherUsername: String, currentUserId: Str
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(otherUsername) },
+                title = { Text(otherUsername, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -59,7 +59,7 @@ fun ChatScreen(conversationId: String, otherUsername: String, currentUserId: Str
                 IconButton(
                     onClick = {
                         if (messageText.isNotEmpty()) {
-                            viewModel.sendMessage(conversationId, currentUserId, "", messageText)
+                            viewModel.sendMessage(conversationId, currentUserId, otherUserId, messageText)
                             messageText = ""
                         }
                     },
