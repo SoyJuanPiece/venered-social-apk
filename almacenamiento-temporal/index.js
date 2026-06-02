@@ -118,42 +118,35 @@ async function getFileUrl(fileId) {
   }
 }
 
-// Limpieza de historias expiradas (Cada 1 hora)
-async function cleanupExpiredStories() {
-  console.log('Iniciando limpieza de historias expiradas...');
+// Limpieza de archivos temporales (Cada 1 hora)
+async function cleanupMedia() {
+  console.log('Iniciando limpieza de archivos temporales...');
   try {
     const galleryData = loadGallery();
     const now = Math.floor(Date.now() / 1000);
+    const ONE_DAY_SEC = 24 * 60 * 60;
     
     const remaining = [];
     for (const item of galleryData) {
-      if (item.isStory && item.expiresAt && item.expiresAt < now) {
-        console.log(`Borrando historia expirada: ${item.id || item.file_id || item.filename}`);
+      const isExpiredStory = item.isStory && item.expiresAt && item.expiresAt < now;
+      const isOldLocal = item.storageBackend === 'local' && (now - item.date) > ONE_DAY_SEC;
 
+      if (isExpiredStory || isOldLocal) {
+        console.log(`Borrando archivo expirado/viejo: ${item.id || item.file_id || item.filename}`);
         if (item.storageBackend === 'local' && item.localPath && fs.existsSync(item.localPath)) {
-          try {
-            fs.unlinkSync(item.localPath);
-          } catch (_) {}
-        }
-
-        if (item.storageBackend === 'telegram' && bot && chatId) {
-          try {
-            await bot.deleteMessage(chatId, item.id);
-          } catch (_) {}
+          try { fs.unlinkSync(item.localPath); } catch (_) {}
         }
       } else {
         remaining.push(item);
       }
     }
-    
     saveGallery(remaining);
     console.log('Limpieza completada.');
   } catch (err) {
     console.error('Error en limpieza:', err);
   }
 }
-
-setInterval(cleanupExpiredStories, 3600000); // 1 hora
+setInterval(cleanupMedia, 3600000); // 1 hora
 
 // --- Rutas ---
 

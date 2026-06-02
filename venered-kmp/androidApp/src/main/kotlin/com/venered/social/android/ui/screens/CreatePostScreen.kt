@@ -27,6 +27,8 @@ import com.venered.social.presentation.theme.VeneredCornerRadius
 import com.venered.social.presentation.theme.VeneredSpacing
 import com.venered.social.presentation.viewmodel.PostViewModel
 import com.venered.social.di.SharedComponent
+import com.venered.social.android.ui.widgets.PostSkeleton
+import com.venered.social.android.utils.ImageUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +70,12 @@ fun CreatePostScreen(navController: NavController, userId: String) {
                     Button(
                         onClick = { 
                             if (selectedMediaUri != null) {
-                                val bytes = context.contentResolver.openInputStream(selectedMediaUri!!)?.readBytes()
+                                val bytes = if (isVideo) {
+                                    context.contentResolver.openInputStream(selectedMediaUri!!)?.readBytes()
+                                } else {
+                                    ImageUtils.compressImage(context, selectedMediaUri!!)
+                                }
+                                
                                 if (bytes != null) {
                                     val fileName = "upload_${System.currentTimeMillis()}.${if (isVideo) "mp4" else "jpg"}"
                                     viewModel.uploadMediaAndCreatePost(userId, content, bytes, fileName, isVideo)
@@ -139,7 +146,7 @@ fun CreatePostScreen(navController: NavController, userId: String) {
                             verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.PlayCircle, contentDescription = null, size(48.dp))
+                            Icon(Icons.Default.PlayCircle, contentDescription = null, modifier = Modifier.size(48.dp))
                             Text("Video seleccionado", modifier = Modifier.padding(top = 8.dp))
                         }
                     } else {
@@ -200,5 +207,3 @@ fun CreatePostScreen(navController: NavController, userId: String) {
         }
     }
 }
-
-private fun Modifier.size(size: androidx.compose.ui.unit.Dp) = this.size(size)
