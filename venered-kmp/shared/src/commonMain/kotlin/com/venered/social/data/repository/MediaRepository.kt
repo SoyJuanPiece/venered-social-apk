@@ -1,16 +1,27 @@
 package com.venered.social.data.repository
 
-import com.venered.social.data.network.SupabaseClient
+import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 class MediaRepository {
-    private val client = SupabaseClient.httpClient
+    private val client = HttpClient {
+        install(ContentNegotiation) {
+            json(Json {
+                ignoreUnknownKeys = true
+                isLenient = true
+            })
+        }
+    }
+    
     private val imgbbApiKey = "c4fd2ded598485660696ba819347f0bb"
     private val telegramServerUrl = "http://toby.hidencloud.com:24652/upload"
 
@@ -18,12 +29,7 @@ class MediaRepository {
      * Sube una imagen a ImgBB
      */
     suspend fun uploadImage(bytes: ByteArray, fileName: String): Result<String> = runCatching {
-        // Necesitamos un cliente limpio para no enviar las cabeceras de Supabase
         val response = client.post("https://api.imgbb.com/1/upload") {
-            // Limpiamos cabeceras por defecto
-            headers.remove("apikey")
-            headers.remove("Authorization")
-            
             parameter("key", imgbbApiKey)
             setBody(MultiPartFormDataContent(
                 formData {
@@ -47,9 +53,6 @@ class MediaRepository {
      */
     suspend fun uploadToTelegram(bytes: ByteArray, fileName: String, isStory: Boolean = false): Result<String> = runCatching {
         val response = client.post(telegramServerUrl) {
-            headers.remove("apikey")
-            headers.remove("Authorization")
-            
             setBody(MultiPartFormDataContent(
                 formData {
                     append("media", bytes, Headers.build {

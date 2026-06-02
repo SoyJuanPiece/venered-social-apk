@@ -64,16 +64,21 @@ fun VeneredNavigation() {
                 }
             )
         }
+composable("main") {
+    MainNavigationScreen(rootNavController, currentUserId.value)
+}
 
-        composable("main") {
-            MainNavigationScreen(rootNavController, currentUserId.value)
-        }
+composable("create_post") {
+    CreatePostScreen(rootNavController, currentUserId.value)
+}
 
-        composable("create_post") {
-            CreatePostScreen(rootNavController, currentUserId.value)
-        }
+composable("story_viewer/{storyId}") { backStackEntry ->
+    val storyId = backStackEntry.arguments?.getString("storyId") ?: ""
+    StoryViewerScreen(rootNavController, storyId)
+}
 
-        composable("chat/{conversationId}/{otherUsername}") { backStackEntry ->
+composable("chat/{conversationId}/{otherUsername}") { backStackEntry ->
+...
             val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
             val otherUsername = backStackEntry.arguments?.getString("otherUsername") ?: ""
             ChatScreen(conversationId, otherUsername, currentUserId.value, rootNavController)

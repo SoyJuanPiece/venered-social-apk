@@ -4,15 +4,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.venered.social.presentation.theme.VeneredCornerRadius
 import com.venered.social.presentation.theme.VeneredSpacing
 import com.venered.social.presentation.viewmodel.MessagesViewModel
@@ -33,7 +39,7 @@ fun MessagesScreen(navController: NavController, userId: String) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mensajes") },
+                title = { Text("Mensajes", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
@@ -44,7 +50,19 @@ fun MessagesScreen(navController: NavController, userId: String) {
             if (state.isLoading && state.conversations.isEmpty()) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (state.error != null && state.conversations.isEmpty()) {
-                Text(state.error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.Center))
+                Text(
+                    text = "Error: ${state.error}", 
+                    color = MaterialTheme.colorScheme.error, 
+                    modifier = Modifier.align(Alignment.Center).padding(16.dp)
+                )
+            } else if (!state.isLoading && state.conversations.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text("No tienes mensajes todavía", fontWeight = FontWeight.Medium)
+                }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(state.conversations) { conversation ->
@@ -76,9 +94,25 @@ fun ConversationItem(conversation: Conversation, onClick: () -> Unit) {
         ) {
             Surface(
                 modifier = Modifier.size(56.dp),
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-            ) {}
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                if (conversation.otherAvatarUrl != null) {
+                    AsyncImage(
+                        model = conversation.otherAvatarUrl,
+                        contentDescription = conversation.otherUsername,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Person, 
+                        contentDescription = null, 
+                        modifier = Modifier.padding(12.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+            }
 
             Column(modifier = Modifier.weight(1f).padding(horizontal = VeneredSpacing.Medium.dp)) {
                 Text(
@@ -90,7 +124,8 @@ fun ConversationItem(conversation: Conversation, onClick: () -> Unit) {
                     text = conversation.lastMessageContent ?: "Empezar chat",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
 
