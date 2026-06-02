@@ -12,6 +12,7 @@ object SharedComponent {
     private val messageRepository by lazy { MessageRepository() }
     private val notificationRepository by lazy { NotificationRepository() }
     private val storyRepository by lazy { StoryRepository() }
+    private val mediaRepository by lazy { MediaRepository() }
 
     // Use Cases - Posts
     private val getFeedPostsUseCase by lazy { GetFeedPostsUseCase(postRepository) }
@@ -47,6 +48,10 @@ object SharedComponent {
     private val createStoryUseCase by lazy { CreateStoryUseCase(storyRepository) }
     private val deleteStoryUseCase by lazy { DeleteStoryUseCase(storyRepository) }
 
+    // Use Cases - Media
+    private val uploadImageUseCase by lazy { UploadImageUseCase(mediaRepository) }
+    private val uploadVideoUseCase by lazy { UploadVideoUseCase(mediaRepository) }
+
     // ViewModels
     fun provideAuthViewModel() = AuthViewModel(
         loginUseCase,
@@ -64,7 +69,9 @@ object SharedComponent {
 
     fun providePostViewModel() = PostViewModel(
         createPostUseCase,
-        deletePostUseCase
+        deletePostUseCase,
+        uploadImageUseCase,
+        uploadVideoUseCase
     )
 
     fun provideSearchViewModel() = SearchViewModel(

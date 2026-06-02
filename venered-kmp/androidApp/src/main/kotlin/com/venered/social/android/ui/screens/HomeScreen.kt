@@ -166,22 +166,40 @@ fun PostCard(post: Post, navController: NavController) {
                     .padding(bottom = VeneredSpacing.Medium.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Avatar (placeholder)
+                // Avatar
                 Surface(
-                    modifier = Modifier
-                        .size(40.dp),
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    modifier = Modifier.size(40.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
-                    // Avatar image would go here
+                    if (post.avatarUrl != null) {
+                        AsyncImage(
+                            model = post.avatarUrl,
+                            contentDescription = post.username,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(8.dp))
+                    }
                 }
 
                 Column(modifier = Modifier.padding(start = VeneredSpacing.Medium.dp)) {
-                    Text(
-                        text = if (post.username.isNotEmpty()) post.username else "Usuario",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (post.username.isNotEmpty()) post.username else "Usuario",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        if (post.isVerified) {
+                            Icon(
+                                Icons.Default.Verified,
+                                contentDescription = "Verificado",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(start = 4.dp).size(14.dp)
+                            )
+                        }
+                    }
                     Text(
                         text = DateTimeFormatter.formatRelativeTime(post.createdAt),
                         fontSize = 12.sp,
@@ -199,6 +217,32 @@ fun PostCard(post: Post, navController: NavController) {
                 )
             }
 
+            // Media
+            post.mediaUrl?.let { url ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                        .padding(bottom = VeneredSpacing.Medium.dp)
+                        .clip(RoundedCornerShape(VeneredCornerRadius.Medium.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    if (post.type == "video") {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            // En el futuro usar un VideoPlayer real
+                            Icon(Icons.Default.PlayCircle, contentDescription = "Video", modifier = Modifier.size(64.dp), tint = Color.White)
+                        }
+                    } else {
+                        AsyncImage(
+                            model = url,
+                            contentDescription = "Post media",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
+
             // Engagement Stats
             Row(
                 modifier = Modifier
@@ -206,13 +250,14 @@ fun PostCard(post: Post, navController: NavController) {
                     .padding(bottom = VeneredSpacing.Medium.dp),
                 horizontalArrangement = Arrangement.spacedBy(VeneredSpacing.Large.dp)
             ) {
-                Text("${post.likesCount} likes", fontSize = 12.sp)
-                Text("${post.commentsCount} comments", fontSize = 12.sp)
+                Text("${post.likesCount} likes", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text("${post.commentsCount} comments", fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
 
             // Actions
+            Divider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(VeneredSpacing.ExtraSmall.dp)
             ) {
                 IconButton(
@@ -222,7 +267,7 @@ fun PostCard(post: Post, navController: NavController) {
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = "Like",
-                        tint = if (isLiked) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onBackground
+                        tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onBackground
                     )
                 }
 
