@@ -1,21 +1,24 @@
 package com.venered.social.presentation.viewmodel
 
 import com.venered.social.data.model.Post
+import com.venered.social.data.model.Story
 import com.venered.social.domain.usecase.*
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 data class HomeFeedState(
     val posts: List<Post> = emptyList(),
+    val stories: List<Story> = emptyList(),
     val isLoading: Boolean = false,
+    val isLoadingStories: Boolean = false,
     val error: String? = null,
     val hasMore: Boolean = true
 )
 
 class HomeFeedViewModel(
     private val getFeedPostsUseCase: GetFeedPostsUseCase,
+    private val getFeedStoriesUseCase: GetFeedStoriesUseCase,
     private val likePostUseCase: LikePostUseCase,
     private val unlikePostUseCase: UnlikePostUseCase
 ) : BaseViewModel() {
@@ -31,7 +34,23 @@ class HomeFeedViewModel(
     }
 
     fun loadInitialFeed() {
+        loadStories()
         loadFeed(reset = true)
+    }
+
+    private fun loadStories() {
+        _state.value = _state.value.copy(isLoadingStories = true)
+        viewModelScope.launch {
+            getFeedStoriesUseCase()
+                .onSuccess { stories ->
+                    _state.value = _state.value.copy(
+                        stories = stories,
+                        isLoadingStories = false
+                    )
+                }.onFailure {
+                    _state.value = _state.value.copy(isLoadingStories = false)
+                }
+        }
     }
 
     fun loadMorePosts() {

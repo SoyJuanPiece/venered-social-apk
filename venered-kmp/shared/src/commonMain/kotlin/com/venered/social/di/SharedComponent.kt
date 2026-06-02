@@ -11,6 +11,7 @@ object SharedComponent {
     private val authRepository by lazy { AuthRepository() }
     private val messageRepository by lazy { MessageRepository() }
     private val notificationRepository by lazy { NotificationRepository() }
+    private val storyRepository by lazy { StoryRepository() }
 
     // Use Cases - Posts
     private val getFeedPostsUseCase by lazy { GetFeedPostsUseCase(postRepository) }
@@ -41,6 +42,11 @@ object SharedComponent {
     private val getNotificationsUseCase by lazy { GetNotificationsUseCase(notificationRepository) }
     private val markNotificationAsReadUseCase by lazy { MarkNotificationAsReadUseCase(notificationRepository) }
 
+    // Use Cases - Stories
+    private val getFeedStoriesUseCase by lazy { GetFeedStoriesUseCase(storyRepository) }
+    private val createStoryUseCase by lazy { CreateStoryUseCase(storyRepository) }
+    private val deleteStoryUseCase by lazy { DeleteStoryUseCase(storyRepository) }
+
     // ViewModels
     fun provideAuthViewModel() = AuthViewModel(
         loginUseCase,
@@ -51,6 +57,7 @@ object SharedComponent {
 
     fun provideHomeFeedViewModel() = HomeFeedViewModel(
         getFeedPostsUseCase,
+        getFeedStoriesUseCase,
         likePostUseCase,
         unlikePostUseCase
     )

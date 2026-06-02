@@ -30,14 +30,23 @@ class AuthRepository {
             setBody(credentials.toString())
         }
 
-        response.body()
+        if (response.status == HttpStatusCode.OK) {
+            response.body<AuthResponse>()
+        } else {
+            // Manejar errores de Supabase (ej: credenciales inválidas)
+            val errorBody = response.body<kotlinx.serialization.json.JsonObject>()
+            val errorMessage = errorBody["error_description"]?.toString()?.replace("\"", "") 
+                ?: errorBody["message"]?.toString()?.replace("\"", "")
+                ?: "Error de autenticación: ${response.status}"
+            throw Exception(errorMessage)
+        }
     }
 
     /**
      * Registrar nuevo usuario
      */
     suspend fun signUp(email: String, password: String, userData: Map<String, String>): Result<AuthResponse> = runCatching {
-        val userData = buildJsonObject {
+        val signUpData = buildJsonObject {
             put("email", email)
             put("password", password)
             put("user_metadata", buildJsonObject {
@@ -47,10 +56,17 @@ class AuthRepository {
 
         val response = client.post("$baseUrl/signup") {
             contentType(ContentType.Application.Json)
-            setBody(userData.toString())
+            setBody(signUpData.toString())
         }
 
-        response.body()
+        if (response.status == HttpStatusCode.OK || response.status == HttpStatusCode.Created) {
+            response.body<AuthResponse>()
+        } else {
+            val errorBody = response.body<kotlinx.serialization.json.JsonObject>()
+            val errorMessage = errorBody["message"]?.toString()?.replace("\"", "") 
+                ?: "Error al registrarse: ${response.status}"
+            throw Exception(errorMessage)
+        }
     }
 
     /**

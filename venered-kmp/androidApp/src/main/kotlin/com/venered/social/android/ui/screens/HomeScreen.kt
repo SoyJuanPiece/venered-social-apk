@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -24,6 +25,8 @@ import com.venered.social.presentation.viewmodel.HomeFeedViewModel
 import com.venered.social.di.SharedComponent
 import com.venered.social.data.model.Post
 import com.venered.social.utils.DateTimeFormatter
+import com.venered.social.android.ui.widgets.StoriesBar
+import com.venered.social.android.ui.widgets.PostSkeleton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,7 +42,7 @@ fun HomeScreen(navController: NavController, userId: String) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Venered") },
+                title = { Text("Venered", fontWeight = FontWeight.Bold) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -58,24 +61,70 @@ fun HomeScreen(navController: NavController, userId: String) {
         }
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
-            if (state.isLoading && state.posts.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+            LazyColumn(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Barra de Historias
+                item {
+                    StoriesBar(
+                        stories = state.stories,
+                        onStoryClick = { /* Ver historia */ },
+                        onAddStoryClick = { /* Añadir historia */ }
+                    )
+                    Divider(
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f),
+                        thickness = 1.dp
+                    )
                 }
-            } else if (state.error != null && state.posts.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "Error: ${state.error}", color = MaterialTheme.colorScheme.error)
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
+
+                if (state.isLoading && state.posts.isEmpty()) {
+                    // Skeletons al cargar
+                    items(5) {
+                        PostSkeleton()
+                    }
+                } else if (state.error != null && state.posts.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillParentMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Error: ${state.error}",
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else if (!state.isLoading && state.posts.isEmpty()) {
+                    // Estado vacío
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillParentMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "La aplicación está vacía",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Haz una publicación para comenzar a conectar con otros.",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Posts del feed
                     items(state.posts) { post ->
                         PostCard(post, navController)
                     }
