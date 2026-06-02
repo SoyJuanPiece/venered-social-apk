@@ -100,6 +100,19 @@ jobs:
           echo "path=$APK_PATH" >> $GITHUB_OUTPUT
           echo "APK found at: $APK_PATH"
 
+      - name: Send APK to Telegram
+        if: success() && github.event_name != 'pull_request'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          APK_FILE="venered-kmp/${{ steps.apk.outputs.path }}"
+          if [ -f "$APK_FILE" ]; then
+            curl -s -F chat_id="${TELEGRAM_CHAT_ID}" -F document=@"${APK_FILE}" -F caption="✅ **Venered KMP Build Successful**" https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument
+          else
+            echo "::error::APK file not found at $APK_FILE"
+          fi
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
