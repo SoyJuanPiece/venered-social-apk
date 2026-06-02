@@ -33,14 +33,18 @@ class StoryRepository {
             put("user_id", userId)
             put("media_url", mediaUrl)
             put("type", type)
-            put("expires_at", (System.currentTimeMillis() + 86400000)) // +24h
+            // Calculamos fecha de expiración en 24h
+            val expiresAt = kotlinx.datetime.Clock.System.now().plus(kotlin.time.Duration.parse("24h"))
+            put("expires_at", expiresAt.toString())
         }
 
         val response = client.post("$baseUrl/stories") {
             contentType(ContentType.Application.Json)
+            header("Prefer", "return=representation")
             setBody(storyData.toString())
         }
-        response.body()
+        val stories: List<Story> = response.body()
+        stories.first()
     }
 
     suspend fun deleteStory(storyId: String): Result<Unit> = runCatching {

@@ -42,9 +42,11 @@ class PostRepository {
 
         val response = client.post("$baseUrl/posts") {
             contentType(ContentType.Application.Json)
+            header("Prefer", "return=representation")
             setBody(postData.toString())
         }
-        response.body()
+        val posts: List<Post> = response.body()
+        posts.first()
     }
 
     suspend fun deletePost(postId: String): Result<Unit> = runCatching {
@@ -89,8 +91,10 @@ class PostRepository {
 
         val response = client.post("$baseUrl/comments") {
             contentType(ContentType.Application.Json)
+            header("Prefer", "return=representation")
             setBody(commentData.toString())
         }
-        response.body()
+        val comments: List<Comment> = response.body()
+        comments.first()
     }
 }
