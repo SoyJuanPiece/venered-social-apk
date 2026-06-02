@@ -64,29 +64,27 @@ fun VeneredNavigation() {
                 }
             )
         }
-composable("main") {
-    MainNavigationScreen(rootNavController, currentUserId.value)
-}
 
-composable("create_post") {
-    CreatePostScreen(rootNavController, currentUserId.value)
-}
-
-composable("story_viewer/{storyId}") { backStackEntry ->
-    val storyId = backStackEntry.arguments?.getString("storyId") ?: ""
-    StoryViewerScreen(rootNavController, storyId)
-}
-
-composable("chat/{conversationId}/{otherUsername}/{otherUserId}") { backStackEntry ->
-    val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
-    val otherUsername = backStackEntry.arguments?.getString("otherUsername") ?: ""
-    val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: ""
-    ChatScreen(conversationId, otherUsername, otherUserId, currentUserId.value, rootNavController)
-}
-
+        composable("main") {
+            MainNavigationScreen(rootNavController, currentUserId.value)
         }
 
-        // External Profile (e.g., from search or post)
+        composable("create_post") {
+            CreatePostScreen(rootNavController, currentUserId.value)
+        }
+
+        composable("story_viewer/{storyId}") { backStackEntry ->
+            val storyId = backStackEntry.arguments?.getString("storyId") ?: ""
+            StoryViewerScreen(rootNavController, storyId)
+        }
+
+        composable("chat/{conversationId}/{otherUsername}/{otherUserId}") { backStackEntry ->
+            val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+            val otherUsername = backStackEntry.arguments?.getString("otherUsername") ?: ""
+            val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: ""
+            ChatScreen(conversationId, otherUsername, otherUserId, currentUserId.value, rootNavController)
+        }
+
         composable("profile/{userId}") { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
             ProfileScreen(userId, rootNavController)

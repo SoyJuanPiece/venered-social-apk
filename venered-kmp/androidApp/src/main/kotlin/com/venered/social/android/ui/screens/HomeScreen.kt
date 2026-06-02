@@ -65,19 +65,19 @@ fun HomeScreen(navController: NavController, userId: String) {
         Box(modifier = Modifier.padding(paddingValues)) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize()
-            // Barra de Historias
-            item {
-                StoriesBar(
-                    stories = state.stories,
-                    onStoryClick = { story ->
-                        navController.navigate("story_viewer/${story.id}")
-                    },
-                    onAddStoryClick = { /* Añadir historia - por ahora a crear post */
-                        navController.navigate("create_post")
-                    }
-                )
-                Divider(
-            ...
+            ) {
+                // Barra de Historias
+                item {
+                    StoriesBar(
+                        stories = state.stories,
+                        onStoryClick = { story ->
+                            navController.navigate("story_viewer/${story.id}")
+                        },
+                        onAddStoryClick = { 
+                            navController.navigate("create_post")
+                        }
+                    )
+                    Divider(
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f),
                         thickness = 1.dp
                     )
@@ -235,7 +235,6 @@ fun PostCard(post: Post, navController: NavController) {
                 ) {
                     if (post.type == "video") {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            // En el futuro usar un VideoPlayer real
                             Icon(Icons.Default.PlayCircle, contentDescription = "Video", modifier = Modifier.size(64.dp), tint = Color.White)
                         }
                     } else {
