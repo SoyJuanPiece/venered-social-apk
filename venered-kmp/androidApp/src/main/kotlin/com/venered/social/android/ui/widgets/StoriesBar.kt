@@ -6,7 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleAvatar
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -89,7 +89,7 @@ fun StoryCircle(
                 .size(64.dp)
                 .then(
                     if (hasActiveStory) {
-                        Modifier.border(2.dp, storyGradient, CircleAvatar)
+                        Modifier.border(2.dp, storyGradient, CircleShape)
                     } else {
                         Modifier
                     }
@@ -98,14 +98,14 @@ fun StoryCircle(
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                shape = CircleAvatar,
+                shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceVariant
             ) {
                 if (imageUrl != null) {
                     AsyncImage(
                         model = imageUrl,
                         contentDescription = username,
-                        modifier = Modifier.fillMaxSize().clip(CircleAvatar),
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
@@ -127,9 +127,9 @@ fun StoryCircle(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .size(20.dp)
-                        .clip(CircleAvatar)
+                        .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
-                        .border(2.dp, MaterialTheme.colorScheme.background, CircleAvatar),
+                        .border(2.dp, MaterialTheme.colorScheme.background, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

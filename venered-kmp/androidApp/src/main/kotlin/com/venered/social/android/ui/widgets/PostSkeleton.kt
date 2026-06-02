@@ -3,7 +3,7 @@ package com.venered.social.android.ui.widgets
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleAvatar
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -61,7 +61,7 @@ fun PostSkeleton() {
             Spacer(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(50))
+                    .clip(CircleShape)
                     .background(brush)
             )
             Column(modifier = Modifier.padding(start = VeneredSpacing.Medium.dp)) {
